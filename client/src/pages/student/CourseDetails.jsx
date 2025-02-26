@@ -174,10 +174,10 @@ const CourseDetails = () => {
                                 <li>
                                     Lifetime access with free updates.
                                 </li>
-                                <li>daomanhtung</li>
-                                <li>daomanhtung</li>
-                                <li>daomanhtung</li>
-                                <li>daomanhtung</li>
+                                <li>Step-by-step, hands-on project guidance.</li>
+                                <li>Downloadable resources and source code.</li>
+                                <li>Quizzes to test your knowledge.</li>
+                                <li>Certificate of completion.</li>
                             </ul>
                         </div>
 
