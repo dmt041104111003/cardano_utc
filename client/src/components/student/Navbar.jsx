@@ -29,7 +29,7 @@ const Navbar = () => {
                             </button>
                             <Link to='/my-enrollments'>My Enrollments</Link>
                             
-                            <Link to='/my-enrollments'>My Cerrtificate</Link>
+                            <Link to='/my-profile'>My profile</Link>
                         </>
                     }
                 </div>

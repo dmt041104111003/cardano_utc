@@ -4,6 +4,7 @@ import { dummyCourses } from '../assets/assets';
 import { useNavigate } from 'react-router-dom';
 import humanizeDuration from 'humanize-duration';
 import { useAuth, useUser } from '@clerk/clerk-react';
+// eslint-disable-next-line react-refresh/only-export-components
 export const AppContext = createContext();
 
 export const AppContextProvider = (props) => {
@@ -15,7 +16,7 @@ export const AppContextProvider = (props) => {
     const { getToken } = useAuth()
     const { user } = useUser()
     const [allCourses, setAllCourses] = useState([]);
-    const [isEducator, setIsEducator] = useState(true);
+    const [isEducator, setIsEducator] = useState(false);
     const [enrolledCourses, setEnrolledCourses] = useState([]);
 
     const fetchAllCourses = async () => {
@@ -72,6 +73,7 @@ export const AppContextProvider = (props) => {
         if (user) {
             logToken()
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user])
     const value = {
         enrolledCourses, setEnrolledCourses, fetchUserEnrolledCourses, calculateChapterTime, calculateCourseDuration, calculateNoOfLectures, currency, allCourses, navigate, calculateRating, isEducator, setIsEducator

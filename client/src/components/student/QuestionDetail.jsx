@@ -41,9 +41,9 @@ const QuestionDetail = ({
       <button
         onClick={onPrev}
         disabled={questionIndex === 0}
-        className="p-2 bg-gray-300 rounded-full disabled:opacity-50 flex items-center justify-center"
+        className="py-2 px-5 bg-blue-500 text-white rounded-full disabled:opacity-50 flex items-center justify-center"
       >   
-        <img src={assets.prev_icon} alt="Previous" className="w-6 h-6" />
+        {/* <img src={assets.prev_icon} alt="Previous" className="w-6 me-2 h-6" /> */}
         Trước
       </button>
 
@@ -51,10 +51,10 @@ const QuestionDetail = ({
       <button
         onClick={onNext}
         disabled={questionIndex === totalQuestions - 1}
-        className="p-2 bg-blue-500 text-white rounded-full disabled:opacity-50 flex items-center justify-center"
+        className="py-2 px-5 bg-blue-500 text-white rounded-full disabled:opacity-50 flex items-center justify-center"
       >
         Tiếp
-        <img src={assets.next_icon} alt="Next" className="w-6 h-6" />      
+        {/* <img src={assets.next_icon} alt="Next" className="w-6 h-6 ms-2" />       */}
       </button>
     </div>
     </div>

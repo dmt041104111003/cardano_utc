@@ -1,12 +1,13 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState,useContext } from 'react';
 import uniqid from 'uniqid';
 import Quill from 'quill';
 import { assets } from '../../assets/assets';
 import * as XLSX from 'xlsx';
+import { AppContext } from '../../context/AppContext';
 
-// Component cho Popup
+
 const Popup = ({ title, onClose, children }) => (
   <div className='fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50'>
     <div className='bg-white text-gray-700 p-4 rounded relative w-full max-w-80'>
@@ -17,7 +18,7 @@ const Popup = ({ title, onClose, children }) => (
   </div>
 );
 
-// Component cho Chapter
+
 const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
   <div className='bg-white border rounded-lg mb-4'>
     <div className='flex justify-between items-center p-4 border-b'>
@@ -49,7 +50,7 @@ const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
   </div>
 );
 
-// Component cho Test
+
 const Test = ({ test, index, handleTest, handleChapter }) => (
   <div className='bg-white border rounded-lg mb-4'>
     <div className='flex justify-between items-center p-4 border-b'>
@@ -80,6 +81,7 @@ const Test = ({ test, index, handleTest, handleChapter }) => (
 );
 
 const AddCourse = () => {
+  const { isEducator } = useContext(AppContext);
   const quillRef = useRef(null);
   const editorRef = useRef(null);
   const [courseTitle, setCourseTitle] = useState('');

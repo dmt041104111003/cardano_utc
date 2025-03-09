@@ -1,9 +1,11 @@
+// eslint-disable-next-line no-unused-vars
 import React from 'react';
 import { Routes, Route, useMatch } from 'react-router-dom';
 import Home from './pages/student/Home.jsx';
 import CoursesList from './pages/student/CoursesList';
 import CourseDetails from './pages/student/CourseDetails';
 import MyEnrollments from './pages/student/MyEnrollments';
+import CertificateDetail from './pages/student/CertificateDetail';
 import Player from './pages/student/Player';
 import Loading from './components/student/Loading';
 import Educator from './pages/educator/Educator';
@@ -14,6 +16,9 @@ import StudentsEnrolled from './pages/educator/StudentsEnrolled';
 import Navbar from './components/student/Navbar.jsx';
 import "quill/dist/quill.snow.css";
 import TestPage from './pages/student/TestPage.jsx';
+import ProfileDetail from './pages/student/ProfileDetail.jsx';
+import NotificationPage from './pages/educator/NotificationPage.jsx';
+
 const App = () => {
 
   const isEducatorRoute = useMatch('/educator/*');
@@ -28,14 +33,19 @@ const App = () => {
         <Route path='/course-list/:input' element={<CoursesList/>} />
         <Route path='/course/:id' element={<CourseDetails/>} />
         <Route path='/my-enrollments' element={<MyEnrollments/>} />
+        <Route path='/certificate-detail' element={<CertificateDetail/>} />
+        <Route path='/my-profile' element={<ProfileDetail/>} />
         <Route path='/player/:courseId' element={<Player/>} />
         <Route path='/loading/:path' element={<Loading/>} />      
         <Route path="/player/:courseId/test/:testId" element={<TestPage />} />
+        
+
         <Route path='/educator' element={<Educator/>}>
           <Route path='/educator' element={<Dashboard/>} />
           <Route path='add-course' element={<AddCourse/>} />
           <Route path='my-courses' element={<MyCourses/>} />
           <Route path='student-enrolled' element={<StudentsEnrolled/>} />
+          <Route path='notification' element={<NotificationPage/>} />
         </Route>
       </Routes>
     </div>

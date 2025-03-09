@@ -8,20 +8,28 @@ import { BrowserRouter } from 'react-router-dom'
 import { ClerkProvider } from '@clerk/clerk-react'
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 import { ToastContainer } from 'react-toastify';
+import { MeshProvider } from "@meshsdk/react";
+import { Buffer } from 'buffer';
+import "@meshsdk/react/styles.css";
+
+
+window.Buffer = Buffer;
 
 if (!PUBLISHABLE_KEY) {
   throw new Error("Missing Publishable Key")
 }
 
 createRoot(document.getElementById('root')).render(
-  <BrowserRouter>  
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl={'/'}> 
-      <AppContextProvider>
-        <ToastContainer />  
-        <App />
-      </AppContextProvider>
-    </ClerkProvider>
-  </BrowserRouter>
+  <MeshProvider>
+    <BrowserRouter>  
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl={'/'}> 
+        <AppContextProvider>
+          <ToastContainer />  
+          <App />
+        </AppContextProvider>
+      </ClerkProvider>
+    </BrowserRouter>
+  </MeshProvider>
 )
 
 

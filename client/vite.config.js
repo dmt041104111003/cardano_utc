@@ -1,8 +1,27 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import inject from '@rollup/plugin-inject';
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  
-})
+  plugins: [
+    react(),
+    inject({
+      Buffer: ['buffer', 'Buffer']  
+    })
+  ],
+  build: {
+    target: 'esnext',
+    minify: 'esbuild',
+  },
+  worker: {
+    format: 'es',
+  },
+  experimental: {
+    wasm: true,
+  },
+  resolve: {
+    alias: {
+      buffer: 'buffer', 
+    }
+  }
+});
