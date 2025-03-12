@@ -1,35 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import inject from '@rollup/plugin-inject';
-import nodePolyfills from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   plugins: [
     react(),
-    nodePolyfills(), // 🔥 Đúng cách import (không dùng NodePolyfills)
     inject({
-      Buffer: ['buffer', 'Buffer'],
-      process: 'process/browser' // 🔥 Fix lỗi process/browser
+      Buffer: ['buffer', 'Buffer'], // Inject Buffer để sử dụng trong trình duyệt
     }),
   ],
   resolve: {
     alias: {
-      buffer: 'buffer',
-      process: 'process/browser',
-    }
+      buffer: 'buffer', // Định nghĩa alias cho buffer
+    },
   },
   define: {
-    global: 'globalThis', // 🔥 Fix lỗi global không tồn tại
+    global: 'globalThis', // Giải quyết vấn đề thiếu `global`
   },
   build: {
     target: 'esnext',
     minify: 'esbuild',
-    sourcemap: true, // 🔍 Giúp debug dễ hơn
-    rollupOptions: {
-      output: {
-        manualChunks: undefined, // 🔥 Giúp tối ưu hóa chunk khi build
-      },
-    },
   },
   worker: {
     format: 'es',
