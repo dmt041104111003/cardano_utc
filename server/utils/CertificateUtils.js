@@ -2,11 +2,7 @@ import { createCanvas, loadImage } from "canvas";
 import axios from "axios";
 import FormData from "form-data";
 import fs from "fs-extra";
-import path from "path";
-import assets from "../assets/assets.js";
-import img from "../public/images/certificate.jpg"
-
-
+import { assets } from "../assets/assets.js";
 
 
 const generateCertificateImage = async (username, dateIssued, issueBy, courseName) => {
@@ -15,14 +11,14 @@ const generateCertificateImage = async (username, dateIssued, issueBy, courseNam
     const ctx = canvas.getContext("2d");
 
     try {
-    
-        const background = await loadImage(img);
+        const backgroundBuffer = fs.readFileSync(assets.certificate_background);
+        const background = await loadImage(backgroundBuffer);
         ctx.drawImage(background, 0, 0, width, height);
-        console.log("Load anh success");
+        console.log("Load ảnh thành công!");
     } catch (error) {
         console.log("Lỗi khi load ảnh:", error);
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, width, height); 
+        ctx.fillRect(0, 0, width, height);
     }
 
     ctx.font = "bold 40px Arial";
@@ -34,13 +30,14 @@ const generateCertificateImage = async (username, dateIssued, issueBy, courseNam
     ctx.fillText(`Ngày cấp: ${dateIssued}`, width / 2, 390);
     ctx.fillText(`Cấp bởi: ${issueBy}`, width / 2, 460);
 
-    const outputPath = path.join("certificates", `${username}_${courseName}.png`);
-    await fs.ensureDir("certificates"); 
+    const outputPath = `certificates/${username}_${courseName}.png`;
+    await fs.promises.mkdir("certificates", { recursive: true });
     const buffer = canvas.toBuffer("image/png");
-    await fs.writeFile(outputPath, buffer);
+    await fs.promises.writeFile(outputPath, buffer);
 
     return outputPath;
 };
+
 
 const uploadToPinata = async (filePath) => {
     try {
