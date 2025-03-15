@@ -1,24 +1,27 @@
+
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
-import React, { useEffect, useRef, useState,useContext } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import uniqid from 'uniqid';
 import Quill from 'quill';
 import { assets } from '../../assets/assets';
 import * as XLSX from 'xlsx';
 import { AppContext } from '../../context/AppContext';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 
-
+// Component cho Popup
 const Popup = ({ title, onClose, children }) => (
   <div className='fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50'>
     <div className='bg-white text-gray-700 p-4 rounded relative w-full max-w-80'>
       <h2 className='text-lg font-semibold mb-4'>{title}</h2>
       {children}
-      <img src={assets.cross_icon} alt="" onClick={onClose} className='absolute top-4 right-4 w-4 cursor-pointer'/>
+      <img src={assets.cross_icon} alt="" onClick={onClose} className='absolute top-4 right-4 w-4 cursor-pointer' />
     </div>
   </div>
 );
 
-
+// Component cho Chapter
 const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
   <div className='bg-white border rounded-lg mb-4'>
     <div className='flex justify-between items-center p-4 border-b'>
@@ -50,7 +53,7 @@ const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
   </div>
 );
 
-
+// Component cho Test
 const Test = ({ test, index, handleTest, handleChapter }) => (
   <div className='bg-white border rounded-lg mb-4'>
     <div className='flex justify-between items-center p-4 border-b'>
@@ -81,9 +84,12 @@ const Test = ({ test, index, handleTest, handleChapter }) => (
 );
 
 const AddCourse = () => {
-  const { isEducator } = useContext(AppContext);
+
+  const { backendUrl, getToken } = useContext(AppContext)
+
   const quillRef = useRef(null);
   const editorRef = useRef(null);
+
   const [courseTitle, setCourseTitle] = useState('');
   const [coursePrice, setCoursePrice] = useState(0);
   const [discount, setDiscount] = useState(0);
@@ -113,15 +119,15 @@ const AddCourse = () => {
       reader.onload = (event) => {
         const data = event.target.result;
         const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0]; 
+        const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }); 
-  
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
         const questions = jsonData.map((row) => ({
           question: row[0],
-          options: row.slice(1), 
+          options: row.slice(1),
         }));
-  
+
         setTestDetail({ ...testDetail, testQuestions: questions });
         console.log(questions);
       };
@@ -169,7 +175,7 @@ const AddCourse = () => {
       setCurrentTestId(testId);
       setShowTestPopup(true);
     } else if (action === 'remove') {
-        console.log(testId);
+      console.log(testId);
       setTest(
         test.map((test) => {
           if (test.testId === testId) {
@@ -244,7 +250,44 @@ const AddCourse = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    try {
+      e.preventDefault();
+      if (!image) {
+        toast.error('Thumbnail Not Selected')
+      }
+
+      const courseData = {
+        courseTitle,
+        courseDescription: quillRef.current.root.innerHTML,
+        coursePrice: Number(coursePrice),
+        discount: Number(discount),
+        courseContent: chapters,
+      }
+
+      const formData = new FormData()
+      formData.append('courseData', JSON.stringify(courseData))
+      formData.append('image', image)
+
+      const token = await getToken()
+      const { data } = await axios.post(backendUrl + '/api/educator/add-course',
+        formData, { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      if (data.success) {
+        toast.success(data.message)
+        setCourseTitle('')
+        setCoursePrice(0)
+        setDiscount(0)
+        setImage(null)
+        setChapters([])
+        quillRef.current.root.innerHTML = ""
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+
   };
 
   useEffect(() => {
@@ -330,15 +373,15 @@ const AddCourse = () => {
               <input type="number" className="mt-1 block w-full border rounded py-1 px-2" value={testDetail.testDuration} onChange={(e) => setTestDetail({ ...testDetail, testDuration: e.target.value })} />
             </div>
             <div className="mb-2">
-                <p>File question</p>
-                <input
-                    type="file"
-                    accept=".xlsx, .xls"
-                    className="mt-1 block w-full border rounded py-1 px-2"
-                    onChange={(e) => handleFileUpload(e)}
-                />
-                </div>
-                            <button onClick={addTest} type='button' className='w-full bg-blue-400 text-white px-4 py-2 rounded'>Add</button>
+              <p>File question</p>
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                className="mt-1 block w-full border rounded py-1 px-2"
+                onChange={(e) => handleFileUpload(e)}
+              />
+            </div>
+            <button onClick={addTest} type='button' className='w-full bg-blue-400 text-white px-4 py-2 rounded'>Add</button>
           </Popup>
         )}
         <button type='submit' className='bg-black text-white w-max py-2.5 px-8 rounded my-4'>ADD</button>
