@@ -18,6 +18,8 @@ import "quill/dist/quill.snow.css";
 import TestPage from './pages/student/TestPage.jsx';
 import ProfileDetail from './pages/student/ProfileDetail.jsx';
 import NotificationPage from './pages/educator/NotificationPage.jsx';
+import EditCourse from './pages/educator/Editcourse.jsx';
+import PaymentPage from './pages/student/PaymentPage.jsx';
 
 const App = () => {
 
@@ -25,27 +27,29 @@ const App = () => {
 
   return (
     <div className='text-default min-h-screen bg-white'>
-      {!isEducatorRoute &&  <Navbar />}
-     
-      <Routes>
-        <Route path='/' element={<Home/>} />
-        <Route path='/course-list' element={<CoursesList/>} />
-        <Route path='/course-list/:input' element={<CoursesList/>} />
-        <Route path='/course/:id' element={<CourseDetails/>} />
-        <Route path='/my-enrollments' element={<MyEnrollments/>} />
-        <Route path='/certificate-detail' element={<CertificateDetail/>} />
-        <Route path='/my-profile' element={<ProfileDetail/>} />
-        <Route path='/player/:courseId' element={<Player/>} />
-        <Route path='/loading/:path' element={<Loading/>} />      
-        <Route path="/player/:courseId/test/:testId" element={<TestPage />} />
-        
+      {!isEducatorRoute && <Navbar />}
 
-        <Route path='/educator' element={<Educator/>}>
-          <Route path='/educator' element={<Dashboard/>} />
-          <Route path='add-course' element={<AddCourse/>} />
-          <Route path='my-courses' element={<MyCourses/>} />
-          <Route path='student-enrolled' element={<StudentsEnrolled/>} />
-          <Route path='notification' element={<NotificationPage/>} />
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/course-list' element={<CoursesList />} />
+        <Route path='/course-list/:input' element={<CoursesList />} />
+        <Route path='/course/:id' element={<CourseDetails />} />
+        <Route path='/my-enrollments' element={<MyEnrollments />} />
+        <Route path='/certificate-detail' element={<CertificateDetail />} />
+        <Route path='/my-profile' element={<ProfileDetail />} />
+        <Route path='/player/:courseId' element={<Player />} />
+        <Route path='/payment/:courseId' element={<PaymentPage />} />
+        <Route path='/loading/:path' element={<Loading />} />
+        <Route path="/player/:courseId/test/:testId" element={<TestPage />} />
+
+
+        <Route path='/educator' element={<Educator />}>
+          <Route path='/educator' element={<Dashboard />} />
+          <Route path='add-course' element={<AddCourse />} />
+          <Route path='my-courses' element={<MyCourses />} />
+          <Route path='student-enrolled' element={<StudentsEnrolled />} />
+          <Route path='notification' element={<NotificationPage />} />
+          <Route path='edit-course' element={<EditCourse />} />
         </Route>
       </Routes>
     </div>

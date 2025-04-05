@@ -12,7 +12,9 @@ const userSchema = new mongoose.Schema(
                 ref: 'Course'
             }
         ],
-    }, 
+        walletAddress: { type: String, required: false  },
+
+    },
     { timestamps: true }
 );
 

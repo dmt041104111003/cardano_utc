@@ -1,15 +1,18 @@
 
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import React from 'react';
+import React, { use } from 'react';
 import { Link } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import CourseCard from './CourseCard';
-import { useContext } from 'react';
-
+import { useContext,useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 const CoursesSection = () => {
-
-    const { allCourses } = useContext(AppContext);
+    // const { allCourses } = useContext(AppContext);
+    const { backendUrl,allCourses ,setAllCourses} = useContext(AppContext);
+   
+    
     return (
         <div className='py-16 md:px-40 px-8'>
             <h2 className='text-3xl font-medium text-gray-800'>Learn & Certify with Confidence

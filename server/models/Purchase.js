@@ -15,7 +15,11 @@ const PurchaseSchema = new mongoose.Schema({
     status: {
         type: String, enum: ['pending', 'completed', 'failed'],
         default: 'pending'
-    }
+    },
+    currency: { type: String,  enum: ["VND", "USD", "ADA"], default: "ADA" }, 
+    paymentMethod: { type: String, required: true }, 
+    note: { type: String }, 
+    createdAt: { type: Date, default: Date.now }, 
 }, { timestamps: true });
 
 export const Purchase = mongoose.model('Purchase', PurchaseSchema)

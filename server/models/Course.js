@@ -31,8 +31,9 @@ const courseSchema = new mongoose.Schema({
     enrolledStudents: [
         { type: String, ref: 'User' }
     ],
-}, { timestamps: true, minimize: false })
+    creatorAddress: { type: String, required: true },
+    txHash: { type: String, required: true },
+}, { timestamps: true, minimize: false });
 
-const Course = mongoose.model('Course', courseSchema)
-
+const Course = mongoose.model('Course', courseSchema);
 export default Course;

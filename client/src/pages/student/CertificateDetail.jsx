@@ -16,7 +16,7 @@ const CertificateDetail = () => {
     issuer: "Học viện Công nghệ Blockchain",
     dateIssued: "05/03/2025",
     blockchain: "Cardano",
-    transactionHash: "0xabc123456789def", 
+    transactionHash: "0xabc123456789def",
   };
 
   useEffect(() => {
@@ -65,10 +65,9 @@ const CertificateDetail = () => {
     <div className="max-w-6xl mx-auto p-6 bg-white mt-1 text-center">
       <h1 className="text-4xl font-semibold mb-6">Chứng chỉ khóa học</h1>
 
-      {/* Chứng chỉ và QR Code: Hiển thị theo hàng dọc trên iPad, hàng ngang trên PC */}
       <div className="flex flex-col md:flex-col lg:flex-row items-center justify-center gap-10">
-        
-        {/* Chứng chỉ */}
+
+      
         <div ref={certificateRef} className="flex-1 max-w-2xl md:w-[80%] lg:w-[70%]">
           {generatedImage ? (
             <img src={generatedImage} alt="Generated Certificate" className="w-full rounded-lg shadow-lg" />
@@ -77,7 +76,7 @@ const CertificateDetail = () => {
           )}
         </div>
 
-        {/* QR Code */}
+     
         <div className="bg-gray-100 p-8 rounded-lg shadow-lg flex flex-col items-center justify-between h-full w-full md:w-[80%] lg:w-96">
           <QRCodeCanvas value={certificate.transactionHash} size={200} />
 

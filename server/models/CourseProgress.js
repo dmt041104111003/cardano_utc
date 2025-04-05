@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
 
 const courseProgressSchema = new mongoose.Schema({
-    userId: { type: String, required: true },
+    userId: {
+        type: String, // Sử dụng ObjectId thay vì String
+        ref: "User", // Tham chiếu tới model User
+        required: true
+    },
     courseId: { type: String, required: true },
     completed: { type: Boolean, required: false },
-    lectureCompleted: []
+    lectureCompleted: [],
 }, { minimize: false });
 
-export const CouseProgress = mongoose.model('CourseProgress', courseProgressSchema) 
+export const CourseProgress = mongoose.model("CourseProgress", courseProgressSchema);

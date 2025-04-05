@@ -1,52 +1,75 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect, useContext } from "react";
 import { useUser } from "@clerk/clerk-react";
-import { useWallet, CardanoWallet } from "@meshsdk/react";
-import { AppContext } from "../../context/AppContext"; // Giả sử bạn có AppContext
+import { CardanoWallet } from "@meshsdk/react";
+import { AppContext } from "../../context/AppContext";
 import axios from "axios";
 import { toast } from "react-toastify";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 const ProfilePage = () => {
   const { user } = useUser();
-  const { connected, wallet, connect, setPersist } = useWallet();
   const [assets, setAssets] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Lấy từ AppContext
   const {
     enrolledCourses,
-    calculateCourseDuration,
-    navigate,
     userData,
     fetchUserEnrolledCourses,
     backendUrl,
     getToken,
     calculateNoOfLectures,
+    calculateCourseDuration,
+    currentWallet,
+    setCurrentWallet,
+    connected, 
+    wallet,
   } = useContext(AppContext);
 
   const [progressArray, setProgressArray] = useState([]);
 
-  // Hàm lấy tài sản từ ví Cardano
-  async function getAssets() {
-    if (wallet) {
-      setLoading(true);
-      setError(null);
-      try {
-        const lovelace = await wallet.getLovelace();
-        const _assets = parseFloat(lovelace) / 1000000;
-        if (_assets.length === 0) {
-          setError("Không có tài sản nào trong ví.");
-        }
-        setAssets(_assets);
-      } catch (err) {
-        setError("Lỗi khi tải tài sản từ ví.");
-      }
-      setLoading(false);
+  useEffect(() => {
+    if (connected && wallet) {
+      setCurrentWallet(wallet);
     }
+  }, [connected, setCurrentWallet]);
+
+  useEffect(() => {
+    if (currentWallet) {
+      getAssets();
+    }
+  }, [currentWallet]);
+
+  async function getAssets() {
+    if (!currentWallet) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const lovelace = await currentWallet.getLovelace();
+      const _assets = parseFloat(lovelace) / 1000000;
+      if (_assets === 0) setError("Không có tài sản nào trong ví.");
+      setAssets(_assets);
+    } catch (err) {
+      setError("Lỗi khi tải tài sản từ ví.");
+    }
+    setLoading(false);
   }
 
-  // Hàm lấy tiến độ khóa học từ API
+  useEffect(() => {
+    if (userData) {
+      fetchUserEnrolledCourses();
+    }
+  }, [userData]);
+
+  useEffect(() => {
+    if (enrolledCourses.length > 0) {
+      getCourseProgress();
+    }
+  }, [enrolledCourses]);
+
   const getCourseProgress = async () => {
     try {
       const token = await getToken();
@@ -70,36 +93,27 @@ const ProfilePage = () => {
     }
   };
 
-  // Lấy danh sách khóa học đã đăng ký khi userData thay đổi
-  useEffect(() => {
-    if (userData) {
-      fetchUserEnrolledCourses();
-    }
-  }, [userData]);
-
-  // Lấy tiến độ khóa học khi enrolledCourses thay đổi
-  useEffect(() => {
-    if (enrolledCourses.length > 0) {
-      getCourseProgress();
-    }
-  }, [enrolledCourses]);
-
-  // Lọc các khóa học đã hoàn thành
-  const completedCourses = enrolledCourses
-    .map((course, index) => ({
-      ...course,
-      progress: progressArray[index],
-    }))
-    .filter(
-      (course) =>
-        course.progress &&
-        course.progress.lectureCompleted === course.progress.totalLectures
-    );
+  const sliderSettings = {
+    dots: true  ,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 3,
+    slidesToScroll: 3,
+    responsive: [
+      {
+        breakpoint: 768,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+        },
+      },
+    ],
+  };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-xl mt-10">
-      {/* Thông tin cá nhân */}
-      <div className="flex items-center justify-between border-b pb-4">
+    
+    <div className="max-w-7xl mx-auto mt-10">
+      <div className="flex items-center justify-between p-6 border rounded-2xl shadow bg-gray-100">
         <div className="flex items-center gap-4">
           <img
             src={user?.imageUrl || "https://via.placeholder.com/100"}
@@ -116,49 +130,35 @@ const ProfilePage = () => {
         <CardanoWallet isDark={true} persist={true} onConnected={getAssets} />
       </div>
 
-      {/* Tài sản trong ví */}
-      {connected && (
-        <>
-          <h3 className="text-xl font-semibold mb-4 mt-4">Tài sản trong ví</h3>
-          <div className="mt-4">
-            {error && <p className="text-red-500 mt-2">{error}</p>}
-            {assets && (
-              <pre className="bg-gray-100 p-4 rounded-md mt-2 overflow-x-auto">
-                <code className="language-js">{JSON.stringify(assets, null, 2)} ada</code>
-              </pre>
-            )}
-          </div>
-        </>
-      )}
+      <div className=" p-4 ">
+          <h3 className="text-xl font-semibold mb-2">Khóa học chờ xét duyệt</h3>
+          <p className="text-gray-600">Hiện tại không có khóa học nào đang chờ xét duyệt.</p>
+        </div>
 
-      {/* Danh sách khóa học đã hoàn thành */}
-      <div className="mt-6">
-        <h3 className="text-xl font-semibold mb-4">Khóa học đã hoàn thành</h3>
-        {completedCourses.length > 0 ? (
-          <table className="w-full border-collapse border rounded-lg overflow-hidden">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border px-4 py-2">Khóa học</th>
-                <th className="border px-4 py-2">Thời lượng</th>
-                <th className="border px-4 py-2">Tiến độ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {completedCourses.map((course) => (
-                <tr key={course._id} className="text-center">
-                  <td className="border px-4 py-2">{course.courseTitle}</td>
-                  <td className="border px-4 py-2">{calculateCourseDuration(course)}</td>
-                  <td className="border px-4 py-2">
-                    {course.progress &&
-                      `${course.progress.lectureCompleted} / ${course.progress.totalLectures} bài giảng`}
-                  </td>
-                </tr>
+      <div className="mt-6 space-y-6">
+        <div className=" p-4 ">
+          <h3 className="text-xl font-semibold mb-2">Khóa học gần đây</h3>
+          <p className="text-gray-600">Chưa có khóa học gần đây.</p>
+        </div>
+
+        <div className=" p-4 ">
+          <h3 className="text-xl font-semibold mb-2">Khóa học đã hoàn thành</h3>
+          {enrolledCourses.length > 0 ? (
+            <Slider {...sliderSettings}>
+              {enrolledCourses.map((course) => (
+                <div key={course._id} className="p-2">
+                  <div className="bg-white p-4 rounded-lg shadow">
+                    <h4 className="font-semibold">{course.courseTitle}</h4>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-gray-600">Bạn chưa hoàn thành khóa học nào.</p>
-        )}
+            </Slider>
+          ) : (
+            <p className="text-gray-600">Chưa có khóa học hoàn thành.</p>
+          )}
+        </div>
+
+        
       </div>
     </div>
   );

@@ -1,12 +1,31 @@
 /* eslint-disable no-unused-vars */
 import React, { useContext } from "react";
 import { AppContext } from "../../context/AppContext";
-
+import axios from "axios";
+import { toast } from "react-toastify";
 const BecomeEducatorPage = () => {
-  const context = useContext(AppContext);
+  const {backendUrl,getToken,setIsEducator} = useContext(AppContext);
 
-  const handleApplyNow = () => {
-    context.setIsEducator(true); 
+  const handleApplyNow = async () => {
+    const token = await getToken();
+      try {
+        const { data } = await axios.get(
+          `${backendUrl}/api/educator/update-role`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        if (data.success) {
+          toast.success("You are now an educator!");
+          window.location.reload();
+          
+        }else{
+          toast.error(data.message);
+
+        }
+      } catch (error) {
+          toast.error(error.message)
+      }
   };
 
   return (

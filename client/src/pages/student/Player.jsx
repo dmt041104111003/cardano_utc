@@ -1,4 +1,3 @@
-
 /* eslint-disable no-unused-vars */
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -241,7 +240,18 @@ const Player = () => {
                     {playerData ? (
                         <div>
 
-                            <YouTube videoId={playerData.lectureUrl.split('/').pop()} iframeClassName='w-full aspect-video' />
+                            <YouTube videoId={playerData.lectureUrl.split('/').pop()} 
+                                opts={{
+                                    width: '100%',
+                                    height: '100%',
+                                    playerVars: {
+                                        autoplay: 0,
+                                        controls: 1,
+                                        playsinline: 1,
+                                        mute: 1
+                                    }
+                                }}
+                                iframeClassName='w-full aspect-video' />
                             <div className='flex justify-between items-center mt-1'>
                                 <p>
                                     {playerData.chapter}.{playerData.lecture}.{playerData.lectureTitle}

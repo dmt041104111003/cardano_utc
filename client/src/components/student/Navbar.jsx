@@ -1,9 +1,10 @@
+/* eslint-disable no-unused-vars */
 import React, { useContext } from 'react';
 import { assets } from "../../assets/assets.js";
-
+import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
+import axios from "axios";
 import { useClerk, UserButton, useUser } from '@clerk/clerk-react'
-import { useLocation } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext.jsx';
 
 const Navbar = () => {
@@ -67,7 +68,7 @@ const Navbar = () => {
                                 {isEducator ? 'Educator Dashboard' : 'Become Educator'}
                             </button>
                             <Link to='/my-enrollments'>My Enrollments</Link>
-                            <Link to='/my-enrollments'>My Cerrtificate</Link>
+                            <Link to='/my-profile'>My Profile</Link>
                         </>
                     }
                 </div>

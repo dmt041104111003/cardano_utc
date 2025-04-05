@@ -42,13 +42,14 @@ import profile_img from './profile_img.png'
 import profile_img2 from './profile_img2.png'
 import profile_img3 from './profile_img3.png'
 import lesson_icon from './lesson_icon.svg'
-import ada_cardano_icon from './ada_cardano_icon.svg' 
-import exam_icon from './exam_icon.svg' 
+import ada_cardano_icon from './ada_cardano_icon.svg'
+import exam_icon from './exam_icon.svg'
 import next_icon from './next_icon.svg'
-import prev_icon from './prev_icon.svg' 
+import prev_icon from './prev_icon.svg'
 import certificate_background from './certificate.jpg'
 import notification_icon from './notifications_24dp.svg'
 import background_educator from './bg_educator.png'
+import edit_icon from './edit_icon.svg'
 
 export const assets = {
     background_educator,
@@ -102,6 +103,7 @@ export const assets = {
     next_icon,
     prev_icon,
     certificate_background,
+    edit_icon,
 }
 
 export const dummyEducatorData = {
@@ -409,7 +411,7 @@ export const dummyCourses = [
                         ],
                         "answer": "break",
                         "questionOrder": 10
-                    },{
+                    }, {
                         "questionId": "question11",
                         "questionText": "What is the correct way to create a function in JavaScript?",
                         "options": [

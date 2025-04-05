@@ -11,6 +11,8 @@ import { ToastContainer } from 'react-toastify';
 import { MeshProvider } from "@meshsdk/react";
 import { Buffer } from 'buffer';
 import "@meshsdk/react/styles.css";
+
+
 window.Buffer = Buffer;
 
 if (!PUBLISHABLE_KEY) {

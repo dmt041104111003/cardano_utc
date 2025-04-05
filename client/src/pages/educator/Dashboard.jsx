@@ -3,20 +3,22 @@ import React, { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { assets, dummyDashboardData } from '../../assets/assets';
 import Loading from '../../components/student/Loading'
+import axios from 'axios'
+import { toast } from 'react-toastify';
 
 const Dashboard = () => {
-
     const [dashboardData, setDashboardData] = useState(null)
     const { currency, backendUrl, isEducator, getToken } = useContext(AppContext)
 
     const fetchDashboardData = async () => {
         try {
             const token = await getToken()
-            const { data } = await axios.get(backendUrl + '/api/educator/dashboard',
+            const { data } = await axios.get(`${backendUrl}/api/educator/dashboard`,
                 { headers: { Authorization: `Bearer ${token}` } }
             )
             if (data.success) {
                 setDashboardData(data.dashboardData)
+                console.log(data.dashboardData)
             } else {
                 toast.error(data.message)
             }
@@ -95,8 +97,6 @@ const Dashboard = () => {
                                 ))}
                             </tbody>
                         </table>
-
-
                     </div>
 
                 </div>

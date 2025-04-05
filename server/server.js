@@ -9,6 +9,10 @@ import connectCloudinary from './configs/cloudinary.js'
 import courseRouter from './routes/courseRoute.js'
 import userRouter from './routes/useRoutes.js'
 import certificateRouter from './routes/certificateRoutes.js'
+import notificationRouter from './routes/notificationRoutes.js'
+import blockchainRouter from './routes/blockchainRoute.js'
+import nftRouter from './routes/nftRoute.js'
+import addressRouter from './routes/addressRoute.js'
 
 const app = express()
 
@@ -32,7 +36,24 @@ app.use('/api/user', express.json(), userRouter)
 
 app.use('/api/certificate', express.json(), certificateRouter)
 
+app.use('/api/notification', express.json(), notificationRouter)
+
+app.use('/api/blockchain', express.json(), blockchainRouter)
+
+app.use('/api/nft', express.json(), nftRouter)
+
+app.use('/api/address', express.json(), addressRouter)
+
 app.post('/stripe', express.raw({ type: 'application/json' }), stripeWebhooks)
+
+app.use((err, req, res, next) => {
+    res.status(500).json({ 
+        success: false, 
+        message: 'Internal server error', 
+        error: err.message 
+    });
+});
+
 const PORT = process.env.PORT || 5000
 
 app.listen(PORT, () => {

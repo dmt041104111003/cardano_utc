@@ -4,8 +4,7 @@ import FormData from "form-data";
 import fs from "fs-extra";
 import { assets } from "../assets/assets.js";
 
-
-const generateCertificateImage = async (username, dateIssued, issueBy, courseName) => {
+const generateCertificateImage = async (username, mintUsername, courseName, issueAt) => {
     const width = 1000, height = 600;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
@@ -27,8 +26,8 @@ const generateCertificateImage = async (username, dateIssued, issueBy, courseNam
 
     ctx.fillText(username || "Người nhận", width / 2, 250);
     ctx.fillText(`Khóa học: ${courseName}`, width / 2, 320);
-    ctx.fillText(`Ngày cấp: ${dateIssued}`, width / 2, 390);
-    ctx.fillText(`Cấp bởi: ${issueBy}`, width / 2, 460);
+    ctx.fillText(`Ngày cấp: ${issueAt}`, width / 2, 390);
+    ctx.fillText(`Cấp bởi: ${mintUsername}`, width / 2, 460);
 
     const outputPath = `certificates/${username}_${courseName}.png`;
     await fs.promises.mkdir("certificates", { recursive: true });
@@ -37,7 +36,6 @@ const generateCertificateImage = async (username, dateIssued, issueBy, courseNam
 
     return outputPath;
 };
-
 
 const uploadToPinata = async (filePath) => {
     try {
@@ -52,12 +50,13 @@ const uploadToPinata = async (filePath) => {
             },
         });
 
-        return response.data.IpfsHash;
+        return response.data;
     } catch (error) {
         console.error("Lỗi khi upload lên Pinata:", error);
         throw error;
     }
 };
+
 const deleteFileAfterUpload = async (filePath) => {
     try {
         await fs.remove(filePath);
@@ -68,4 +67,3 @@ const deleteFileAfterUpload = async (filePath) => {
 };
 
 export { generateCertificateImage, uploadToPinata, deleteFileAfterUpload };
-

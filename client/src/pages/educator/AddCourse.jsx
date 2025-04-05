@@ -1,4 +1,3 @@
-
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
 import React, { useContext, useEffect, useRef, useState } from 'react';
@@ -9,6 +8,7 @@ import * as XLSX from 'xlsx';
 import { AppContext } from '../../context/AppContext';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useWallet } from '@meshsdk/react';
 
 // Component cho Popup
 const Popup = ({ title, onClose, children }) => (
@@ -86,6 +86,7 @@ const Test = ({ test, index, handleTest, handleChapter }) => (
 const AddCourse = () => {
 
   const { backendUrl, getToken } = useContext(AppContext)
+  const { connected, wallet } = useWallet();
 
   const quillRef = useRef(null);
   const editorRef = useRef(null);
@@ -111,6 +112,7 @@ const AddCourse = () => {
     testDuration: '',
     testQuestions: [],
   });
+  const [walletAddress, setWalletAddress] = useState('');
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -250,44 +252,125 @@ const AddCourse = () => {
   };
 
   const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      e.preventDefault();
       if (!image) {
-        toast.error('Thumbnail Not Selected')
+        toast.error('Thumbnail Not Selected');
+        return;
       }
 
+      if (!connected || !wallet) {
+        toast.error('Please connect your wallet first');
+        return;
+      }
+
+      const token = await getToken();
+      const courseId = uniqid();
+      
+      // Get wallet data
+      const addresses = await wallet.getUsedAddresses();
+      if (!addresses || addresses.length === 0) {
+        toast.error('No wallet addresses found');
+        return;
+      }
+      const address = addresses[0];
+
+      const utxos = await wallet.getUtxos();
+      if (!utxos || utxos.length === 0) {
+        toast.error('No UTXOs found in wallet. Please add some ADA to your wallet.');
+        return;
+      }
+
+      const collateral = await wallet.getCollateral();
+      if (!collateral || collateral.length === 0) {
+        toast.error('No collateral found in wallet. Please add collateral.');
+        return;
+      }
+
+      // Create course data for blockchain
       const courseData = {
+        courseId,
         courseTitle,
         courseDescription: quillRef.current.root.innerHTML,
         coursePrice: Number(coursePrice),
         discount: Number(discount),
-        courseContent: chapters,
+        image: image,
+        creatorId: address,
+        createdAt: new Date().toISOString()
+      };
+
+      // Get unsigned transaction
+      console.log('Sending to backend:', { courseData, utxos, collateral, address });
+      
+      const { data: txData } = await axios.post(
+        `${backendUrl}/api/blockchain/create-course-tx`,
+        {
+          courseData,
+          utxos,
+          collateral,
+          address
+        },
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'wallet-address': address
+          } 
+        }
+      );
+
+      console.log('Backend response:', txData);
+
+      if (!txData || !txData.success) {
+        toast.error(txData?.message || 'Failed to create transaction');
+        return;
       }
 
-      const formData = new FormData()
-      formData.append('courseData', JSON.stringify(courseData))
-      formData.append('image', image)
+      // Sign transaction with wallet
+      const signedTx = await wallet.signTx(txData.unsignedTx);
+      const txHash = await wallet.submitTx(signedTx);
 
-      const token = await getToken()
-      const { data } = await axios.post(backendUrl + '/api/educator/add-course',
-        formData, { headers: { Authorization: `Bearer ${token}` } }
-      )
+      if (!txHash) {
+        toast.error('Failed to submit transaction');
+        return;
+      }
+
+      // Create form data for database
+      const formData = new FormData();
+      formData.append('courseData', JSON.stringify({
+        ...courseData,
+        courseContent: chapters,
+        creatorAddress: address, // Add wallet address
+        txHash // Add transaction hash
+      }));
+      formData.append('image', image);
+
+      const { data } = await axios.post(
+        `${backendUrl}/api/educator/add-course`,
+        formData,
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'wallet-address': address
+          } 
+        }
+      );
 
       if (data.success) {
-        toast.success(data.message)
-        setCourseTitle('')
-        setCoursePrice(0)
-        setDiscount(0)
-        setImage(null)
-        setChapters([])
-        quillRef.current.root.innerHTML = ""
+        toast.success('Course created and minted successfully!');
+        setCourseTitle('');
+        setCoursePrice(0);
+        setDiscount(0);
+        setImage(null);
+        setChapters([]);
+        quillRef.current.root.innerHTML = "";
       } else {
-        toast.error(data.message)
+        toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message)
+      console.error('Error in handleSubmit:', error);
+      toast.error(error.response?.data?.message || error.message);
     }
-
   };
 
   useEffect(() => {
@@ -298,9 +381,37 @@ const AddCourse = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (connected && wallet) {
+      wallet.getUsedAddresses().then(addresses => {
+        if (addresses && addresses.length > 0) {
+          setWalletAddress(addresses[0]);
+        }
+      });
+    } else {
+      setWalletAddress('');
+    }
+  }, [connected, wallet]);
+
   return (
     <div className='h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
       <form onSubmit={handleSubmit} className='flex flex-col gap-4 max-w-md w-full text-gray-500'>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Wallet Address
+          </label>
+          <input
+            type="text"
+            value={walletAddress}
+            readOnly
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-100"
+          />
+          {!connected && (
+            <p className="text-red-500 text-xs italic mt-1">
+              Please connect your wallet to create a course
+            </p>
+          )}
+        </div>
         <div className='flex flex-col gap-1'>
           <p>Course Title</p>
           <input onChange={e => setCourseTitle(e.target.value)} value={courseTitle} type="text" placeholder='Type here' className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500' required />
