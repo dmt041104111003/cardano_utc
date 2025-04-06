@@ -55,7 +55,7 @@ const MyCourses = () => {
             // }
 
             setFilteredCourses(filtered);
-            setCurrentPage(1); // Reset to first page when filters change
+            // setCurrentPage(1); // Reset to first page when filters change
         }
     }, [searchQuery, courses]);
 

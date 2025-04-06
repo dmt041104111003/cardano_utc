@@ -290,7 +290,7 @@ const MyEnrollments = () => {
                     course._id.toLowerCase().includes(searchQuery.toLowerCase())
                 );
                 // Reset to page 1 when search query changes
-                setCurrentPage(1);
+                // setCurrentPage(1);
             }
 
             // // Filter by completion status

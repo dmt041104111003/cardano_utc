@@ -80,9 +80,9 @@ const StudentsEnrolled = () => {
             // }
 
             // Chỉ reset trang 1 khi có search query mới
-            if (searchQuery) {
-                setCurrentPage(1);
-            }
+            // if (searchQuery) {
+            //     setCurrentPage(1);
+            // }
             setFilteredStudents(filtered);
         }
     }, [searchQuery, enrolledStudents]);

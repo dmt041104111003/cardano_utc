@@ -54,7 +54,7 @@ const CoursesList = () => {
                 }
 
                 // Chỉ reset trang 1 khi lần đầu load hoặc khi filter thay đổi
-                if (isFirstLoad || searchQuery || showNewest) {
+                if (isFirstLoad ) {
                     setCurrentPage(1);
                 }
                 setFilteredCourses(tempCourses);

@@ -278,9 +278,9 @@ const NotificationPage = () => {
             }
 
             // Chỉ reset trang 1 khi có search query hoặc filter thay đổi
-            if (searchQuery || showCompleted) {
-                setCurrentPage(1);
-            }
+            // if (searchQuery || showCompleted) {
+            //     setCurrentPage(1);
+            // }
             setFilteredNotifications(filtered);
         }
     }, [searchQuery, notifications, showCompleted]);
