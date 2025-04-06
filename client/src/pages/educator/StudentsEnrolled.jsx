@@ -15,7 +15,7 @@ const StudentsEnrolled = () => {
     const [showCompleted, setShowCompleted] = useState(false);
     const itemsPerPage = 8; // Show 8 students per page
 
-    const fetchEnrolledStudents = async () => {
+    const fetchEnrolledStudents = async (isFirstLoad = false) => {
         try {
             const token = await getToken()
             const { data } = await axios.get(backendUrl + '/api/educator/enrolled-students',
@@ -24,7 +24,11 @@ const StudentsEnrolled = () => {
             if (data.success) {
                 const sortedStudents = data.enrolledStudents.reverse();
                 setEnrolledStudents(sortedStudents);
-                setFilteredStudents(sortedStudents);
+                // Chỉ reset trang 1 và filter khi lần đầu load
+                if (isFirstLoad) {
+                    setFilteredStudents(sortedStudents);
+                    setCurrentPage(1);
+                }
             } else {
                 toast.error(data.message)
             }
@@ -33,19 +37,41 @@ const StudentsEnrolled = () => {
         }
     }
 
-    useEffect(() => {
-        if (isEducator) {
-            fetchEnrolledStudents()
+    // Handle visibility change to update students when tab becomes visible
+    const handleVisibilityChange = () => {
+        if (!document.hidden && isEducator) {
+            fetchEnrolledStudents(false);
         }
-    }, [isEducator])
+    };
+
+    useEffect(() => {
+        if (!isEducator) return;
+
+        // Initial fetch with isFirstLoad = true
+        fetchEnrolledStudents(true);
+        
+        // Set up polling interval (every 2 seconds)
+        const intervalId = setInterval(() => fetchEnrolledStudents(false), 2000);
+        
+        // Set up visibility change listener
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // Cleanup
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isEducator]);
 
     useEffect(() => {
         if (enrolledStudents) {
             let filtered = enrolledStudents;
 
-            // Filter by search query
+            // Filter by search query (course title, course ID or student name)
             filtered = filtered.filter(student =>
-                student.courseTitle.toLowerCase().includes(searchQuery.toLowerCase())
+                student.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                student.courseId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                student.student.name.toLowerCase().includes(searchQuery.toLowerCase())
             );
 
             // // Filter by completion status
@@ -53,8 +79,11 @@ const StudentsEnrolled = () => {
             //     filtered = filtered.filter(student => student.progress === 100);
             // }
 
+            // Chỉ reset trang 1 khi có search query mới
+            if (searchQuery) {
+                setCurrentPage(1);
+            }
             setFilteredStudents(filtered);
-            setCurrentPage(1); // Reset to first page when filters change
         }
     }, [searchQuery, enrolledStudents]);
 
@@ -85,10 +114,10 @@ const StudentsEnrolled = () => {
                     </div>
                     <input
                         type="text"
-                        placeholder="Search by course name..."
+                        placeholder="Search by course name, ID or student name..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
                     />
                 </div>
 
@@ -96,16 +125,17 @@ const StudentsEnrolled = () => {
                     <table className='md:table-auto table-fixed w-full overflow-hidden'>
                         <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left">
                             <tr>
-                                <th className="px-4 py-3 font-semibold truncate">#</th>
+                                <th className="px-4 py-3 font-semibold truncate w-16">STT</th>
                                 <th className="px-4 py-3 font-semibold truncate">Student Name</th>
                                 <th className="px-4 py-3 font-semibold truncate">Course Title</th>
+                                <th className="px-4 py-3 font-semibold truncate">Course ID</th>
                                 <th className="px-4 py-3 font-semibold truncate">Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             {paginatedStudents.map((student, index) => (
                                 <tr key={index} className="border-b border-gray-500/20">
-                                    <td className="px-4 py-3">{startIndex + index + 1}</td>
+                                    <td className="px-4 py-3 text-center text-gray-500 text-sm">{startIndex + index + 1}</td>
                                     <td className="px-4 py-3 flex items-center space-x-3">
                                         <img 
                                             src={student.student.imageUrl || dummyStudentEnrolled} 
@@ -115,6 +145,7 @@ const StudentsEnrolled = () => {
                                         <span>{student.student.name}</span>
                                     </td>
                                     <td className="px-4 py-3">{student.courseTitle}</td>
+                                    <td className="px-4 py-3 text-gray-500 text-sm">{student.courseId}</td>
                                     <td className="px-4 py-3">
                                         {new Date(student.purchaseDate).toLocaleDateString()}
                                     </td>

@@ -15,7 +15,7 @@ const NotificationPage = () => {
     const [showCompleted, setShowCompleted] = useState(false);
     const itemsPerPage = 8; // Show 8 notifications per page
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = async (isFirstLoad = false) => {
         if (!userData?._id) return;
 
         try {
@@ -30,7 +30,11 @@ const NotificationPage = () => {
                     new Date(b.createdAt) - new Date(a.createdAt)
                 );
                 setNotifications(sortedNotifications);
-                setFilteredNotifications(sortedNotifications);
+                // Chỉ reset trang 1 và filter khi lần đầu load
+                if (isFirstLoad) {
+                    setFilteredNotifications(sortedNotifications);
+                    setCurrentPage(1);
+                }
             } else {
                 toast.error(data.message);
             }
@@ -39,6 +43,32 @@ const NotificationPage = () => {
             toast.error(error.message);
         }
     };
+
+    // Handle visibility change to update notifications when tab becomes visible
+    const handleVisibilityChange = () => {
+        if (!document.hidden) {
+            fetchNotifications(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!userData?._id) return;
+
+        // Initial fetch
+        fetchNotifications();
+        
+        // Set up polling interval (every 2 seconds)
+        const intervalId = setInterval(fetchNotifications, 2000);
+        
+        // Set up visibility change listener
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // Cleanup
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [userData]);
 
     const handleMintCertificate = async (notification) => {
         if (!notification.data?.walletAddress) {
@@ -215,7 +245,20 @@ const NotificationPage = () => {
 
     useEffect(() => {
         if (isEducator) {
-            fetchNotifications();
+            // Initial fetch with isFirstLoad = true
+            fetchNotifications(true);
+
+            // Set up polling interval (every 2 seconds)
+            const intervalId = setInterval(() => fetchNotifications(false), 2000);
+            
+            // Set up visibility change listener
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // Cleanup
+            return () => {
+                clearInterval(intervalId);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            };
         }
     }, [isEducator, userData?._id]);
 
@@ -234,8 +277,11 @@ const NotificationPage = () => {
                 filtered = filtered.filter(notification => notification.status === 'completed');
             }
 
+            // Chỉ reset trang 1 khi có search query hoặc filter thay đổi
+            if (searchQuery || showCompleted) {
+                setCurrentPage(1);
+            }
             setFilteredNotifications(filtered);
-            setCurrentPage(1); // Reset to first page when filters change
         }
     }, [searchQuery, notifications, showCompleted]);
 
@@ -268,10 +314,10 @@ const NotificationPage = () => {
                     </div>
                     <input
                         type="text"
-                        placeholder="Search by course name..."
+                        placeholder="Search by course name, ID or student name..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
                     />
                 </div>
 
@@ -279,11 +325,17 @@ const NotificationPage = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                                STT
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Student
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Course
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Course ID
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                                 Date
@@ -301,6 +353,9 @@ const NotificationPage = () => {
                             const date = new Date(notification.createdAt).toLocaleDateString();
                             return (
                                 <tr key={notification._id}>
+                                    <td className="px-4 py-3 text-center text-gray-500 text-sm">
+                                        {startIndex + index + 1}
+                                    </td>
                                     <td className="px-4 py-3 whitespace-nowrap flex items-center space-x-2">
                                         {notification.studentId?.avatar && (
                                             <img 
@@ -313,6 +368,9 @@ const NotificationPage = () => {
                                     </td>
                                     <td className="px-4 py-3 truncate">
                                         {notification.courseId?.courseTitle || 'Unknown Course'}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-500 text-sm">
+                                        {notification.courseId?._id || 'N/A'}
                                     </td>
                                     <td className="px-4 py-3 hidden sm:table-cell">
                                         {date}

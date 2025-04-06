@@ -31,13 +31,24 @@ const MyEnrollments = () => {
     const [savingAddress, setSavingAddress] = useState({});
     const [loadingCertificate, setLoadingCertificate] = useState({});
     const [certificateStatus, setCertificateStatus] = useState({});
-    const [sentToEducator, setSentToEducator] = useState({});
+    const [sentToEducator, setSentToEducator] = useState(() => {
+        // Load initial state từ localStorage
+        const saved = localStorage.getItem('sentToEducator');
+        return saved ? JSON.parse(saved) : {};
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredCourses, setFilteredCourses] = useState([]);
     const [showCompleted, setShowCompleted] = useState(false);
     const [showCertified, setShowCertified] = useState(false);
     const itemsPerPage = 7;
+
+    // Hàm update state và lưu vào localStorage 
+    const updateSentToEducator = (courseId) => {
+        const newState = { ...sentToEducator, [courseId]: true };
+        setSentToEducator(newState);
+        localStorage.setItem('sentToEducator', JSON.stringify(newState));
+    };
 
     const getCourseProgress = async () => {
         try {
@@ -111,6 +122,8 @@ const MyEnrollments = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
+            // Lưu state vào localStorage
+            updateSentToEducator(courseId);
             toast.success('Address saved and notification sent to educator!');
         } catch (error) {
             console.error('Error saving address:', error);
@@ -189,7 +202,7 @@ const MyEnrollments = () => {
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
                     if (data.success && data.exists) {
-                        setSentToEducator(prev => ({ ...prev, [course._id]: true }));
+                        updateSentToEducator(course._id);
                     }
                 } catch (error) {
                     console.error(`Error checking address status for course ${course._id}:`, error);
@@ -236,38 +249,65 @@ const MyEnrollments = () => {
     
 
     useEffect(() => {
-        if (userData) {
-            fetchUserEnrolledCourses()
+        if (enrolledCourses) {
+            getCourseProgress();
+            checkAllStatuses();
         }
-    }, [userData])
+    }, [enrolledCourses]);
 
     useEffect(() => {
-        if (enrolledCourses.length > 0) {
-            getCourseProgress()
+        // Initial fetch with isFirstLoad = true
+        fetchUserEnrolledCourses(true);
+        
+        // Set up polling interval (every 2 seconds)
+        const intervalId = setInterval(() => fetchUserEnrolledCourses(false), 2000);
+        
+        // Set up visibility change listener
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // Cleanup
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+    // Handle visibility change to update courses when tab becomes visible
+    const handleVisibilityChange = () => {
+        if (!document.hidden) {
+            fetchUserEnrolledCourses(false);
         }
-    }, [enrolledCourses])
+    };
 
     useEffect(() => {
         if (enrolledCourses) {
             let filtered = enrolledCourses;
 
-            // Filter by search query
-            filtered = filtered.filter(course =>
-                course.courseTitle.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-
-            // Filter by completion status
-            if (showCompleted) {
-                filtered = filtered.filter(course => progressArray.find(p => p.courseId === course._id)?.lectureCompleted === progressArray.find(p => p.courseId === course._id)?.totalLectures);
+            // Filter by search query (title or ID)
+            if (searchQuery) {
+                filtered = filtered.filter(course =>
+                    course.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    course._id.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                // Reset to page 1 when search query changes
+                setCurrentPage(1);
             }
 
-            // Filter by certification status
-            if (showCertified) {
-                filtered = filtered.filter(course => certificateStatus[course._id] === 'completed');
-            }
+            // // Filter by completion status
+            // if (showCompleted) {
+            //     filtered = filtered.filter(course => progressArray.find(p => p.courseId === course._id)?.lectureCompleted === progressArray.find(p => p.courseId === course._id)?.totalLectures);
+            //     // Reset trang 1 khi toggle filter
+            //     setCurrentPage(1);
+            // }
+
+            // // Filter by certification status (Status Send Educator is Successful)
+            // if (showCertified) {
+            //     filtered = filtered.filter(course => sentToEducator[course._id] === true);
+            //     // Reset trang 1 khi toggle filter
+            //     setCurrentPage(1);
+            // }
 
             setFilteredCourses(filtered);
-            setCurrentPage(1); // Reset to first page when filters change
         }
     }, [searchQuery, enrolledCourses, showCompleted, showCertified, progressArray, certificateStatus]);
 
@@ -292,40 +332,26 @@ const MyEnrollments = () => {
                 <div className='flex justify-between items-center mb-4'>
                     <div className='flex items-center gap-4'>
                         <h2 className='text-lg font-medium mt-0'>My Enrollments</h2>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setShowCompleted(!showCompleted)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${showCompleted 
-                                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                            >
-                                {showCompleted ? 'Show All' : 'Show Completed'}
-                            </button>
-                            <button
-                                onClick={() => setShowCertified(!showCertified)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${showCertified 
-                                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                            >
-                                {showCertified ? 'Show All' : 'Show Certified'}
-                            </button>
-                        </div>
+                         
                     </div>
                     <input
                         type="text"
-                        placeholder="Search by course name..."
+                        placeholder="Search by course name or ID..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
                     />
                 </div>
 
                 <table className='md:table-auto table-fixed w-full overflow-hidden border mt-10'>
                     <thead className='text-gray-900 border-b border-gray-500/20 text-sm text-left max-sm:hidden'>
                         <tr>
+                            <th className='px-4 py-3 font-semibold truncate w-16'>STT</th>
+                            <th className='px-4 py-3 font-semibold truncate'>Course ID</th>
                             <th className='px-4 py-3 font-semibold truncate'>Course</th>
-                            <th className='px-4 py-3 font-semibold truncate'>Duration</th>
-                            <th className='px-4 py-3 font-semibold truncate'>Completed</th>
+                           
+                            {/* <th className='px-4 py-3 font-semibold truncate'>Duration</th>
+                            <th className='px-4 py-3 font-semibold truncate'>Completed</th> */}
                             <th className='px-4 py-3 font-semibold truncate'>Status</th>
                             <th className='px-4 py-3 font-semibold truncate'>Actions</th>
                         </tr>
@@ -333,6 +359,12 @@ const MyEnrollments = () => {
                     <tbody>
                         {paginatedCourses.map((course, index) => (
                             <tr key={course._id} className='border-b border-gray-500/20'>
+                                <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm text-center'>
+                                    {startIndex + index + 1}
+                                </td>
+                                <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm'>
+                                    {course._id}
+                                </td>
                                 <td className='md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3'>
                                     <img src={course.courseThumbnail} alt=""
                                         className='w-14 sm:w-24 md:x-28' />
@@ -341,12 +373,13 @@ const MyEnrollments = () => {
                                         <Line strokeWidth={2} percent={course.progress ? (course.progress.lectureCompleted * 100) / course.progress.totalLectures : 0} className='bg-gray-300 rounded-full' />
                                     </div>
                                 </td>
-                                <td className='px-4 py-3 max-sm:hidden'>
+                                
+                                {/* <td className='px-4 py-3 max-sm:hidden'>
                                     {calculateCourseDuration(course)}
                                 </td>
                                 <td className='px-4 py-3 max-sm:hidden'>
                                     {course.progress && `${course.progress.lectureCompleted} / ${course.progress.totalLectures}`}  <span>Lectures</span>
-                                </td>
+                                </td> */}
                                 <td className='px-4 py-3 max-sm:text-right'>
                                     <button 
                                         className={`px-3 sm:px-5 py-1.5 sm:py-2 ${isCompleted(index) ? 'bg-green-600' : 'bg-blue-600'} max-sm:text-xs text-white rounded`} 
@@ -369,10 +402,19 @@ const MyEnrollments = () => {
                                                     </button>
                                                     <button
                                                         onClick={() => handleSaveAddress(course._id)}
-                                                        className="px-3 py-1 rounded-md text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white"
-                                                        disabled={savingAddress[course._id]}
+                                                        className={`px-3 py-1 rounded-md text-xs font-medium ${
+                                                            savingAddress[course._id] || sentToEducator[course._id]
+                                                                ? 'bg-gray-400'
+                                                                : 'bg-orange-500 hover:bg-orange-600'
+                                                        } text-white`}
+                                                        disabled={savingAddress[course._id] || sentToEducator[course._id]}
                                                     >
-                                                        {savingAddress[course._id] ? 'Loading...' : 'Send Educator'}
+                                                        {savingAddress[course._id] 
+                                                            ? 'Loading...' 
+                                                            : sentToEducator[course._id]
+                                                                ? 'Sent'
+                                                                : 'Send Educator'
+                                                        }
                                                     </button>
                                                     <button
                                                         onClick={() => checkCertificateStatus(course._id)}

@@ -13,19 +13,46 @@ const CallToAction = () => {
     const { backendUrl } = useContext(AppContext);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchTopCourses = async () => {
-            try {
-                const response = await axios.get(`${backendUrl}/api/course/top-rated`);
-                if (response.data.success) {
-                    setTopCourses(response.data.courses);
-                }
-            } catch (error) {
-                console.error('Error fetching top courses:', error);
+    const fetchTopCourses = async () => {
+        try {
+            const response = await axios.get(`${backendUrl}/api/course/top-rated`);
+            if (response.data.success) {
+                // Sort by rating
+                const sortedCourses = [...response.data.courses].sort((a, b) => {
+                    const ratingA = a.courseRatings.reduce((acc, curr) => acc + curr.rating, 0) / (a.courseRatings.length || 1);
+                    const ratingB = b.courseRatings.reduce((acc, curr) => acc + curr.rating, 0) / (b.courseRatings.length || 1);
+                    return ratingB - ratingA;
+                });
+                setTopCourses(sortedCourses);
             }
-        };
+        } catch (error) {
+            console.error('Error fetching top courses:', error);
+        }
+    };
+
+    // Handle visibility change to update courses when tab becomes visible
+    const handleVisibilityChange = () => {
+        if (!document.hidden) {
+            fetchTopCourses();
+        }
+    };
+
+    useEffect(() => {
+        // Initial fetch
         fetchTopCourses();
-    }, [backendUrl]);
+        
+        // Set up polling interval (every 2 seconds)
+        const intervalId = setInterval(fetchTopCourses, 2000);
+        
+        // Set up visibility change listener
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // Cleanup
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
 
     return (
         <div className='flex flex-col items-center gap-8 py-16 px-8 md:px-0 bg-gradient-to-b from-white to-gray-50'>
@@ -62,9 +89,10 @@ const CallToAction = () => {
                             <h3 className='font-semibold text-xl mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors'>
                                 {course.courseTitle}
                             </h3>
-                            <p className='text-gray-600 text-sm mb-4'>
+                            <p className='text-gray-600 text-sm mb-2'>
                                 Course by <span className='font-medium'>{course.educator?.name || 'Unknown Educator'}</span>
                             </p>
+                            <p className='text-gray-500 text-xs mb-4'>ID: {course._id}</p>
                             <div className='flex items-center justify-between'>
                                 <div className='flex flex-col'>
                                     <div className='flex items-center gap-2'>

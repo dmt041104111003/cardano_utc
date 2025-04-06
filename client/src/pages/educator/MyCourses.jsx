@@ -43,9 +43,10 @@ const MyCourses = () => {
         if (courses) {
             let filtered = courses;
 
-            // Filter by search query
+            // Filter by search query (course title or ID)
             filtered = filtered.filter(course =>
-                course.courseTitle.toLowerCase().includes(searchQuery.toLowerCase())
+                course.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                course._id.toLowerCase().includes(searchQuery.toLowerCase())
             );
 
             // // Filter by published status
@@ -85,10 +86,10 @@ const MyCourses = () => {
                     </div>
                     <input
                         type="text"
-                        placeholder="Search by course name..."
+                        placeholder="Search by course name or ID..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
                     />
                 </div>
 
@@ -96,7 +97,9 @@ const MyCourses = () => {
                     <table className='md:table-auto table-fixed w-full overflow-hidden'>
                         <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left">
                             <tr>
-                                <th className="px-4 py-3 font-semibold truncate">All Courses</th>
+                                <th className="px-4 py-3 font-semibold truncate w-16 text-center">STT</th>
+                                <th className="px-4 py-3 font-semibold truncate">Course</th>
+                                <th className="px-4 py-3 font-semibold truncate">Course ID</th>
                                 <th className="px-4 py-3 font-semibold truncate">Earnings</th>
                                 <th className="px-4 py-3 font-semibold truncate">Students</th>
                                 <th className="px-4 py-3 font-semibold truncate">Published On</th>
@@ -105,10 +108,12 @@ const MyCourses = () => {
                         <tbody>
                             {paginatedCourses.map((course) => (
                                 <tr key={course._id} className="border-b border-gray-500/20">
+                                    <td className="px-4 py-3 text-center text-gray-500 text-sm">{startIndex + index + 1}</td>
                                     <td className="md:px-4 pl-2 md:p1-4 py-3 flex items-center space-x-3 truncate">
                                         <img src={course.courseThumbnail} alt="Course Image" className="w-16" />
                                         <span className="truncate hidden md:block">{course.courseTitle}</span>
                                     </td>
+                                    <td className="px-4 py-3 text-gray-500 text-sm">{course._id}</td>
                                     <td className="px-4 py-3">
                                         {currency} {Math.floor(course.enrolledStudents.length * 
                                             (course.coursePrice - course.discount * course.coursePrice / 100))}

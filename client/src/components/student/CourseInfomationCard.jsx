@@ -108,6 +108,7 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
         }
         <div className='p-5'>
             <h2 className='font-semibold text-gray-800 text-3xl mb-3'>{courseData.courseTitle}</h2>
+            <p className='text-sm text-gray-500 mb-3'>Course ID: {courseData._id}</p>
 
             <div className='flex items-center space-x-2 mb-3'>
                 <div className='flex items-center gap-1'>

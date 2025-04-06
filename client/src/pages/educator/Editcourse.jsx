@@ -128,6 +128,34 @@ const Test = ({ test, index, handleTest, handleChapter }) => (
     </div>
 );
 
+// Component ConfirmModal
+const ConfirmModal = ({ isOpen, onClose, onConfirm }) => {
+    if (!isOpen) return null;
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+                <h3 className="text-lg font-semibold mb-4">Delete Course</h3>
+                <p className="text-gray-600 mb-6">Are you sure you want to delete this course?</p>
+                <div className="flex justify-end gap-4">
+                    <button 
+                        onClick={onClose}
+                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={onConfirm}
+                        className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const EditCourse = () => {
     const { backendUrl, getToken } = useContext(AppContext);
 
@@ -158,6 +186,7 @@ const EditCourse = () => {
         testDuration: "",
         testQuestions: [],
     });
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Fetch courses
     const fetchCourses = async () => {
@@ -252,56 +281,56 @@ const EditCourse = () => {
         }
     };
 
-    const handleChapter = (action, chapterId) => {
-        if (action === "add") {
-            const title = prompt("Enter Chapter Name:");
-            if (title) {
-                const newChapter = {
-                    chapterId: uniqid(),
-                    chapterTitle: title,
-                    chapterContent: [],
-                    collapsed: false,
-                    chapterOrder: chapters.length > 0 ? chapters[chapters.length - 1].chapterOrder + 1 : 1,
-                };
-                setChapters([...chapters, newChapter]);
-            }
-        } else if (action === "remove") {
-            setChapters(chapters.filter((chapter) => chapter.chapterId !== chapterId));
-        } else if (action === "toggle") {
-            setChapters(
-                chapters.map((chapter) =>
-                    chapter.chapterId === chapterId ? { ...chapter, collapsed: !chapter.collapsed } : chapter
-                )
-            );
-        } else if (action === "test") {
-            const newTest = {
-                testId: uniqid(),
-                testName: "Test",
-                testContent: [],
-                collapsed: false,
-                testOrder: test.length > 0 ? test[test.length - 1].testOrder + 1 : 1,
-            };
-            setTest([...test, newTest]);
-        } else if (action === "removeTest") {
-            setTest(test.filter((t) => t.testId !== chapterId));
-        }
-    };
+    // const handleChapter = (action, chapterId) => {
+    //     if (action === "add") {
+    //         const title = prompt("Enter Chapter Name:");
+    //         if (title) {
+    //             const newChapter = {
+    //                 chapterId: uniqid(),
+    //                 chapterTitle: title,
+    //                 chapterContent: [],
+    //                 collapsed: false,
+    //                 chapterOrder: chapters.length > 0 ? chapters[chapters.length - 1].chapterOrder + 1 : 1,
+    //             };
+    //             setChapters([...chapters, newChapter]);
+    //         }
+    //     } else if (action === "remove") {
+    //         setChapters(chapters.filter((chapter) => chapter.chapterId !== chapterId));
+    //     } else if (action === "toggle") {
+    //         setChapters(
+    //             chapters.map((chapter) =>
+    //                 chapter.chapterId === chapterId ? { ...chapter, collapsed: !chapter.collapsed } : chapter
+    //             )
+    //         );
+    //     } else if (action === "test") {
+    //         const newTest = {
+    //             testId: uniqid(),
+    //             testName: "Test",
+    //             testContent: [],
+    //             collapsed: false,
+    //             testOrder: test.length > 0 ? test[test.length - 1].testOrder + 1 : 1,
+    //         };
+    //         setTest([...test, newTest]);
+    //     } else if (action === "removeTest") {
+    //         setTest(test.filter((t) => t.testId !== chapterId));
+    //     }
+    // };
 
-    const handleTest = (action, testId, testIndex) => {
-        if (action === "add") {
-            setCurrentTestId(testId);
-            setShowTestPopup(true);
-        } else if (action === "remove") {
-            setTest(
-                test.map((t) => {
-                    if (t.testId === testId) {
-                        t.testContent.splice(testIndex, 1);
-                    }
-                    return t;
-                })
-            );
-        }
-    };
+    // const handleTest = (action, testId, testIndex) => {
+    //     if (action === "add") {
+    //         setCurrentTestId(testId);
+    //         setShowTestPopup(true);
+    //     } else if (action === "remove") {
+    //         setTest(
+    //             test.map((t) => {
+    //                 if (t.testId === testId) {
+    //                     t.testContent.splice(testIndex, 1);
+    //                 }
+    //                 return t;
+    //             })
+    //         );
+    //     }
+    // };
 
     const addTest = () => {
         setTest(
@@ -317,21 +346,21 @@ const EditCourse = () => {
         setTestDetail({ testTitle: "", testDuration: "", testQuestions: [] });
     };
 
-    const handleLecture = (action, chapterId, lectureIndex) => {
-        if (action === "add") {
-            setCurrentChapterId(chapterId);
-            setShowPopup(true);
-        } else if (action === "remove") {
-            setChapters(
-                chapters.map((chapter) => {
-                    if (chapter.chapterId === chapterId) {
-                        chapter.chapterContent.splice(lectureIndex, 1);
-                    }
-                    return chapter;
-                })
-            );
-        }
-    };
+    // const handleLecture = (action, chapterId, lectureIndex) => {
+    //     if (action === "add") {
+    //         setCurrentChapterId(chapterId);
+    //         setShowPopup(true);
+    //     } else if (action === "remove") {
+    //         setChapters(
+    //             chapters.map((chapter) => {
+    //                 if (chapter.chapterId === chapterId) {
+    //                     chapter.chapterContent.splice(lectureIndex, 1);
+    //                 }
+    //                 return chapter;
+    //             })
+    //         );
+    //     }
+    // };
 
     const addLecture = () => {
         setChapters(
@@ -398,65 +427,14 @@ const EditCourse = () => {
         }
     };
 
-    // const handleUpdate = async (e) => {
-    //     e.preventDefault();
-    //     try {
-    //         if (!selectedCourseId) {
-    //             return toast.error("No course selected for update");
-    //         }
-    //         if (!quillRef.current || !isQuillReady) {
-    //             return toast.error("Editor is not ready yet. Please wait a moment.");
-    //         }
-
-    //         const courseData = {
-    //             courseTitle,
-    //             courseDescription: quillRef.current.root.innerHTML,
-    //             coursePrice: Number(coursePrice),
-    //             discount: Number(discount),
-    //             courseContent: chapters,
-    //         };
-
-    //         const formData = new FormData();
-    //         formData.append("courseId", selectedCourseId);
-    //         formData.append("courseData", JSON.stringify(courseData));
-    //         if (image) {
-    //             console.log("Image file:", image); // Log file ảnh
-    //             formData.append("image", image); // Field name phải là "image" để khớp với upload.single("image")
-    //         }
-
-    //         // Log dữ liệu gửi đi
-    //         for (let pair of formData.entries()) {
-    //             console.log(pair[0] + ": " + pair[1]);
-    //         }
-
-    //         const token = await getToken();
-    //         const { data } = await axios.put(`${backendUrl}/api/educator/update-course`, formData, {
-    //             headers: { 
-    //                 Authorization: `Bearer ${token}`, 
-    //                 "Content-Type": "multipart/form-data" 
-    //             },
-    //         });
-
-    //         if (data.success) {
-    //             toast.success(data.message);
-    //             fetchCourses();
-    //         } else {
-    //             toast.error(data.message);
-    //         }
-    //     } catch (error) {
-    //         console.error("Error in handleUpdate:", error.response?.data || error.message);
-    //         toast.error(error.response?.data?.message || error.message);
-    //     }
-    // };
-
     const handleDelete = async () => {
         if (!selectedCourseId) {
             return toast.error("No course selected for deletion");
         }
-        if (!window.confirm("Are you sure you want to delete this course?")) return;
+        setShowDeleteConfirm(true);
+    };
 
-        console.log("Deleting course with ID:", selectedCourseId); // Thêm log
-
+    const confirmDelete = async () => {
         try {
             const token = await getToken();
             const { data } = await axios.delete(`${backendUrl}/api/educator/delete-course/${selectedCourseId}`, {
@@ -483,6 +461,7 @@ const EditCourse = () => {
             console.error("Error in handleDelete:", error);
             toast.error(error.message);
         }
+        setShowDeleteConfirm(false);
     };
 
     useEffect(() => {
@@ -509,7 +488,7 @@ const EditCourse = () => {
     return (
         <div className="h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0">
             <div className="w-full">
-                <h1 className="text-2xl font-semibold mb-4">Edit Course</h1>
+                <h1 className="text-2xl font-semibold mb-4">Delete Course</h1>
                 <select
                     className="w-full md:w-1/2 p-2 border rounded mb-4"
                     onChange={(e) => {
@@ -517,7 +496,7 @@ const EditCourse = () => {
                         if (selectedCourse) loadCourseData(selectedCourse);
                     }}
                 >
-                    <option value="">Select a course to edit</option>
+                    <option value="">Select a course to delete</option>
                     {courses.map((course) => (
                         <option key={course._id} value={course._id}>
                             {course.courseTitle}
@@ -535,14 +514,15 @@ const EditCourse = () => {
                                 type="text"
                                 placeholder="Type here"
                                 className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500"
+                                disabled
                                 required
                             />
                         </div>
-                        <div className="flex flex-col gap-1">
+                        {/* <div className="flex flex-col gap-1">
                             <p>Course Description</p>
                             <div ref={editorRef}></div>
                             {!isQuillReady && <p className="text-red-500">Loading editor, please wait...</p>}
-                        </div>
+                        </div> */}
                         <div className="flex items-center justify-between flex-wrap">
                             <div className="flex flex-col gap-1">
                                 <p>Course Price</p>
@@ -552,6 +532,7 @@ const EditCourse = () => {
                                     type="number"
                                     placeholder="0"
                                     className="outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500"
+                                    disabled
                                     required
                                 />
                             </div>
@@ -568,6 +549,7 @@ const EditCourse = () => {
                                         id="thumbnailImage"
                                         onChange={(e) => setImage(e.target.files[0])}
                                         accept="image/*"
+                                        disabled
                                         hidden
                                     />
                                     <img
@@ -593,41 +575,11 @@ const EditCourse = () => {
                                 min={0}
                                 max={100}
                                 className="outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500"
+                                disabled
                                 required
                             />
                         </div>
-                        <div>
-                            {chapters.map((chapter, chapterIndex) => (
-                                <Chapter
-                                    key={chapterIndex}
-                                    chapter={chapter}
-                                    index={chapterIndex}
-                                    handleChapter={handleChapter}
-                                    handleLecture={handleLecture}
-                                />
-                            ))}
-                            <div
-                                className="flex justify-center items-center bg-blue-100 mb-5 p-2 rounded-lg cursor-pointer"
-                                onClick={() => handleChapter("add")}
-                            >
-                                + Add Chapter
-                            </div>
-                            {test.map((testItem, testIndex) => (
-                                <Test
-                                    key={testIndex}
-                                    test={testItem}
-                                    index={testIndex}
-                                    handleTest={handleTest}
-                                    handleChapter={handleChapter}
-                                />
-                            ))}
-                            <div
-                                className="flex justify-center items-center bg-red-100 p-2 mt-3 rounded-lg cursor-pointer"
-                                onClick={() => handleChapter("test")}
-                            >
-                                + Add Test
-                            </div>
-                        </div>
+                       
                         {showPopup && (
                             <Popup title="Add Lecture" onClose={() => setShowPopup(false)}>
                                 <div className="mb-2">
@@ -726,13 +678,13 @@ const EditCourse = () => {
                             </Popup>
                         )}
                         <div className="flex gap-4">
-                            <button
+                            {/* <button
                                 type="submit"
                                 className="bg-blue-500 text-white w-max py-2.5 px-8 rounded my-4"
                                 disabled={!isQuillReady}
                             >
                                 UPDATE
-                            </button>
+                            </button> */}
                             <button
                                 type="button"
                                 onClick={handleDelete}
@@ -744,6 +696,11 @@ const EditCourse = () => {
                     </form>
                 )}
             </div>
+            <ConfirmModal 
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={confirmDelete}
+            />
         </div>
     );
 };

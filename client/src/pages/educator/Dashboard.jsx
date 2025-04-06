@@ -17,8 +17,14 @@ const Dashboard = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             )
             if (data.success) {
-                setDashboardData(data.dashboardData)
-                console.log(data.dashboardData)
+                // Reverse array and take first 5 items
+                const modifiedData = {
+                    ...data.dashboardData,
+                    enrolledStudentsData: [...data.dashboardData.enrolledStudentsData]
+                        .reverse()
+                        .slice(0, 5)
+                };
+                setDashboardData(modifiedData);
             } else {
                 toast.error(data.message)
             }
@@ -27,12 +33,32 @@ const Dashboard = () => {
         }
     }
 
-    useEffect(() => {
-        if (isEducator) {
-            fetchDashboardData()
+    // Handle visibility change to update dashboard when tab becomes visible
+    const handleVisibilityChange = () => {
+        if (!document.hidden && isEducator) {
+            fetchDashboardData();
         }
+    };
 
-    }, [isEducator])
+    useEffect(() => {
+        if (!isEducator) return;
+
+        // Initial fetch
+        fetchDashboardData();
+        
+        // Set up polling interval (every 2 seconds)
+        const intervalId = setInterval(fetchDashboardData, 2000);
+        
+        // Set up visibility change listener
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // Cleanup
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isEducator]);
+
     return dashboardData ? (
         <div className='min-h-screen flex flex-col items-start justify-between gap-8
         md:p-8 md:pb-0 p-4 pt-8 pb-0'>
