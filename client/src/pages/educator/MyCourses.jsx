@@ -106,7 +106,7 @@ const MyCourses = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedCourses.map((course) => (
+                            {paginatedCourses.map((course, index) => (
                                 <tr key={course._id} className="border-b border-gray-500/20">
                                     <td className="px-4 py-3 text-center text-gray-500 text-sm">{startIndex + index + 1}</td>
                                     <td className="md:px-4 pl-2 md:p1-4 py-3 flex items-center space-x-3 truncate">
