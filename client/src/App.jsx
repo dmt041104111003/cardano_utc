@@ -15,7 +15,7 @@ import MyCourses from './pages/educator/MyCourses';
 import StudentsEnrolled from './pages/educator/StudentsEnrolled';
 import Navbar from './components/student/Navbar.jsx';
 import "quill/dist/quill.snow.css";
-import TestPage from './pages/student/TestPage.jsx';
+// import TestPage from './pages/student/TestPage.jsx';
 import ProfileDetail from './pages/student/ProfileDetail.jsx';
 import NotificationPage from './pages/educator/NotificationPage.jsx';
 import EditCourse from './pages/educator/Editcourse.jsx';
@@ -40,7 +40,7 @@ const App = () => {
         <Route path='/player/:courseId' element={<Player />} />
         <Route path='/payment/:courseId' element={<PaymentPage />} />
         <Route path='/loading/:path' element={<Loading />} />
-        <Route path="/player/:courseId/test/:testId" element={<TestPage />} />
+        {/* <Route path="/player/:courseId/test/:testId" element={<TestPage />} /> */}
 
 
         <Route path='/educator' element={<Educator />}>

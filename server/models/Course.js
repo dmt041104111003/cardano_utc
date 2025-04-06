@@ -16,14 +16,33 @@ const chapterSchema = new mongoose.Schema({
     chapterContent: [lectureSchema]
 }, { _id: false });
 
+const questionSchema = new mongoose.Schema({
+    questionText: { type: String, required: true },
+    type: { type: String, enum: ['multiple_choice', 'essay'], required: true },
+    options: [{ type: String }], // Chỉ dùng cho multiple_choice
+    correctAnswers: [{ type: String }], // Mảng các đáp án đúng cho multiple_choice
+    essayAnswer: { type: String }, // Chỉ dùng cho essay
+    note: { type: String } // Note cho câu hỏi
+}, { _id: false });
+
+const testSchema = new mongoose.Schema({
+    testId: { type: String, required: true },
+    chapterNumber: { type: Number, required: true }, // 0: Final test, 1-n: Chapter test
+    duration: { type: Number, required: true }, // Minutes
+    passingScore: { type: Number, required: true }, // Score to pass (%)
+    questions: [questionSchema]
+}, { _id: false });
+
 const courseSchema = new mongoose.Schema({
     courseTitle: { type: String, required: true },
     courseDescription: { type: String, required: true },
     courseThumbnail: { type: String },
-    coursePrice: { type: Number, required: true },
+    coursePrice: { type: Number, required: true, default: 0 },
     isPublished: { type: Boolean, default: true },
-    discount: { type: Number, required: true, min: 0, max: 100 },
+    discount: { type: Number, required: true, min: 0, max: 100, default: 0 },
+    discountEndTime: { type: Date }, // Thời gian kết thúc giảm giá
     courseContent: [chapterSchema],
+    tests: [testSchema],
     courseRatings: [
         { userId: { type: String }, rating: { type: Number, min: 1, max: 5 } }
     ],

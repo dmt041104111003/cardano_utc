@@ -2,18 +2,97 @@
 /* eslint-disable no-unused-vars */
 import React from 'react';
 import { assets } from '../../assets/assets';
+import { useState, useEffect, useContext } from 'react';
+import { AppContext } from '../../context/AppContext';
+import { useNavigate } from 'react-router-dom';
+import { FaStar } from 'react-icons/fa';
+import axios from 'axios';
 
 const CallToAction = () => {
+    const [topCourses, setTopCourses] = useState([]);
+    const { backendUrl } = useContext(AppContext);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchTopCourses = async () => {
+            try {
+                const response = await axios.get(`${backendUrl}/api/course/top-rated`);
+                if (response.data.success) {
+                    setTopCourses(response.data.courses);
+                }
+            } catch (error) {
+                console.error('Error fetching top courses:', error);
+            }
+        };
+        fetchTopCourses();
+    }, [backendUrl]);
+
     return (
-        <div className='flex flex-col items-center gap-4 pt-10 pb-24 px-8 md:px-0'>
-        
-            <h1 className='text-x1 md:text-4xl text-gray-800 font-semibold'>Learn anything, anytime, anywhere</h1>
-            <p className='text-gray-500 sm:text-sm'>Gain skills, earn blockchain-based certifications, and take control of your future.</p>
-            <div className='flex items-center font-medium gap-6 mt-4'>
-                <button className='px-10 py-3 rounded-md text-white bg-blue-600'>Get started</button>
-                <button className='flex items-center gap-2'>Learn more 
-                    <img src={assets.arrow_icon} alt="arrow_icon" /></button>
+        <div className='flex flex-col items-center gap-8 py-16 px-8 md:px-0 bg-gradient-to-b from-white to-gray-50'>
+            <div className='text-center max-w-4xl mx-auto'>
+                <h2 className='text-3xl md:text-4xl font-bold text-gray-800 mb-4'>
+                    Top Rated Courses
+                </h2>
+                <p className='text-gray-600'>
+                    Join thousands of satisfied students in our highest-rated courses
+                </p>
             </div>
+
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl mx-auto'>
+                {topCourses.map((course) => (
+                    <div 
+                        key={course._id}
+                        className='bg-white rounded-xl shadow-lg overflow-hidden group hover:shadow-xl transition-all duration-300'
+                    >
+                        <div className='relative overflow-hidden'>
+                            <img 
+                                src={course.courseThumbnail} 
+                                alt={course.courseTitle}
+                                className='w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300'
+                            />
+                            <div className='absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg'>
+                                <div className='flex items-center gap-1'>
+                                    <FaStar className='text-yellow-500' />
+                                    <span className='font-medium'>{course.rating ? course.rating.toFixed(1) : 'New'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className='p-5'>
+                            <h3 className='font-semibold text-xl mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors'>
+                                {course.courseTitle}
+                            </h3>
+                            <p className='text-gray-600 text-sm mb-4'>
+                                Course by <span className='font-medium'>{course.educator?.name || 'Unknown Educator'}</span>
+                            </p>
+                            <div className='flex items-center justify-between'>
+                                <div className='flex flex-col'>
+                                    <div className='flex items-center gap-2'>
+                                        <span className='text-2xl font-bold text-blue-600'>${course.price}</span>
+                                        {course.hasDiscount && (
+                                            <span className='text-gray-500 text-sm line-through'>${course.originalPrice}</span>
+                                        )}
+                                    </div>
+                                    <span className='text-gray-500 text-sm'>({course.totalRatings || 0} ratings)</span>
+                                </div>
+                                <button 
+                                    onClick={() => navigate(`/course/${course._id}`)}
+                                    className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+                                >
+                                    Learn More
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* <button 
+                onClick={() => navigate('/course-list')}
+                className='mt-8 px-8 py-3 bg-white text-blue-600 border-2 border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium'
+            >
+                View All Courses
+            </button> */}
         </div>
     );
 }

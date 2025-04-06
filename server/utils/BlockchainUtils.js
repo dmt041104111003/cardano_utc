@@ -99,13 +99,16 @@ async function sendAda(utxos, changeAddress, getAddress, value) {
     try {
         const provider = new BlockfrostProvider(blockfrostApiKey);
 
+        // Chuyển value thành chuỗi và đảm bảo nó là số nguyên
+        const lovelaceAmount = Math.floor(Number(value)).toString();
+
         const transactionBuilder = new MeshTxBuilder({
             fetcher: provider,
             verbose: true,
         });
 
         const unsignedTransaction = await transactionBuilder
-            .txOut(`${getAddress}`, [{ unit: "lovelace", quantity: value }])
+            .txOut(`${getAddress}`, [{ unit: "lovelace", quantity: lovelaceAmount }])
             .changeAddress(changeAddress)
             .selectUtxosFrom(utxos)
             .complete();

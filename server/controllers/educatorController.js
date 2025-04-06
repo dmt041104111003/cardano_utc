@@ -3,6 +3,7 @@ import Course from "../models/course.js";
 import { v2 as cloudinary } from "cloudinary";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
+import { bufferToStream } from '../configs/multer.js';
 
 export const updatetoRoleToEducator = async (req, res) => {
     try {
@@ -33,11 +34,31 @@ export const addCourse = async (req, res) => {
         const parsedCourseData = await JSON.parse(courseData);
         parsedCourseData.educator = educatorId;
         const newCourse = await Course.create(parsedCourseData);
-        const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-        newCourse.courseThumbnail = imageUpload.secure_url;
-        await newCourse.save();
 
-        res.json({ success: true, message: "Course Added" });
+        // Tạo stream từ buffer và upload lên Cloudinary
+        return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                { folder: "course_thumbnails" },
+                (error, result) => {
+                    if (error) {
+                        console.error("Upload error:", error);
+                        reject(error);
+                        return;
+                    }
+                    newCourse.courseThumbnail = result.secure_url;
+                    newCourse.save()
+                        .then(() => {
+                            resolve(res.json({ success: true, message: "Course Added" }));
+                        })
+                        .catch(err => {
+                            reject(err);
+                        });
+                }
+            );
+            bufferToStream(imageFile.buffer).pipe(stream);
+        }).catch(error => {
+            res.json({ success: false, message: error.message });
+        });
     } catch (error) {
         res.json({ success: false, message: error.message });
     }
@@ -171,18 +192,29 @@ export const updateCourse = async (req, res) => {
 
         // Xử lý upload ảnh nếu có
         if (imageFile) {
-            console.log("Uploading image:", imageFile.path);
             try {
-                const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
-                    folder: "course_thumbnails",
+                // Tạo stream từ buffer và upload lên Cloudinary
+                await new Promise((resolve, reject) => {
+                    const stream = cloudinary.uploader.upload_stream(
+                        { folder: "course_thumbnails" },
+                        (error, result) => {
+                            if (error) {
+                                console.error("Upload error:", error);
+                                reject(error);
+                                return;
+                            }
+                            course.courseThumbnail = result.secure_url;
+                            resolve();
+                        }
+                    );
+                    bufferToStream(imageFile.buffer).pipe(stream);
                 });
-                course.courseThumbnail = imageUpload.secure_url;
-                console.log("Image uploaded:", imageUpload.secure_url);
+                console.log("Image uploaded:", course.courseThumbnail);
             } catch (uploadError) {
                 console.error("Cloudinary upload error:", uploadError);
                 return res.status(500).json({
                     success: false,
-                    message: "Failed to upload image: " + uploadError.message,
+                    message: "Error uploading image"
                 });
             }
         }

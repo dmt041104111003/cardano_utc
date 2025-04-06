@@ -200,8 +200,14 @@ const EditCourse = () => {
     // Handle file upload for test questions
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
+        if (!file) return;
+
+        const fileType = file.type;
+        const reader = new FileReader();
+        reader.onerror = () => toast.error("Lỗi khi đọc file");
+
+        // Xử lý file Excel
+        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
             reader.onload = (event) => {
                 try {
                     const data = event.target.result;
@@ -216,12 +222,33 @@ const EditCourse = () => {
                     }));
 
                     setTestDetail({ ...testDetail, testQuestions: questions });
+                    toast.success('Tải file Excel thành công');
                 } catch (error) {
-                    toast.error("Error reading file: " + error.message);
+                    toast.error('Lỗi khi đọc file Excel: ' + error.message);
                 }
             };
-            reader.onerror = () => toast.error("Failed to read file");
             reader.readAsBinaryString(file);
+        }
+        // Xử lý file PDF và ảnh
+        else if (fileType.startsWith('image/') || fileType === 'application/pdf') {
+            reader.onload = (event) => {
+                try {
+                    const fileContent = event.target.result;
+                    // Lưu nội dung file vào state
+                    setTestDetail({
+                        ...testDetail,
+                        fileContent: fileContent,
+                        fileType: fileType,
+                        fileName: file.name
+                    });
+                    toast.success('Tải file thành công');
+                } catch (error) {
+                    toast.error('Lỗi khi đọc file: ' + error.message);
+                }
+            };
+            reader.readAsDataURL(file);
+        } else {
+            toast.error('Loại file không được hỗ trợ');
         }
     };
 
@@ -684,7 +711,7 @@ const EditCourse = () => {
                                     <p>File question</p>
                                     <input
                                         type="file"
-                                        accept=".xlsx, .xls"
+                                        accept=".xlsx, .xls, .pdf, .png, .jpg, .jpeg"
                                         className="mt-1 block w-full border rounded py-1 px-2"
                                         onChange={handleFileUpload}
                                     />

@@ -19,12 +19,30 @@ const CourseDetails = () => {
     const [openSections, setOpenSections] = useState({});
     const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
     const [playerData, setPlayerData] = useState(null);
+    const [timeLeft, setTimeLeft] = useState('');
     
-    
-
     const {  calculateRating, calculateChapterTime,
         calculateCourseDuration, calculateNoOfLectures, userData, backendUrl,
         getToken } = useContext(AppContext);
+
+    const calculateTimeLeft = (endTime) => {
+        const now = new Date();
+        const end = new Date(endTime);
+        const diff = end - now;
+
+        if (diff <= 0) return '';
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        let timeString = '';
+        if (days > 0) timeString += `${days} days `;
+        if (hours > 0) timeString += `${hours} hours `;
+        if (minutes > 0) timeString += `${minutes} minutes`;
+
+        return timeString.trim();
+    };
 
         
     const fetchCourseData = async () => {
@@ -50,8 +68,20 @@ const CourseDetails = () => {
 
     useEffect(() => {
         if (userData && courseData) {
-            setIsAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id))
-            console.log(isAlreadyEnrolled)
+            setIsAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id));
+            console.log(isAlreadyEnrolled);
+        }
+
+        // Update time left
+        if (courseData?.discount > 0 && courseData?.discountEndTime) {
+            setTimeLeft(calculateTimeLeft(courseData.discountEndTime));
+            
+            // Update every minute
+            const timer = setInterval(() => {
+                setTimeLeft(calculateTimeLeft(courseData.discountEndTime));
+            }, 60000);
+
+            return () => clearInterval(timer);
         }
     }, [userData, courseData])
 
@@ -69,105 +99,102 @@ const CourseDetails = () => {
                 <div className='absolute top-0 left-0 w-full h-section-height bg-gradient-to-b from-cyan-100/70'></div>
                 
                 <div className='max-w-xl z-10 text-gray-500'>
-                    <h1 className='md:text-course-deatails-heading-large
-                text-course-deatails-heading-small font-semibold text-gray-800'>{courseData.courseTitle}</h1>
-                    <p className='pt-4 md:text-base text-sm'
-                        dangerouslySetInnerHTML={{ __html: courseData.courseDescription.slice(0, 200) }}></p>
-
-                    <div className='flex items-center space-x-2 pt-3 pb-1 text-sm'>
-                        <p>{calculateRating(courseData)}</p>
-                        <div className='flex'>
-                            {[...Array(5)].map((_, i) => <img key={i} src={i < Math.floor(calculateRating(courseData)) ? assets.star : assets.star_blank} alt='' className='w-3.5 h-3.5' />)}
-                        </div>
-                        <p className='text-blue-600'>{courseData.courseRatings.length} {courseData.courseRatings.length > 1 ? 'ratings' : 'rating'}</p>
-
-                        <p>{courseData.enrolledStudents.length} {courseData.enrolledStudents.length > 1 ? 'students' : 'student'}</p>
-                    </div>
-
-                    <p className='text-sm'>Course by <span className='text-blue-600 underline'>{courseData.educator.name}</span></p>
-
-                    <div className='pt-8 text-gray-800'>
-                        <h2 className='text-xl font-semibold'>Course Structure</h2>
-
-                        <div className='pt-5'>
-                            {courseData.courseContent.map((chapter, index) => (
-                                <div key={index} className='border border-gray-300 bg-white mb-2 rounded'>
-                                    <div className='flex items-center justify-between px-4 py-3 cursor-pointer select-none'
-                                        onClick={() => toggleSection(index)}>
-                                        <div className='flex items-center gap-2'>
-                                            <img className={`transform transition-transform ${openSections[index] ? 'rotate-180' : ''}`}
-                                                src={assets.down_arrow_icon} alt="arrow icon" />
-                                            <p className='font-medium md:text-base text-sm'>{chapter.chapterTitle}</p>
+                    <div className='bg-white rounded-lg shadow-md p-6'>
+                        <div className='mb-8'>
+                            <h2 className='text-xl font-semibold text-gray-800 mb-4'>Course Structure</h2>
+                            <div className='space-y-3'>
+                                {courseData.courseContent.map((chapter, index) => (
+                                    <div key={index} className='border border-gray-200 rounded-lg overflow-hidden'>
+                                        <div className='flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer select-none'
+                                            onClick={() => toggleSection(index)}>
+                                            <div className='flex items-center gap-2'>
+                                                <img className={`transform transition-transform ${openSections[index] ? 'rotate-180' : ''}`}
+                                                    src={assets.down_arrow_icon} alt="arrow icon" />
+                                                <p className='font-medium md:text-base text-sm'>{chapter.chapterTitle}</p>
+                                            </div>
+                                            <p className='text-sm md:text-default'>{chapter.chapterContent.length} lectures - {calculateChapterTime(chapter)}</p>
                                         </div>
-                                        <p className='text-sm md:text-default'>{chapter.chapterContent.length} lectures - {calculateChapterTime(chapter)}</p>
-                                    </div>
 
 
-                                    <div className={`overflow-hidden transition-all duration-300 ${openSections[index] ? 'max-h-96' : 'max-h-0'}`}>
-                                        <ul className='list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300'>
-                                            {chapter.chapterContent.map((lecture, i) => (
-                                                <li className='flex items-start gap-2 py-1' key={i}>
-                                                    <img src={assets.play_icon} alt="play icon"
-                                                        className='w-4 h-4 mt-1' />
-                                                    <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default'>
-                                                        <p>{lecture.lectureTitle}</p>
-                                                        <div className='flex gap-2'>
-                                                            {lecture.isPreviewFree && <p
-                                                                onClick={() => setPlayerData({
-                                                                    videoId: lecture.lectureUrl.split('/').pop()
-                                                                })}
-                                                                className='text-blue-500 cursor-pointer'>Preview</p>}
-                                                            <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'] })}</p>
+                                        <div className={`overflow-hidden transition-all duration-300 ${openSections[index] ? 'max-h-96' : 'max-h-0'}`}>
+                                            <ul className='list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-200'>
+                                                {chapter.chapterContent.map((lecture, i) => (
+                                                    <li className='flex items-start gap-2 py-1' key={i}>
+                                                        <img src={assets.play_icon} alt="play icon"
+                                                            className='w-4 h-4 mt-1' />
+                                                        <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default'>
+                                                            <p>{lecture.lectureTitle}</p>
+                                                            <div className='flex gap-2'>
+                                                                {lecture.isPreviewFree && <p
+                                                                    onClick={() => setPlayerData({
+                                                                        videoId: lecture.lectureUrl.split('/').pop()
+                                                                    })}
+                                                                    className='text-blue-500 cursor-pointer'>Preview</p>}
+                                                                <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'] })}</p>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className='mt-8'>
+                            <h2 className='text-xl font-semibold text-gray-800 mb-4'>Course Tests</h2>
+                            {courseData.tests && courseData.tests.length > 0 ? (
+                                <div className='space-y-4'>
+                                    {courseData.tests.map((test, index) => (
+                                        <div key={index} className='bg-white p-4 rounded-lg border border-gray-200'>
+                                            <h4 className='font-semibold text-lg mb-2'>
+                                                {test.chapterNumber === 0 ? 'Final Test' : `Chapter ${test.chapterNumber} Test`}
+                                            </h4>
+                                            <div className='text-gray-600'>
+                                                <p>Duration: {test.duration} minutes</p>
+                                                <p>Passing Score: {test.passingScore}%</p>
+                                                <p>Number of Questions: {test.questions?.length || 0}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className='text-gray-500'>No tests available for this course</p>
+                            )}
+                        </div>
+
+                        <div className='mt-8'>
+                            <h2 className='text-xl font-semibold text-gray-800 mb-4'>Course Creator</h2>
+                            <div className='bg-white p-4 rounded-lg border border-gray-200'>
+                                <div className='flex flex-col gap-2'>
+                                    <div className='flex items-center gap-2'>
+                                        <div>
+                                            <p className='font-medium'>{courseData?.creator?.name || 'Anonymous'}</p>
+                                            <p className='text-sm text-gray-500'>Creator</p>
+                                        </div>
+                                    </div>
+                                    <div className='mt-2'>
+                                        <p className='text-sm text-gray-600 font-medium'>Wallet Address:</p>
+                                        <p className='text-sm break-all bg-gray-50 p-2 rounded mt-1' title={courseData?.creatorAddress}>
+                                            {courseData?.creatorAddress}
+                                        </p>
+                                    </div>
+                                    <div className='mt-2'>
+                                        <p className='text-sm text-gray-600 font-medium'>Transaction Hash:</p>
+                                        <a 
+                                            href={`https://preprod.cardanoscan.io/transaction/${courseData?.txHash}`} 
+                                            target='_blank' 
+                                            rel='noopener noreferrer'
+                                            className='text-sm text-blue-600 hover:text-blue-800 break-all bg-gray-50 p-2 rounded mt-1 block'
+                                        >
+                                            {courseData?.txHash}
+                                        </a>
                                     </div>
                                 </div>
-                            ))}
+                            </div>
                         </div>
                     </div>
-
-                    <div className='py-20 text-sm md:text-default'>
-                        <h3 className='text-xl font-semibold text-gray-800 '>Course Description</h3>
-                        <p className='pt-3 rich-text'
-                            dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}></p>
-
-                    </div>
-                </div>
-
-                {/* Course Creator Info */}
-                <div className="mt-6 p-4 bg-white rounded-lg shadow">
-                  <h3 className="text-lg font-semibold mb-2">Course Creator</h3>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      {/* <img src={assets.user} alt="Creator" className="w-10 h-10 rounded-full" /> */}
-                      <div>
-                        <p className="font-medium">{courseData?.creator?.name || 'Anonymous'}</p>
-                        <p className="text-sm text-gray-500">Creator</p>
-                      </div>
-                    </div>
-                    {/* Wallet Address */}
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600 font-medium">Wallet Address:</p>
-                      <p className="text-sm break-all bg-gray-50 p-2 rounded mt-1" title={courseData?.creatorAddress}>
-                        {courseData?.creatorAddress}
-                      </p>
-                    </div>
-                    {/* Transaction Hash */}
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-600 font-medium">Transaction Hash:</p>
-                      <a 
-                        href={`https://preprod.cardanoscan.io/transaction/${courseData?.txHash}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:text-blue-800 break-all bg-gray-50 p-2 rounded mt-1 block"
-                      >
-                        {courseData?.txHash}
-                      </a>
-                    </div>
-                  </div>
                 </div>
 
                 <CourseInformationCard 

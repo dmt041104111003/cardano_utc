@@ -21,6 +21,364 @@ const Popup = ({ title, onClose, children }) => (
   </div>
 );
 
+// Component cho Question
+const Question = ({ question, index, onDelete }) => (
+  <div className='bg-gray-50 p-4 mb-2 rounded'>
+    <div className='flex justify-between items-center'>
+      <span className='font-medium'>Question {index + 1} ({question.type === 'multiple_choice' ? 'Multiple Choice' : 'Essay'})</span>
+      <div>
+        <button onClick={() => onDelete(index)} className='text-red-500'>Delete</button>
+      </div>
+    </div>
+    <p className='mt-2'>{question.questionText}</p>
+    {question.type === 'multiple_choice' ? (
+      <div className='ml-4 mt-2'>
+        {question.options.map((option, i) => (
+          <div 
+            key={i}
+            className={question.correctAnswers.includes(i) ? 'text-green-600' : ''}
+          >
+            {String.fromCharCode(65 + i)}. {option}
+          </div>
+        ))}
+        <p className='mt-2 text-sm text-gray-600'>
+          Correct Answers: {question.correctAnswers.map(index => String.fromCharCode(65 + index)).join(', ')}
+        </p>
+        {question.note && (
+          <p className='mt-1 text-sm text-gray-600 italic'>
+            Note: <span className='text-red-500'>{question.note}</span>
+          </p>
+        )}
+      </div>
+    ) : (
+      <div className='ml-4 mt-2 text-gray-600'>
+        <p>Sample Answer: {question.essayAnswer}</p>
+      </div>
+    )}
+  </div>
+);
+
+// Component cho Test
+const Test = ({ test, onDelete, testNumber }) => {
+  const [testSettings, setTestSettings] = useState({
+    duration: test.duration,
+    passingScore: test.passingScore
+  });
+
+  useEffect(() => {
+    // Cập nhật testSettings khi test thay đổi
+    setTestSettings({
+      duration: test.duration,
+      passingScore: test.passingScore
+    });
+  }, [test.duration, test.passingScore]);
+
+  const [currentQuestion, setCurrentQuestion] = useState({
+    questionText: '',
+    type: 'multiple_choice',
+    options: ['', ''], 
+    correctAnswers: [], 
+    essayAnswer: '',
+    note: ''
+  });
+
+  const [autoAddNote, setAutoAddNote] = useState(true);
+
+  const handleAddQuestion = () => {
+    const questionToAdd = {
+      ...currentQuestion,
+      ...(currentQuestion.type === 'multiple_choice' 
+        ? { essayAnswer: undefined } 
+        : { options: undefined, correctAnswers: undefined }
+      )
+    };
+
+    const updatedTest = {
+      ...test,
+      questions: [...test.questions, questionToAdd]
+    };
+    onDelete(test.testId, undefined, updatedTest);
+    setCurrentQuestion({
+      questionText: '',
+      type: 'multiple_choice',
+      options: ['', ''], 
+      correctAnswers: [],
+      essayAnswer: '',
+      note: ''
+    });
+  };
+
+  const handleCorrectAnswerChange = (index, isChecked) => {
+    setCurrentQuestion(prev => {
+      const newCorrectAnswers = isChecked 
+        ? [...prev.correctAnswers, index]
+        : prev.correctAnswers.filter(i => i !== index);
+      
+      return {
+        ...prev,
+        correctAnswers: newCorrectAnswers,
+        // Xóa note nếu chỉ còn 1 đáp án đúng
+        note: newCorrectAnswers.length <= 1 ? '' : (
+          autoAddNote 
+            ? 'This question requires selecting multiple correct answers'
+            : prev.note
+        )
+      };
+    });
+  };
+
+  const handleAddOption = () => {
+    if (currentQuestion.options.length < 10) { 
+      setCurrentQuestion(prev => ({
+        ...prev,
+        options: [...prev.options, '']
+      }));
+    }
+  };
+
+  const handleRemoveOption = (indexToRemove) => {
+    if (currentQuestion.options.length > 2) { 
+      setCurrentQuestion(prev => ({
+        ...prev,
+        options: prev.options.filter((_, index) => index !== indexToRemove),
+        correctAnswers: prev.correctAnswers
+          .filter(index => index !== indexToRemove) 
+          .map(index => index > indexToRemove ? index - 1 : index) 
+      }));
+    }
+  };
+
+  const handleDeleteQuestion = (index) => {
+    const newQuestions = [...test.questions];
+    newQuestions.splice(index, 1);
+    const updatedTest = {
+      ...test,
+      questions: newQuestions
+    };
+    onDelete(test.testId, undefined, updatedTest);
+  };
+
+  return (
+    <div className='bg-white p-4 rounded-lg shadow mb-4'>
+      <div className='flex justify-between items-center mb-4'>
+        <div>
+          <h3 className='font-semibold'>
+            {test.chapterNumber === 0 ? `Final Test ${testNumber}` : `Chapter ${test.chapterNumber} Test ${testNumber}`}
+          </h3>
+          <p className='text-gray-600'>
+            Duration: {testSettings.duration} minutes - Passing Score: {testSettings.passingScore}%
+          </p>
+        </div>
+        <button 
+          onClick={() => onDelete(test.testId)}
+          className='text-red-500'
+        >
+          <img src={assets.cross_icon} alt="" className='w-4 h-4' />
+        </button>
+      </div>
+
+      <div className='space-y-4'>
+        {test.questions.map((question, index) => (
+          <Question 
+            key={index} 
+            question={question} 
+            index={index} 
+            onDelete={() => handleDeleteQuestion(index)} 
+          />
+        ))}
+
+        <div className='bg-gray-50 p-4 rounded'>
+          <div className='space-y-4'>
+            <div>
+              <label className='block mb-1'>Question Type</label>
+              <select
+                value={currentQuestion.type}
+                onChange={(e) => setCurrentQuestion({ 
+                  ...currentQuestion, 
+                  type: e.target.value,
+                  options: e.target.value === 'multiple_choice' ? ['', ''] : undefined,
+                  correctAnswers: [],
+                  essayAnswer: ''
+                })}
+                className='w-full border rounded p-2'
+              >
+                <option value="multiple_choice">Multiple Choice</option>
+                <option value="essay">Essay</option>
+              </select>
+            </div>
+
+            <div>
+              <label className='block mb-1'>Question</label>
+              <input
+                type='text'
+                value={currentQuestion.questionText}
+                onChange={(e) => setCurrentQuestion({ ...currentQuestion, questionText: e.target.value })}
+                className='w-full border rounded p-2'
+                placeholder='Enter question'
+              />
+            </div>
+
+            {currentQuestion.type === 'multiple_choice' ? (
+              <>
+                <div>
+                  <label className='block mb-1'>Options</label>
+                  {currentQuestion.options.map((option, index) => (
+                    <div key={index} className='flex items-center mb-2'>
+                      <span className='mr-2'>{String.fromCharCode(65 + index)}.</span>
+                      <input
+                        type='text'
+                        value={option}
+                        onChange={(e) => {
+                          const newOptions = [...currentQuestion.options];
+                          newOptions[index] = e.target.value;
+                          setCurrentQuestion({ ...currentQuestion, options: newOptions });
+                        }}
+                        className='flex-1 border rounded p-2'
+                        placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                      />
+                      <input
+                        type='checkbox'
+                        checked={currentQuestion.correctAnswers.includes(index)}
+                        onChange={(e) => handleCorrectAnswerChange(index, e.target.checked)}
+                        className='ml-2 w-5 h-5'
+                        disabled={!option}
+                      />
+                      {currentQuestion.options.length > 2 && (
+                        <button 
+                          onClick={() => handleRemoveOption(index)}
+                          className='ml-2 text-red-500 hover:text-red-700'
+                        >
+                          <img src={assets.cross_icon} alt="" className='w-4 h-4' />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {currentQuestion.options.length < 10 && (
+                    <button
+                      type='button'
+                      onClick={handleAddOption}
+                      className='mt-2 text-blue-500 hover:text-blue-700'
+                    >
+                      + Add Option {String.fromCharCode(65 + currentQuestion.options.length)}
+                    </button>
+                  )}
+                  <p className='text-sm text-gray-600 mt-1'>Check the boxes next to correct answers</p>
+                  
+                  {/* Checkbox để bật/tắt tự động thêm note - chỉ enable khi có nhiều đáp án đúng */}
+                  <div className='flex items-center mt-2'>
+                    <input
+                      type='checkbox'
+                      checked={autoAddNote}
+                      onChange={(e) => {
+                        setAutoAddNote(e.target.checked);
+                        if (!e.target.checked) {
+                          setCurrentQuestion(prev => ({
+                            ...prev,
+                            note: ''
+                          }));
+                        } else if (currentQuestion.correctAnswers.length > 1) {
+                          setCurrentQuestion(prev => ({
+                            ...prev,
+                            note: 'This question requires selecting multiple correct answers'
+                          }));
+                        }
+                      }}
+                      className='mr-2'
+                      disabled={currentQuestion.correctAnswers.length <= 1}
+                    />
+                    <label className={`text-sm ${currentQuestion.correctAnswers.length <= 1 ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Auto add note for multiple correct answers
+                    </label>
+                  </div>
+
+                  {/* Input để nhập/sửa note - chỉ enable khi có nhiều đáp án đúng */}
+                  <div className='mt-2'>
+                    <label className={`block mb-1 text-sm ${currentQuestion.correctAnswers.length <= 1 ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Note (optional)
+                    </label>
+                    <input
+                      type='text'
+                      value={currentQuestion.note}
+                      onChange={(e) => setCurrentQuestion(prev => ({
+                        ...prev,
+                        note: e.target.value
+                      }))}
+                      className={`w-full border rounded p-2 ${currentQuestion.correctAnswers.length <= 1 ? 'bg-gray-100' : 'text-red-500'}`}
+                      placeholder='Add a note for this question'
+                      disabled={currentQuestion.correctAnswers.length <= 1}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className='block mb-1'>Sample Answer</label>
+                <textarea
+                  value={currentQuestion.essayAnswer}
+                  onChange={(e) => setCurrentQuestion({ ...currentQuestion, essayAnswer: e.target.value })}
+                  className='w-full border rounded p-2'
+                  rows={4}
+                  placeholder='Enter a sample answer'
+                />
+              </div>
+            )}
+
+            <button
+              type='button'
+              onClick={handleAddQuestion}
+              disabled={
+                !currentQuestion.questionText || 
+                (currentQuestion.type === 'multiple_choice' && 
+                  (!currentQuestion.options.some(opt => opt) || !currentQuestion.correctAnswers.length)
+                ) ||
+                (currentQuestion.type === 'essay' && !currentQuestion.essayAnswer)
+              }
+              className='w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400'
+            >
+              + Add Question
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className='flex justify-between items-center mb-4'>
+        <div>
+          <label className='block mb-1'>Duration (minutes)</label>
+          <input
+            type='number'
+            value={testSettings.duration}
+            onChange={(e) => {
+              const newDuration = parseInt(e.target.value);
+              setTestSettings(prev => ({ ...prev, duration: newDuration }));
+              onDelete(test.testId, undefined, { ...test, duration: newDuration });
+            }}
+            className='w-full border rounded p-2'
+            min={1}
+          />
+        </div>
+        <div>
+          <label className='block mb-1'>Passing Score (%)</label>
+          <input
+            type='number'
+            value={testSettings.passingScore}
+            onChange={(e) => {
+              const newScore = parseInt(e.target.value);
+              if (newScore > 100) {
+                toast.error('Vui lòng chọn bé hơn 100%');
+                return;
+              }
+              setTestSettings(prev => ({ ...prev, passingScore: newScore }));
+              onDelete(test.testId, undefined, { ...test, passingScore: newScore });
+            }}
+            className='w-full border rounded p-2'
+            min={0}
+            max={100}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Component cho Chapter
 const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
   <div className='bg-white border rounded-lg mb-4'>
@@ -53,36 +411,6 @@ const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
   </div>
 );
 
-// Component cho Test
-const Test = ({ test, index, handleTest, handleChapter }) => (
-  <div className='bg-white border rounded-lg mb-4'>
-    <div className='flex justify-between items-center p-4 border-b'>
-      <div className='flex items-center'>
-        <img onClick={() => handleChapter('toggle', test.testId)}
-          className={`mr-2 cursor-pointer transition-all ${test.collapsed && "-rotate-90"}`}
-          src={assets.dropdown_icon} alt="dropdown icon" width={14} />
-        <span className='font-semibold'>{test.testName}</span>
-      </div>
-      <span>{test.testContent.length} Test</span>
-      <img onClick={() => handleChapter('removeTest', test.testId)}
-        src={assets.cross_icon} alt="" className='cursor-pointer' />
-    </div>
-    {!test.collapsed && (
-      <div className='p-4'>
-        {test.testContent.map((testDetail, testIndex) => (
-          <div className='flex justify-between items-center mb-2' key={testIndex}>
-            <span>{testIndex + 1}. {testDetail.testTitle} - {testDetail.testDuration} min - {testDetail.testQuestions.length} questions </span>
-            <img src={assets.cross_icon} alt="" className='cursor-pointer' onClick={() => handleTest('remove', testDetail.testId, testIndex)} />
-          </div>
-        ))}
-        <div className='inline-flex bg-gray-100 p-2 rounded cursor-pointer mt-2' onClick={() => handleTest('add', test.testId)}>
-          + Add Test
-        </div>
-      </div>
-    )}
-  </div>
-);
-
 const AddCourse = () => {
 
   const { backendUrl, getToken } = useContext(AppContext)
@@ -92,64 +420,33 @@ const AddCourse = () => {
   const editorRef = useRef(null);
 
   const [courseTitle, setCourseTitle] = useState('');
-  const [coursePrice, setCoursePrice] = useState(0);
-  const [discount, setDiscount] = useState(0);
+  const [coursePrice, setCoursePrice] = useState('');
+  const [discount, setDiscount] = useState('');
+  const [discountEndTime, setDiscountEndTime] = useState('');
   const [image, setImage] = useState(null);
   const [chapters, setChapters] = useState([]);
-  const [test, setTest] = useState([]);
+  const [tests, setTests] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
-  const [showTestPopup, setShowTestPopup] = useState(false);
   const [currentChapterId, setCurrentChapterId] = useState(null);
-  const [currentTestId, setCurrentTestId] = useState(null);
+  const [currentTest, setCurrentTest] = useState({
+    testId: '',
+    chapterNumber: 0,
+    duration: '',
+    passingScore: ''
+  });
   const [lectureDetails, setLectureDetails] = useState({
     lectureTitle: '',
     lectureDuration: '',
     lectureUrl: '',
     isPreviewFree: false,
   });
-  const [testDetail, setTestDetail] = useState({
-    testTitle: '',
-    testDuration: '',
-    testQuestions: [],
-  });
   const [walletAddress, setWalletAddress] = useState('');
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const data = event.target.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        const questions = jsonData.map((row) => ({
-          question: row[0],
-          options: row.slice(1),
-        }));
-
-        setTestDetail({ ...testDetail, testQuestions: questions });
-        console.log(questions);
-      };
-      reader.readAsBinaryString(file);
-    }
-  };
+  const [showChapterPopup, setShowChapterPopup] = useState(false);
+  const [newChapterTitle, setNewChapterTitle] = useState('');
 
   const handleChapter = (action, chapterId) => {
     if (action === 'add') {
-      const title = prompt('Enter Chapter Name:');
-      if (title) {
-        const newChapter = {
-          chapterId: uniqid(),
-          chapterTitle: title,
-          chapterContent: [],
-          collapsed: false,
-          chapterOrder: chapters.length > 0 ? chapters.slice(-1)[0].chapterOrder + 1 : 1,
-        };
-        setChapters([...chapters, newChapter]);
-      }
+      setShowChapterPopup(true);
     } else if (action === 'remove') {
       setChapters(chapters.filter((chapter) => chapter.chapterId !== chapterId));
     } else if (action === 'toggle') {
@@ -158,56 +455,7 @@ const AddCourse = () => {
           chapter.chapterId === chapterId ? { ...chapter, collapsed: !chapter.collapsed } : chapter
         )
       );
-    } else if (action === 'test') {
-      const newTest = {
-        testId: uniqid(),
-        testName: "Test",
-        testContent: [],
-        collapsed: false,
-        testOrder: test.length > 0 ? test.slice(-1)[0].testOrder + 1 : 1,
-      };
-      setTest([...test, newTest]);
-    } else if (action === 'removeTest') {
-      setTest(test.filter((test) => test.testId !== chapterId));
     }
-  };
-
-  const handleTest = (action, testId, testIndex) => {
-    if (action === 'add') {
-      setCurrentTestId(testId);
-      setShowTestPopup(true);
-    } else if (action === 'remove') {
-      console.log(testId);
-      setTest(
-        test.map((test) => {
-          if (test.testId === testId) {
-            test.testContent.splice(testIndex, 1);
-          }
-          return test;
-        })
-      );
-    }
-  };
-
-  const addTest = () => {
-    setTest(
-      test.map((t) => {
-        if (t.testId === currentTestId) {
-          const newTest = {
-            ...testDetail,
-            testId: uniqid(),
-          };
-          t.testContent.push(newTest);
-        }
-        return t;
-      })
-    );
-    setShowTestPopup(false);
-    setTestDetail({
-      testTitle: '',
-      testDuration: '',
-      testQuestions: [],
-    });
   };
 
   const handleLecture = (action, chapterId, lectureIndex) => {
@@ -223,6 +471,47 @@ const AddCourse = () => {
           return chapter;
         })
       );
+    }
+  };
+
+  const handleAddTest = () => {
+    if (!currentTest.duration) {
+      toast.error('Vui lòng nhập duration');
+      return;
+    }
+    if (currentTest.passingScore === undefined ) {
+      toast.error('Vui lòng nhập passing score');
+      return;
+    }
+    if (parseInt(currentTest.passingScore) > 100) {
+      toast.error('Vui lòng chọn bé hơn 100%');
+      return;
+    }
+
+    const newTest = {
+      testId: uniqid(),
+      chapterNumber: currentTest.chapterNumber,
+      duration: parseInt(currentTest.duration),
+      passingScore: parseInt(currentTest.passingScore),
+      questions: []
+    };
+    setTests([...tests, newTest]);
+    
+    // Reset form
+    setCurrentTest({
+      chapterNumber: 0,
+      duration: '',
+      passingScore: ''
+    });
+  };
+
+  const handleDeleteTest = (testId, questionIndex, updatedTest) => {
+    if (updatedTest) {
+      // Update test
+      setTests(tests.map(t => t.testId === testId ? updatedTest : t));
+    } else {
+      // Delete test
+      setTests(tests.filter(t => t.testId !== testId));
     }
   };
 
@@ -253,10 +542,51 @@ const AddCourse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!courseTitle) {
+      toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
+      return;
+    }
+
+    // Validate chapters
+    if (chapters.length === 0) {
+      toast.error('Vui lòng tạo ít nhất 1 chapter');
+      return;
+    }
+
+    // Validate lectures in each chapter
+    for (let i = 0; i < chapters.length; i++) {
+      if (chapters[i].chapterContent.length === 0) {
+        toast.error(`Chapter ${i + 1} cần có ít nhất 1 lecture`);
+        return;
+      }
+    }
+
     try {
+      if (courseTitle.trim().length < 5) {
+        toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
+        return;
+      }
       if (!image) {
         toast.error('Thumbnail Not Selected');
         return;
+      }
+
+      if (discount > 0 && !discountEndTime) {
+        toast.error('Vui lòng chọn thời gian kết thúc giảm giá');
+        return;
+      }
+
+      // Validate tests
+      for (let test of tests) {
+        if (!test.passingScore || test.passingScore < 0 || test.passingScore > 100) {
+          toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có passing score từ 0-100%`);
+          return;
+        }
+        if (!test.duration || test.duration <= 0) {
+          toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có duration lớn hơn 0`);
+          return;
+        }
       }
 
       if (!connected || !wallet) {
@@ -292,9 +622,11 @@ const AddCourse = () => {
         courseId,
         courseTitle,
         courseDescription: quillRef.current.root.innerHTML,
-        coursePrice: Number(coursePrice),
-        discount: Number(discount),
-        image: image,
+        coursePrice: Number(coursePrice || 0),
+        discount: Number(discount || 0),
+        discountEndTime: discount > 0 ? discountEndTime : null,
+        courseContent: chapters,
+        tests: tests,
         creatorId: address,
         createdAt: new Date().toISOString()
       };
@@ -339,9 +671,8 @@ const AddCourse = () => {
       const formData = new FormData();
       formData.append('courseData', JSON.stringify({
         ...courseData,
-        courseContent: chapters,
-        creatorAddress: address, // Add wallet address
-        txHash // Add transaction hash
+        creatorAddress: address,
+        txHash
       }));
       formData.append('image', image);
 
@@ -414,7 +745,14 @@ const AddCourse = () => {
         </div>
         <div className='flex flex-col gap-1'>
           <p>Course Title</p>
-          <input onChange={e => setCourseTitle(e.target.value)} value={courseTitle} type="text" placeholder='Type here' className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500' required />
+          <input 
+            onChange={e => setCourseTitle(e.target.value)}
+            value={courseTitle} 
+            type="text" 
+            placeholder='Type here' 
+            className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500' 
+            required 
+          />
         </div>
         <div className='flex flex-col gap-1'>
           <p>Course Description</p>
@@ -423,8 +761,36 @@ const AddCourse = () => {
         <div className='flex items-center justify-between flex-wrap'>
           <div className='flex flex-col gap-1'>
             <p>Course Price</p>
-            <input onChange={e => setCoursePrice(e.target.value)} value={coursePrice} type="number" placeholder='0' className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500' required />
+            <input 
+              onChange={e => setCoursePrice(e.target.value)} 
+              value={coursePrice} 
+              type="number" 
+              placeholder='0' 
+              className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+            />
           </div>
+          <div className='flex flex-col gap-1'>
+            <p>Discount %</p>
+            <input 
+              onChange={e => setDiscount(e.target.value)} 
+              value={discount} 
+              type="number" 
+              placeholder='0' 
+              className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+            />
+          </div>
+          {discount > 0 && (
+            <div className='flex flex-col gap-1'>
+              <p>Discount End Time</p>
+              <input 
+                onChange={e => setDiscountEndTime(e.target.value)}
+                value={discountEndTime}
+                type="datetime-local"
+                className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500'
+                required
+              />
+            </div>
+          )}
           <div className='flex md:flex-row flex-col items-center gap-3'>
             <p>Course Thumbnail</p>
             <label htmlFor='thumbnailImage' className='flex items-center gap-3'>
@@ -434,10 +800,6 @@ const AddCourse = () => {
             </label>
           </div>
         </div>
-        <div className='flex flex-col gap-1'>
-          <p>Discount %</p>
-          <input onChange={e => setDiscount(e.target.value)} value={discount} type="number" placeholder='0' min={0} max={100} className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500' required />
-        </div>
         <div>
           {chapters.map((chapter, chapterIndex) => (
             <Chapter key={chapterIndex} chapter={chapter} index={chapterIndex} handleChapter={handleChapter} handleLecture={handleLecture} />
@@ -445,13 +807,79 @@ const AddCourse = () => {
           <div className='flex justify-center items-center bg-blue-100 mb-5 p-2 rounded-lg cursor-pointer' onClick={() => handleChapter('add')}>
             + Add Chapter
           </div>
-          {test.map((test, testIndex) => (
-            <Test key={testIndex} test={test} index={testIndex} handleTest={handleTest} handleChapter={handleChapter} />
-          ))}
-          <div className='flex justify-center items-center bg-red-100 p-2 mt-3 rounded-lg cursor-pointer' onClick={() => handleChapter('test')}>
-            + Add Test
+          {tests.map((test) => {
+            // Tính số thứ tự cho test cùng loại
+            const sameTypeTests = tests.filter(t => t.chapterNumber === test.chapterNumber);
+            const testNumber = sameTypeTests.findIndex(t => t.testId === test.testId) + 1;
+            
+            return (
+              <Test 
+                key={test.testId} 
+                test={test} 
+                onDelete={handleDeleteTest}
+                testNumber={testNumber}
+              />
+            );
+          })}
+          <div className='bg-white p-4 rounded-lg shadow mb-4'>
+            <div className='space-y-4'>
+              <div>
+                <label className='block mb-1'>Test Type</label>
+                <select
+                  value={currentTest.chapterNumber}
+                  onChange={(e) => setCurrentTest({ ...currentTest, chapterNumber: parseInt(e.target.value) })}
+                  className='w-full border rounded p-2'
+                >
+                  <option value={0}>Final Test</option>
+                  {chapters.map((_, index) => (
+                    <option key={index + 1} value={index + 1}>
+                      Chapter {index + 1} Test
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className='block mb-1'>Duration (minutes)</label>
+                <input
+                  type='number'
+                  value={currentTest.duration}
+                  onChange={(e) => setCurrentTest({ ...currentTest, duration: e.target.value })}
+                  className='w-full border rounded p-2'
+                  min={1}
+                />
+              </div>
+
+              <div>
+                <label className='block mb-1'>Passing Score (%)</label>
+                <input
+                  type='number'
+                  value={currentTest.passingScore}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    if (value > 100) {
+                      toast.error('Vui lòng chọn bé hơn 100%');
+                      return;
+                    }
+                    setCurrentTest({ ...currentTest, passingScore: value || 0 });
+                  }}
+                  className='w-full border rounded p-2'
+                  placeholder='0'
+                  max="100"
+                />
+              </div>
+
+              <button 
+                type='button'
+                onClick={handleAddTest}
+                className='w-full bg-red-100 p-2 rounded-lg hover:bg-red-200'
+              >
+                + Add Test
+              </button>
+            </div>
           </div>
         </div>
+
         {showPopup && (
           <Popup title="Add Lecture" onClose={() => setShowPopup(false)}>
             <div className="mb-2">
@@ -473,26 +901,39 @@ const AddCourse = () => {
             <button onClick={addLecture} type='button' className='w-full bg-blue-400 text-white px-4 py-2 rounded'>Add</button>
           </Popup>
         )}
-        {showTestPopup && (
-          <Popup title="Add Test" onClose={() => setShowTestPopup(false)}>
+        {showChapterPopup && (
+          <Popup title="Add Chapter" onClose={() => setShowChapterPopup(false)}>
             <div className="mb-2">
-              <p>Test Title</p>
-              <input type="text" className="mt-1 block w-full border rounded py-1 px-2" value={testDetail.testTitle} onChange={(e) => setTestDetail({ ...testDetail, testTitle: e.target.value })} />
-            </div>
-            <div className="mb-2">
-              <p>Duration (minutes)</p>
-              <input type="number" className="mt-1 block w-full border rounded py-1 px-2" value={testDetail.testDuration} onChange={(e) => setTestDetail({ ...testDetail, testDuration: e.target.value })} />
-            </div>
-            <div className="mb-2">
-              <p>File question</p>
-              <input
-                type="file"
-                accept=".xlsx, .xls"
-                className="mt-1 block w-full border rounded py-1 px-2"
-                onChange={(e) => handleFileUpload(e)}
+              <p>Chapter Title</p>
+              <input 
+                type="text" 
+                className="mt-1 block w-full border rounded py-1 px-2" 
+                value={newChapterTitle} 
+                onChange={(e) => setNewChapterTitle(e.target.value)} 
               />
             </div>
-            <button onClick={addTest} type='button' className='w-full bg-blue-400 text-white px-4 py-2 rounded'>Add</button>
+            <button 
+              onClick={() => {
+                if (!newChapterTitle.trim()) {
+                  toast.error('Vui lòng nhập tên chapter');
+                  return;
+                }
+                const newChapter = {
+                  chapterId: uniqid(),
+                  chapterTitle: newChapterTitle,
+                  chapterContent: [],
+                  collapsed: false,
+                  chapterOrder: chapters.length > 0 ? chapters.slice(-1)[0].chapterOrder + 1 : 1,
+                };
+                setChapters([...chapters, newChapter]);
+                setNewChapterTitle('');
+                setShowChapterPopup(false);
+              }} 
+              type='button' 
+              className='w-full bg-blue-400 text-white px-4 py-2 rounded'
+            >
+              Add Chapter
+            </button>
           </Popup>
         )}
         <button type='submit' className='bg-black text-white w-max py-2.5 px-8 rounded my-4'>ADD</button>
