@@ -1,10 +1,9 @@
 import Certificate from "../models/Certificate.js";
 
-import { generateCertificateImage } from '../utils/ImageUtils.js';
+import { generateCertificateBuffer } from '../utils/ImageUtils.js';
 import { uploadToPinata } from '../utils/PinataUtils.js';
 import { createCertificateNFT } from '../utils/CertificateNFTUtils.js';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import fs from 'fs';
 
 const PINATA_PREFIX_WEBSITE = "ipfs://"; 
 const blockfrost = new BlockFrostAPI({
@@ -81,27 +80,19 @@ export const createUnsignedMintTx = async (req, res) => {
         };
         console.log('Course info:', courseInfo);
 
-        // Generate certificate image
-        console.log('Generating certificate image...');
-        const imagePath = await generateCertificateImage(
+        // Generate certificate buffer
+        console.log('Generating certificate buffer...');
+        const certificateBuffer = await generateCertificateBuffer(
             studentName,
             courseInfo.educator.name, 
             courseInfo.courseTitle,
             new Date().toLocaleDateString()
         );
 
-        // Upload to IPFS
+        // Upload buffer to IPFS
         console.log('Uploading certificate to IPFS...');
-        const ipfsResult = await uploadToPinata(imagePath);
+        const ipfsResult = await uploadToPinata(certificateBuffer);
         console.log('Certificate image uploaded:', ipfsResult);
-
-        // Clean up local file
-        try {
-            fs.unlinkSync(imagePath);
-            console.log('File đã được xóa sau khi upload thành công!');
-        } catch (error) {
-            console.error('Lỗi xóa file:', error);
-        }
 
         // Add IPFS hash to course data
         courseInfo.ipfsHash = ipfsResult.IpfsHash;
