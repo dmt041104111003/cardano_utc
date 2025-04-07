@@ -60,7 +60,7 @@ const CoursesSection = () => {
         <div className='py-16 md:px-40 px-8'>
             <div className='text-center max-w-4xl mx-auto'>
                 <h2 className='text-3xl md:text-4xl font-bold text-gray-800 mb-4'>
-                    Top Rated Courses
+                    List Courses
                 </h2>
                 <p className='text-gray-600'>
                     Join thousands of satisfied students in our highest-rated courses

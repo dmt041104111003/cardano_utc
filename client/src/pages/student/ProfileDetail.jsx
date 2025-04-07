@@ -131,33 +131,43 @@ const ProfilePage = () => {
       </div>
 
       <div className=" p-4 ">
-          <h3 className="text-xl font-semibold mb-2">Khóa học chờ xét duyệt</h3>
-          <p className="text-gray-600">Hiện tại không có khóa học nào đang chờ xét duyệt.</p>
+          {/* <h3 className="text-xl font-semibold mb-2">Khóa học chờ xét duyệt</h3>
+          <p className="text-gray-600">Hiện tại không có khóa học nào đang chờ xét duyệt.</p> */}
         </div>
 
       <div className="mt-6 space-y-6">
         <div className=" p-4 ">
-          <h3 className="text-xl font-semibold mb-2">Khóa học gần đây</h3>
-          <p className="text-gray-600">Chưa có khóa học gần đây.</p>
+          {/* <h3 className="text-xl font-semibold mb-2">Khóa học gần đây</h3>
+          <p className="text-gray-600">Chưa có khóa học gần đây.</p> */}
         </div>
 
-        <div className=" p-4 ">
-          <h3 className="text-xl font-semibold mb-2">Khóa học đã hoàn thành</h3>
+        <div className="mt-6 space-y-6">
+        <div className="p-4">
+          <h3 className="text-xl font-semibold mb-2">
+            Courses being studied...
+          </h3>
           {enrolledCourses.length > 0 ? (
             <Slider {...sliderSettings}>
-              {enrolledCourses.map((course) => (
+              {enrolledCourses.map((course, index) => (
                 <div key={course._id} className="p-2">
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <h4 className="font-semibold">{course.courseTitle}</h4>
+                  <div className="bg-white/90 p-4 rounded-lg shadow-lg border border-green-200/30 hover:shadow-xl transform transition-all duration-300 hover:scale-105">
+                    <h4 className="font-semibold text-gray-800">{course.courseTitle}</h4>
+                    {progressArray[index] && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        Tiến độ: {progressArray[index].lectureCompleted}/{progressArray[index].totalLectures}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
             </Slider>
           ) : (
-            <p className="text-gray-600">Chưa có khóa học hoàn thành.</p>
+            <p className="text-gray-600 bg-white/80 p-4 rounded-lg shadow">
+              Chưa có khóa học hoàn thành.
+            </p>
           )}
         </div>
-
+      </div>
         
       </div>
     </div>

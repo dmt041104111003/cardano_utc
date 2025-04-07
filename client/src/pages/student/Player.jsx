@@ -94,6 +94,7 @@ const Player = () => {
     }
 
     const handleTest = async (test) => {
+        
         try {
             // Fetch test data from the course
             const token = await getToken()
@@ -154,107 +155,107 @@ const Player = () => {
     }
 
     const handleSubmitTest = async () => {
-        if (timer) clearInterval(timer);
-        
-        try {
-            // Fetch test data with correct answers from server
-            const token = await getToken();
-            const { data } = await axios.get(`${backendUrl}/api/course/${courseId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+    if (timer) clearInterval(timer);
+    
+    try {
+        const token = await getToken();
+        const { data } = await axios.get(`${backendUrl}/api/course/${courseId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
-            if (data.success && data.courseData) {
-                const currentTest = data.courseData.tests.find(t => t.testId === testData.testId);
-                
-                if (currentTest) {
-                    let correctAnswers = 0;
-                    currentTest.questions.forEach((question, qIndex) => {
-                        const userAnswers = selectedAnswers[qIndex] || [];
-                        const serverCorrectAnswers = question.correctAnswers; // ["2", "3"]
-                        
-                        // Convert user answers to string to match with server format
-                        const convertedUserAnswers = userAnswers.map(answer => answer.toString());
-                        
-                        // Check if arrays have same elements
-                        const isCorrect = convertedUserAnswers.length === serverCorrectAnswers.length &&
-                            convertedUserAnswers.every(answer => serverCorrectAnswers.includes(answer)) &&
-                            serverCorrectAnswers.every(answer => convertedUserAnswers.includes(answer));
-                        
-                        if (isCorrect) correctAnswers++;
-                    });
+        if (data.success && data.courseData) {
+            const currentTest = data.courseData.tests.find(t => t.testId === testData.testId);
+            
+            if (currentTest) {
+                let correctAnswers = 0;
+                currentTest.questions.forEach((question, qIndex) => {
+                    const userAnswers = selectedAnswers[qIndex] || [];
+                    const serverCorrectAnswers = question.correctAnswers;
+                    
+                    const convertedUserAnswers = userAnswers.map(answer => answer.toString());
+                    const isCorrect = convertedUserAnswers.length === serverCorrectAnswers.length &&
+                        convertedUserAnswers.every(answer => serverCorrectAnswers.includes(answer)) &&
+                        serverCorrectAnswers.every(answer => convertedUserAnswers.includes(answer));
+                    
+                    if (isCorrect) correctAnswers++;
+                });
 
-                    const totalQuestions = currentTest.questions.length;
-                    const score = (correctAnswers / totalQuestions) * 100;
-                    const passed = score >= currentTest.passingScore;
+                const totalQuestions = currentTest.questions.length;
+                const score = (correctAnswers / totalQuestions) * 100;
+                const passed = score >= currentTest.passingScore;
 
-                    const result = {
-                        score: Math.round(score),
-                        correctAnswers,
-                        totalQuestions,
-                        passed
-                    };
+                const result = {
+                    score: Math.round(score),
+                    correctAnswers,
+                    totalQuestions,
+                    passed
+                };
 
-                    setTestResult(result);
+                setTestResult(result);
 
-                    // Show result modal using SweetAlert2
-                    Swal.fire({
-                        title: result.passed ? 'Chúc mừng!' : 'Rất tiếc!',
-                        html: `
-                            <div class="text-center">
-                                <p class="text-xl font-bold mb-2">Điểm số: ${result.score}%</p>
-                                <p class="mb-2">Số câu đúng: ${result.correctAnswers}/${result.totalQuestions}</p>
-                                <p class="text-lg ${result.passed ? 'text-green-600' : 'text-red-600'}">
-                                    ${result.passed ? 'Bạn đã vượt qua bài kiểm tra!' : 'Bạn chưa vượt qua bài kiểm tra.'}
-                                </p>
-                                <p class="text-sm mt-2">Điểm đạt yêu cầu: ${currentTest.passingScore}%</p>
-                            </div>
-                        `,
-                        icon: result.passed ? 'success' : 'error',
-                        confirmButtonText: 'Đóng',
-                        allowOutsideClick: false
-                    }).then(async () => {
-                        setShowTest(false);
-                        setTestData(null);
-                        setTimeLeft(0);
-                        // Always save test result
-                        try {
-                            const token = await getToken();
-                            const { data } = await axios.post(
-                                `${backendUrl}/api/user/update-course-progress`,
-                                {
-                                    courseId,
-                                    lectureId: testData.testId,
-                                    test: {
-                                        passed: result.passed,
-                                        score: result.score
-                                    }
-                                },
-                                { headers: { Authorization: `Bearer ${token}` } }
-                            );
+                Swal.fire({
+                    title: result.passed ? 'Chúc mừng!' : 'Rất tiếc!',
+                    html: `
+                        <div class="text-center">
+                            <p class="text-xl font-bold mb-2">Điểm số: ${result.score}%</p>
+                            <p class="mb-2">Số câu đúng: ${result.correctAnswers}/${result.totalQuestions}</p>
+                            <p class="text-lg ${result.passed ? 'text-green-600' : 'text-red-600'}">
+                                ${result.passed ? 'Bạn đã vượt qua bài kiểm tra!' : 'Bạn chưa vượt qua bài kiểm tra.'}
+                            </p>
+                            <p class="text-sm mt-2">Điểm đạt yêu cầu: ${currentTest.passingScore}%</p>
+                        </div>
+                    `,
+                    icon: result.passed ? 'success' : 'error',
+                    confirmButtonText: 'Đóng',
+                    allowOutsideClick: false
+                }).then(async () => {
+                    setShowTest(false);
+                    setTestData(null);
+                    setTimeLeft(0);
 
-                            if (data.success) {
-                                toast.success('Đã lưu kết quả bài kiểm tra');
-                            }
+                    // Lưu kết quả bài kiểm tra và cập nhật trạng thái isCompleted
+                    try {
+                        const token = await getToken();
+                        const { data } = await axios.post(
+                            `${backendUrl}/api/user/update-course-progress`,
+                            {
+                                courseId,
+                                testId: testData.testId, // Thêm testId
+                                test: {
+                                    passed: result.passed,
+                                    score: result.score,
+                                    isCompleted: result.passed // Đánh dấu là đã hoàn thành nếu passed
+                                }
+                            },
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
 
-                            // If passed, mark lecture as completed
-                            if (result.passed) {
-                                markLectureAsCompleted(testData.testId);
-                            }
-                        } catch (error) {
-                            console.error('Error saving test result:', error);
-                            toast.error('Không thể lưu kết quả bài kiểm tra');
+                        if (data.success) {
+                            toast.success('Đã lưu kết quả bài kiểm tra');
+                            // Cập nhật courseData để phản ánh trạng thái mới
+                            setCourseData(prev => {
+                                const updatedCourse = { ...prev };
+                                const testIndex = updatedCourse.tests.findIndex(t => t.testId === testData.testId);
+                                if (testIndex !== -1) {
+                                    updatedCourse.tests[testIndex].isCompleted = result.passed;
+                                }
+                                return updatedCourse;
+                            });
                         }
-                    });
-                } else {
-                    toast.error('Không tìm thấy thông tin bài kiểm tra');
-                }
+                    } catch (error) {
+                        console.error('Error saving test result:', error);
+                        toast.error('Không thể lưu kết quả bài kiểm tra');
+                    }
+                });
+            } else {
+                toast.error('Không tìm thấy thông tin bài kiểm tra');
             }
-        } catch (error) {
-            console.error('Error submitting test:', error);
-            toast.error('Có lỗi xảy ra khi nộp bài kiểm tra');
         }
-    };
-
+    } catch (error) {
+        console.error('Error submitting test:', error);
+        toast.error('Có lỗi xảy ra khi nộp bài kiểm tra');
+    }
+};
     const formatTime = (seconds) => {
         const minutes = Math.floor(seconds / 60)
         const remainingSeconds = seconds % 60
@@ -397,11 +398,15 @@ const Player = () => {
                                                     <p>{test.testTitle}</p>
 
                                                     <div className='flex gap-2'>
-                                                        <p className='text-blue-500 cursor-pointer'
-                                                            onClick={() => handleTest(test)}
-                                                        >
-                                                            Start Test
-                                                        </p>
+                                                        {test.isCompleted ? (
+                                                            <p className='text-green-500'>Completed</p>
+                                                        ) : (
+                                                            <p className='text-blue-500 cursor-pointer'
+                                                                onClick={() => handleTest(test)}
+                                                            >
+                                                                Start Test
+                                                            </p>
+                                                        )}
                                                         <p className='text-sm md:text-default'>{test.testDuration} min</p>
                                                     </div>
 
