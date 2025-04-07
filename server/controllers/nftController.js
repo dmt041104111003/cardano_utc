@@ -1,5 +1,5 @@
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import Course from '../models/course.js';
+import Course from '../models/Course.js';
 
 // Initialize Blockfrost API client
 const blockfrost = new BlockFrostAPI({

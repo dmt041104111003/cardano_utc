@@ -1,5 +1,5 @@
 import Address from "../models/Address.js";
-import Course from "../models/course.js";
+import Course from "../models/Course.js";
 import Notification from "../models/notification.js";
 
 // Tìm địa chỉ theo courseId và educatorId

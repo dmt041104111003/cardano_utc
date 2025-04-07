@@ -1,7 +1,7 @@
 import User from "../models/User.js"
 import { Purchase } from "../models/Purchase.js";
 import Stripe from "stripe"
-import Course from "../models/course.js"
+import Course from "../models/Course.js"
 import { CourseProgress } from "../models/courseProgress.js";
 import mongoose from "mongoose";
 import moment from "moment"
