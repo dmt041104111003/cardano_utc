@@ -58,9 +58,40 @@ const MyEnrollments = () => {
                     const { data } = await axios.post(`${backendUrl}/api/user/get-course-progress`,
                         { courseId: course._id }, { headers: { Authorization: `Bearer ${token}` } }
                     )
-                    let totalLectures = calculateNoOfLectures(course);
+                    
+                    // Get total lectures and tests
+                    let totalLectures = 0;
+                    let totalTests = 0;
+                    
+                    // Count lectures and tests from course content
+                    course.courseContent?.forEach(chapter => {
+                        if (chapter.chapterContent) {
+                            totalLectures += chapter.chapterContent.length;
+                        }
+                    });
+                    
+                    // Count tests
+                    if (course.tests) {
+                        totalTests = course.tests.length;
+                    }
+
+                    // Get completed counts
                     const lectureCompleted = data.progressData ? data.progressData.lectureCompleted.length : 0;
-                    return { totalLectures, lectureCompleted }
+                    const testsCompleted = data.progressData ? data.progressData.tests.filter(test => test.passed).length : 0;
+                    
+                    // Calculate total progress percentage
+                    const totalItems = totalLectures + totalTests;
+                    const completedItems = lectureCompleted + testsCompleted;
+                    const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+
+                    return {
+                        totalLectures,
+                        totalTests,
+                        lectureCompleted,
+                        testsCompleted,
+                        progressPercentage,
+                        completed: data.progressData?.completed || false
+                    }
                 })
             )
             setProgressArray(tempProgressArray);
@@ -323,7 +354,7 @@ const MyEnrollments = () => {
 
     const isCompleted = (index) => {
         if (!progressArray[index]) return false;
-        return progressArray[index].lectureCompleted === progressArray[index].totalLectures;
+        return progressArray[index].completed;
     }
 
     return enrolledCourses ? (
@@ -370,7 +401,11 @@ const MyEnrollments = () => {
                                         className='w-14 sm:w-24 md:x-28' />
                                     <div className='flex-1'>
                                         <p className='mb-1 max-sm:text-sm'>{course.courseTitle}</p>
-                                        <Line strokeWidth={2} percent={course.progress ? (course.progress.lectureCompleted * 100) / course.progress.totalLectures : 0} className='bg-gray-300 rounded-full' />
+                                        <Line strokeWidth={2} percent={progressArray[index]?.progressPercentage || 0} className='bg-gray-300 rounded-full' />
+                                        <div className='text-xs text-gray-500 mt-1'>
+                                            Lectures: {progressArray[index]?.lectureCompleted || 0}/{progressArray[index]?.totalLectures || 0},
+                                            Tests: {progressArray[index]?.testsCompleted || 0}/{progressArray[index]?.totalTests || 0}
+                                        </div>
                                     </div>
                                 </td>
                                 

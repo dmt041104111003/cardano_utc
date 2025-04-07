@@ -2,7 +2,7 @@ import User from "../models/User.js"
 import { Purchase } from "../models/Purchase.js";
 import Stripe from "stripe"
 import Course from "../models/course.js"
-import { CourseProgress } from "../models/CourseProgress.js";
+import { CourseProgress } from "../models/courseProgress.js";
 import mongoose from "mongoose";
 import moment from "moment"
 
@@ -179,15 +179,21 @@ export const getAllCompletedCourses = async (req, res) => {
 export const updateUserCourseProgress = async (req, res) => {
     try {
         const userId = req.auth.userId
-        const { courseId, lectureId } = req.body
+        const { courseId, lectureId, test } = req.body
+
+        console.log('Received request:', { courseId, lectureId, test });
 
         // Lấy thông tin khóa học 
         const course = await Course.findById(courseId);
         if (!course) {
             return res.json({ success: false, message: 'Course not found' });
-
         }
-        console.log('Course data:', JSON.stringify(course, null, 2));
+
+        console.log('Course found:', {
+            id: course._id,
+            hasContent: !!course.courseContent,
+            contentLength: course.courseContent?.length || 0
+        });
 
         // Lấy hoặc tạo mới progress data
         let progressData = await CourseProgress.findOne({ userId, courseId });
@@ -195,43 +201,110 @@ export const updateUserCourseProgress = async (req, res) => {
             progressData = await CourseProgress.create({
                 userId,
                 courseId,
-                lectureCompleted: []
+                lectureCompleted: [],
+                tests: []
             });
         }
 
-        // Kiểm tra xem lecture đã hoàn thành chưa
-        if (progressData.lectureCompleted.includes(lectureId)) {
-            return res.json({ success: true, message: 'Lecture Already Completed' });
-        }
-
-        // Thêm lecture vào danh sách đã hoàn thành
-        progressData.lectureCompleted.push(lectureId);
-
-        // Đếm tổng số lecture từ courseContent
+        // Đếm tổng số lecture và test, và map lecture IDs
         let totalLectures = 0;
-        if (course.courseContent) {
-            course.courseContent.forEach(chapter => {
-                if (chapter.chapterContent) {
-                    totalLectures += chapter.chapterContent.length;
+        let totalTests = 0;
+        let normalLectures = new Map(); // Map lecture id to lecture object
+        let testLectures = new Map();   // Map test id to test object
+
+        // Count lectures from courseContent
+        if (course.courseContent && Array.isArray(course.courseContent)) {
+            console.log('Processing course content...');
+            course.courseContent.forEach((chapter, idx) => {
+                if (chapter.chapterContent && Array.isArray(chapter.chapterContent)) {
+                    chapter.chapterContent.forEach(lecture => {
+                        const lectureId = lecture.lectureId?.toString();
+                        if (!lectureId) {
+                            console.log('Warning: Lecture has no ID:', lecture);
+                            return;
+                        }
+                        totalLectures++;
+                        normalLectures.set(lectureId, lecture);
+                    });
                 }
             });
         }
 
-        const numCompleted = progressData.lectureCompleted.length;
-        console.log(`Course ${courseId}: ${numCompleted}/${totalLectures} lectures completed`);
-
-        if (totalLectures > 0 && numCompleted >= totalLectures) {
-            // Đánh dấu đã hoàn thành
-            progressData.completed = true;
-            console.log(`Course ${courseId} marked as completed for user ${userId}`);
+        // Count tests from tests array
+        if (course.tests && Array.isArray(course.tests)) {
+            console.log('Processing tests...');
+            course.tests.forEach(test => {
+                const testId = test.testId?.toString();
+                if (!testId) {
+                    console.log('Warning: Test has no ID:', test);
+                    return;
+                }
+                totalTests++;
+                testLectures.set(testId, test);
+            });
         }
 
+        // Debug info
+        console.log('Debug info:');
+        console.log('Total lectures:', totalLectures);
+        console.log('Total tests:', totalTests);
+        console.log('Normal lecture IDs:', Array.from(normalLectures.keys()));
+        console.log('Test lecture IDs:', Array.from(testLectures.keys()));
+        console.log('Completed lectures:', progressData.lectureCompleted);
+        console.log('Tests:', progressData.tests);
+
+        // Nếu là test thì cập nhật hoặc thêm mới vào mảng tests
+        if (test) {
+            const testIndex = progressData.tests.findIndex(t => t.testId === lectureId);
+            const newTest = {
+                testId: lectureId,
+                passed: test.passed,
+                score: test.score,
+                completedAt: new Date()
+            };
+            
+            if (testIndex >= 0) {
+                // Cập nhật test đã tồn tại
+                progressData.tests[testIndex] = newTest;
+            } else {
+                // Thêm test mới
+                progressData.tests.push(newTest);
+            }
+        }
+        // Nếu không phải test và là lecture hợp lệ thì lưu vào lectureCompleted
+        else if (normalLectures.has(lectureId)) {
+            if (!progressData.lectureCompleted.includes(lectureId)) {
+                progressData.lectureCompleted.push(lectureId);
+            }
+        }
+
+        // Đếm số lecture đã hoàn thành (chỉ tính các lecture thường)
+        const completedLectures = progressData.lectureCompleted.filter(id => 
+            normalLectures.has(id)
+        ).length;
+
+        // Đếm số test đã pass
+        const passedTests = progressData.tests.filter(test => test.passed);
+
+        console.log('Completed normal lectures:', completedLectures);
+        console.log('Passed tests:', passedTests.length);
+
+        // Chỉ completed = true khi hoàn thành cả lecture và pass hết test
+        progressData.completed = (totalLectures === 0 || completedLectures >= totalLectures) && 
+                               (totalTests === 0 || passedTests.length >= totalTests);
+
+        console.log('Course completed:', progressData.completed);
+
         await progressData.save();
+        
         res.json({ 
             success: true, 
             message: 'Progress Updated',
             completed: progressData.completed,
-            progress: `${numCompleted}/${totalLectures}`
+            progress: {
+                lectures: `${completedLectures}/${totalLectures}`,
+                tests: `${passedTests.length}/${totalTests}`
+            }
         });
 
     } catch (error) {
