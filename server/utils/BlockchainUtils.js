@@ -35,7 +35,7 @@ async function createUnsignedMintTx(utxos, changeAddress, collateral, getAddress
             name: courseData.courseTitle.slice(0, 64),
             image: ipfsHash,  // Just store the hash, wallet will prepend ipfs://
             mediaType: "image/png",
-            description: courseData.courseDescription.slice(0, 64),
+            // description: courseData.courseDescription.slice(0, 64),
             
             properties: {
                 id: courseData.courseId.slice(0, 16),
@@ -50,12 +50,12 @@ async function createUnsignedMintTx(utxos, changeAddress, collateral, getAddress
                 [forgingScript]: {
                     [assetName]: {
                         name: courseData.courseTitle.slice(0, 64),
-                        description: courseData.courseDescription.slice(0, 64),
+                        // description: courseData.courseDescription.slice(0, 64),
                         image: ipfsHash,  // Just store the hash
                         mediaType: "image/png",
                         courseId: courseData.courseId.slice(0, 16),
                         courseTitle: courseData.courseTitle,
-                        courseDescription: courseData.courseDescription || "",
+                        // courseDescription: courseData.courseDescription || "",
                         creator: shortAddress,
                         price: courseData.coursePrice,
                         discount: courseData.discount,

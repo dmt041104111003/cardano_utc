@@ -60,24 +60,24 @@ async function createCertificateNFT({
             mediaType: "image/png",
             description: "Course completion certificate",
             
-            properties: {
-                courseId: courseData._id.toString(),
-                studentName: courseData.studentName,
-                educator: typeof courseData.educator === 'object' ? courseData.educator.name : courseData.educator,
-                issuedAt: new Date().toISOString().split('T')[0]
-            },
+            // properties: {
+            //     courseId: courseData._id.toString(),
+            //     studentName: courseData.studentName,
+            //     educator: typeof courseData.educator === 'object' ? courseData.educator.name : courseData.educator,
+            //     issuedAt: new Date().toISOString().split('T')[0]
+            // },
             
             // CIP-721 metadata for standards compliance
             "721": {
                 [policyId]: {
                     [assetName]: {
                         name: `${courseData.courseTitle} Certificate`,
-                        description: "Course completion certificate",
+                        // description: "Course completion certificate",
                         image: ipfsHash,  // Just store the hash
                         mediaType: "image/png",
                         courseId: courseData._id.toString(),
                         courseTitle: courseData.courseTitle,
-                        courseDescription: courseData.courseDescription || "",
+                        // courseDescription: courseData.courseDescription || "",
                         recipient: {
                             name: courseData.studentName,
                             address: shortUserAddress
