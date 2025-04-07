@@ -2,7 +2,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../../context/AppContext'
 import { Line } from 'rc-progress';
-import Footer from '../../components/student/Footer';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useLocation } from 'react-router-dom';
@@ -634,7 +633,7 @@ const MyEnrollments = () => {
                 </div>
             )}
 
-            <Footer />
+   
         </div>
     ) : (
         <div className='flex justify-center items-center h-screen'>
