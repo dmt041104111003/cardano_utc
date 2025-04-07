@@ -1,4 +1,4 @@
-import { createUnsignedMintTx } from '../utils/blockchainUtils.js';
+import { createUnsignedMintTx } from '../utils/BlockchainUtils.js';
 
 export const createCourseTx = async (req, res) => {
     try {

@@ -1,4 +1,4 @@
-import {sendAda} from "../utils/blockchainUtils.js";
+import {sendAda} from "../utils/BlockchainUtils.js";
 
 export const paymentByAda = async (req, res) => {
     const { utxos, changeAddress, getAddress,value} = req.body;
