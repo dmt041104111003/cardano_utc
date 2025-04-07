@@ -7,7 +7,7 @@ const courseProgressSchema = new mongoose.Schema({
         required: true
     },
     courseId: { type: String, required: true },
-    completed: { type: Boolean, required: false },
+    completed: { type: Boolean, default: false, required: false },
     lectureCompleted: [],
     tests: [{
         testId: { type: String },

@@ -163,7 +163,7 @@ const ProfilePage = () => {
             </Slider>
           ) : (
             <p className="text-gray-600 bg-white/80 p-4 rounded-lg shadow">
-              Chưa có khóa học hoàn thành.
+              Haven't taken any courses yet!
             </p>
           )}
         </div>
