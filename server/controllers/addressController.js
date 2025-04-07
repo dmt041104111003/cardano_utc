@@ -1,6 +1,6 @@
 import Address from "../models/Address.js";
 import Course from "../models/Course.js";
-import Notification from "../models/notification.js";
+import Notification from "../models/Notification.js";
 
 // Tìm địa chỉ theo courseId và educatorId
 export const findAddress = async (req, res) => {
