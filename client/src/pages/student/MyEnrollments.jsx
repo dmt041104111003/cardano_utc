@@ -337,11 +337,7 @@ const MyEnrollments = () => {
                     policyId: nftData.policyId,
                     assetName: nftData.assetName,
                     courseTitle: nftData.courseTitle,
-                    mintTransaction: {
-                        txHash: certificate.transactionHash,
-                        block: '0',
-                        timestamp: Date.now() / 1000
-                    },
+                    mintTransaction: nftData.mintTransaction,
                     metadata: nftData.metadata || {}
                 };
                 console.log('QR data to be set:', qrData);
