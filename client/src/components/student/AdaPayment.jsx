@@ -27,7 +27,7 @@ export default function AdaPayment({ courseData }) {
                     const as = parseFloat(lovelace) / 1000000;
                     setBalance(Number(as) || 0);
                 } catch (error) {
-                    console.error("Lỗi khi lấy số dư:", error);
+                    console.error("Error fetching balance:", error);
                     setBalance(0);
                 }
             }
@@ -41,15 +41,15 @@ export default function AdaPayment({ courseData }) {
     
     const handlePayment = async () => {
         if (!userData) {
-            toast.error("Vui lòng đăng nhập hoặc đăng ký tài khoản trước khi thanh toán");
+            toast.error("Please log in or sign up before making a payment");
             return;
         }
 
         if (!currentWallet) {
-            toast.error("Vui lòng kết nối ví Cardano");
+            toast.error("Please connect your Cardano wallet");
             return;
         }
-        console.log("Thanh toán",userData._id,courseData._id,coursePrice);
+        console.log("Initiating payment",userData._id,courseData._id,coursePrice);
          
         try {
             const utxos = await currentWallet.getUtxos();
@@ -58,7 +58,7 @@ export default function AdaPayment({ courseData }) {
             // Lấy địa chỉ của educator từ course data
             const getAddress = courseData.creatorAddress;
             if (!getAddress) {
-                throw new Error('Không tìm thấy địa chỉ ví của giảng viên');
+                throw new Error('Educator wallet address not found');
             }
            
             const response = await axios.post(`${backendUrl}/api/course/payment`, {
@@ -79,7 +79,7 @@ export default function AdaPayment({ courseData }) {
             const signedTx = await currentWallet.signTx(unsignedTx);
             const txHash = await currentWallet.submitTx(signedTx);
 
-            toast.success(`Thanh toan thành công! TX Hash: ${txHash}`);
+            toast.success(`Payment successful! TX Hash: ${txHash}`);
                          return true;
             } else {
             toast.error("Thanh toan  thất bại!");
@@ -110,7 +110,7 @@ export default function AdaPayment({ courseData }) {
             });
     
             if (data.success) {
-                toast.success("Tham gia khóa học thành công");
+                toast.success("Successfully enrolled in the course");
                 
                 if (data.session_url) {
                     window.location.replace(data.session_url);

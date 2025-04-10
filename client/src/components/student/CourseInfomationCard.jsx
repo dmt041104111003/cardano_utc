@@ -5,6 +5,7 @@ import { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { NavLink } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const shakeAnimation = `
 @keyframes shake {
@@ -21,8 +22,30 @@ const shakeAnimation = `
 }`;
 
 const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,duration,lecture,openPaymentPage,courseId}) => {
-    const { currency} = useContext(AppContext);
+    const { currency, backendUrl, getToken } = useContext(AppContext);
     const [timeLeft, setTimeLeft] = useState('');
+    const [policyId, setPolicyId] = useState('');
+
+    useEffect(() => {
+        const fetchNFTInfo = async () => {
+            try {
+                const token = await getToken();
+                const { data } = await axios.get(`${backendUrl}/api/nft/info/${courseData._id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                if (data.success) {
+                    setPolicyId(data.policyId);
+                }
+            } catch (error) {
+                console.error("Error fetching NFT info:", error);
+            }
+        };
+
+        if (courseData._id) {
+            fetchNFTInfo();
+        }
+    }, [courseData._id]);
 
     useEffect(() => {
         // Add the animation styles to the document
@@ -109,6 +132,12 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
         <div className='p-5'>
             <h2 className='font-semibold text-gray-800 text-3xl mb-3'>{courseData.courseTitle}</h2>
             <p className='text-sm text-gray-500 mb-3'>Course ID: {courseData._id}</p>
+            {policyId && (
+                <div className='flex flex-col mb-3'>
+                    <span className='text-sm text-gray-500'>Policy ID:</span>
+                    <span className='text-sm text-gray-500 break-all font-mono'>{policyId}</span>
+                </div>
+            )}
 
             <div className='flex items-center space-x-2 mb-3'>
                 <div className='flex items-center gap-1'>
