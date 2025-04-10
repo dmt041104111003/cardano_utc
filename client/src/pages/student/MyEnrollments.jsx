@@ -5,6 +5,7 @@ import { Line } from 'rc-progress';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useLocation } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 
 const MyEnrollments = () => {
     const { 
@@ -297,7 +298,65 @@ const MyEnrollments = () => {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
         }
     }
-    
+
+    const [showQRModal, setShowQRModal] = useState(false);
+    const [selectedNFTForQR, setSelectedNFTForQR] = useState(null);
+
+    const handleViewCertificate2 = async (courseId) => {
+        console.log('Starting handleViewCertificate2 with courseId:', courseId);
+        try {
+            setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
+            const token = await getToken();
+
+            // First get certificate info to get policyId and transactionHash
+            const { data: certData } = await axios.get(
+                `${backendUrl}/api/certificate/${userData._id}/${courseId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            console.log('Certificate data:', certData);
+
+            if (!certData.success || !certData.certificate) {
+                toast.error(certData.message || 'Certificate not found');
+                return;
+            }
+
+            const certificate = certData.certificate;
+            console.log('Certificate details:', certificate);
+
+            // Then use policyId and transactionHash to get NFT info
+            const { data: nftData } = await axios.get(
+                `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            console.log('Raw NFT data:', nftData);
+
+            if (nftData.success) {
+                const qrData = {
+                    policyId: nftData.policyId,
+                    assetName: nftData.assetName,
+                    courseTitle: nftData.courseTitle,
+                    mintTransaction: {
+                        txHash: certificate.transactionHash,
+                        block: '0',
+                        timestamp: Date.now() / 1000
+                    },
+                    metadata: nftData.metadata || {}
+                };
+                console.log('QR data to be set:', qrData);
+                setSelectedNFTForQR(qrData);
+                setShowQRModal(true);
+            } else {
+                toast.error(nftData.message || 'Failed to get NFT information');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error('Failed to get certificate information');
+        } finally {
+            setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
+        }
+    };
 
     useEffect(() => {
         if (enrolledCourses) {
@@ -498,6 +557,13 @@ const MyEnrollments = () => {
                                             >
                                                 {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
                                             </button>
+                                            <button
+                                                onClick={() => handleViewCertificate2(course._id)}
+                                                disabled={loadingCertificate[course._id]}
+                                                className="px-3 py-1.5 bg-yellow-600 text-white rounded text-sm ml-2"
+                                            >
+                                                {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate 2'}
+                                            </button>
                                         </div>
                                     )}
                                 </td>
@@ -652,6 +718,132 @@ const MyEnrollments = () => {
                 </div>
             )}
 
+            {/* QR Code Modal */}
+            {showQRModal && selectedNFTForQR && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-hidden">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl">NFT Information</h2>
+                            <button 
+                                onClick={() => {
+                                    setShowQRModal(false);
+                                    setSelectedNFTForQR(null);
+                                }}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Policy ID</h3>
+                                <div className="bg-gray-50 p-4 rounded">
+                                    {selectedNFTForQR.policyId}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Asset Name</h3>
+                                <div className="bg-gray-50 p-4 rounded">
+                                    {selectedNFTForQR.assetName}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Course Title</h3>
+                                <div className="bg-gray-50 p-4 rounded">
+                                    {selectedNFTForQR.courseTitle}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Mint Transaction</h3>
+                                <div className="bg-gray-50 p-4 rounded">
+                                    <div className="mb-2">
+                                        <span className="font-bold">Transaction Hash: </span>{selectedNFTForQR.mintTransaction.txHash}
+                                    </div>
+                                    <div className="mb-2">
+                                        <span className="font-bold">Block: </span>{selectedNFTForQR.mintTransaction.block}
+                                    </div>
+                                    <div>
+                                        <span className="font-bold">Timestamp: </span>{new Date(selectedNFTForQR.mintTransaction.timestamp * 1000).toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">QR Code</h3> 
+                                <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
+                                    {console.log('Rendering QR code for:', selectedNFTForQR)}
+                                    <div className="border border-gray-200 p-2">
+                                        <QRCodeSVG
+                                        value={`${window.location.origin}/certificate-checker?policyId=${selectedNFTForQR.policyId}&txHash=${selectedNFTForQR.mintTransaction.txHash}`}
+                                        size={200}
+                                        level="H"
+                                        includeMargin={true}
+                                        />
+                                    </div>
+                                    <p className="mt-4 text-sm text-gray-600">Scan to verify certificate</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Direct Info QR Code</h3>
+                                <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
+                                    <div className="border border-gray-200 p-2">
+                                        <QRCodeSVG
+                                            value={JSON.stringify({
+                   
+                                                policyId: selectedNFTForQR.policyId,
+                                                assetName: selectedNFTForQR.assetName,
+                                                courseTitle: selectedNFTForQR.courseTitle,
+                                                txHash: selectedNFTForQR.mintTransaction.txHash,
+                                                timestamp: selectedNFTForQR.mintTransaction.timestamp,
+                                                // metadata: selectedNFTForQR.metadata,
+                                                explorerUrl: `https://preprod.cardanoscan.io/token/${selectedNFTForQR.policyId}${selectedNFTForQR.assetName}`
+                                            })}
+                                            size={200}
+                                            level="H"
+                                            includeMargin={true}
+                                        />
+                                    </div>
+                                    <p className="mt-4 text-sm text-gray-600">Scan for direct info display</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Metadata (CIP-721)</h3>
+                                <div className="bg-gray-50 p-4 rounded">
+                                    <pre className="font-mono text-sm whitespace-pre">
+{JSON.stringify(selectedNFTForQR.metadata, null, 2)}
+                                    </pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <a 
+                                href={`https://preprod.cardanoscan.io/token/${selectedNFTForQR.policyId}${selectedNFTForQR.assetName}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                View on Explorer
+                            </a>
+                            <button 
+                                onClick={() => {
+                                    setShowQRModal(false);
+                                    setSelectedNFTForQR(null);
+                                }}
+                                className="px-6 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
    
         </div>
     ) : (

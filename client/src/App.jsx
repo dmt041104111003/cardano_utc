@@ -20,6 +20,7 @@ import ProfileDetail from './pages/student/ProfileDetail.jsx';
 import NotificationPage from './pages/educator/NotificationPage.jsx';
 import EditCourse from './pages/educator/Editcourse.jsx';
 import PaymentPage from './pages/student/PaymentPage.jsx';
+import CertificateViewer from './pages/student/CertificateViewer';
 
 const App = () => {
 
@@ -41,6 +42,8 @@ const App = () => {
         <Route path='/payment/:courseId' element={<PaymentPage />} />
         <Route path='/loading/:path' element={<Loading />} />
         {/* <Route path="/player/:courseId/test/:testId" element={<TestPage />} /> */}
+        <Route path="/courses" element={<CoursesList />} />
+        <Route path="/certificate/:txHash" element={<CertificateViewer />} />
 
 
         <Route path='/educator' element={<Educator />}>

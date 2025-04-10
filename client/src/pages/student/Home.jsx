@@ -6,6 +6,7 @@ import CoursesSection from '../../components/student/CoursesSection';
 // import TestimonialsSection from '../../components/student/TestimonialsSection';
 import CallToAction from '../../components/student/CallToAction';
 import Footer from '../../components/student/Footer';
+import TransactionChecker from '../../components/student/TransactionChecker';
 
 const Home = () => {
     return (
@@ -13,6 +14,7 @@ const Home = () => {
             <Hero />
             <Companies />
             <CoursesSection />
+            <TransactionChecker />
             {/* <TestimonialsSection /> */}
             <CallToAction />
             <Footer />

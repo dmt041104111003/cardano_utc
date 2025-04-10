@@ -31,7 +31,7 @@ export const getDetailCertificate = async (req, res) => {
 
 export const createNewCertificate = async (req, res) => {
     try {
-        const { userId, courseId, mintUserId, transactionHash, ipfsHash, policyId } = req.body;
+        const { userId, courseId, mintUserId, transactionHash, ipfsHash } = req.body;
 
         if (!ipfsHash) {
             return res.status(400).json({ success: false, message: "Thiếu ipfsHash" });
@@ -43,7 +43,6 @@ export const createNewCertificate = async (req, res) => {
             courseId,
             certificateUrl: `${PINATA_PREFIX_WEBSITE}${ipfsHash}`,
             transactionHash,
-            policyId,
             issueBy: mintUserId,
             issueAt: issueAt, 
         });
@@ -118,6 +117,69 @@ export const createUnsignedMintTx = async (req, res) => {
         res.status(500).json({
             success: false,
             message: error.message
+        });
+    }
+};
+
+export const getCertificateByTx = async (req, res) => {
+    try {
+        const { txHash } = req.params;
+
+        // Get certificate with this transaction hash
+        const certificate = await Certificate.findOne({ transactionHash: txHash })
+            .populate({
+                path: "courseId",
+                select: "courseTitle courseDescription educatorId",
+                populate: {
+                    path: "educatorId",
+                    select: "name email walletAddress"
+                }
+            })
+            .populate({
+                path: "userId",
+                select: "name email walletAddress"
+            });
+
+        if (!certificate) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "No certificate found with this transaction hash" 
+            });
+        }
+
+        // Get transaction details from Blockfrost
+        const txData = await blockfrost.getTransactionDetails(txHash);
+
+        res.json({
+            success: true,
+            data: {
+                course: {
+                    title: certificate.courseId.courseTitle,
+                    description: certificate.courseId.courseDescription
+                },
+                educator: {
+                    name: certificate.courseId.educatorId.name,
+                    email: certificate.courseId.educatorId.email,
+                    walletAddress: certificate.courseId.educatorId.walletAddress
+                },
+                student: {
+                    name: certificate.userId.name,
+                    email: certificate.userId.email,
+                    walletAddress: certificate.userId.walletAddress
+                },
+                issueDate: certificate.issueAt,
+                certificateUrl: certificate.certificateUrl,
+                transactionHash: certificate.transactionHash,
+                blockHeight: txData.block_height,
+                blockTime: txData.block_time
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting certificate by tx:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message 
         });
     }
 };
