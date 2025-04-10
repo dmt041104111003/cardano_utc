@@ -30,11 +30,7 @@ const MyEnrollments = () => {
     const [savingAddress, setSavingAddress] = useState({});
     const [loadingCertificate, setLoadingCertificate] = useState({});
     const [certificateStatus, setCertificateStatus] = useState({});
-    const [sentToEducator, setSentToEducator] = useState(() => {
-        // Load initial state từ localStorage
-        const saved = localStorage.getItem('sentToEducator');
-        return saved ? JSON.parse(saved) : {};
-    });
+    // Removed sentToEducator state
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredCourses, setFilteredCourses] = useState([]);
@@ -42,12 +38,7 @@ const MyEnrollments = () => {
     const [showCertified, setShowCertified] = useState(false);
     const itemsPerPage = 7;
 
-    // Hàm update state và lưu vào localStorage 
-    const updateSentToEducator = (courseId) => {
-        const newState = { ...sentToEducator, [courseId]: true };
-        setSentToEducator(newState);
-        localStorage.setItem('sentToEducator', JSON.stringify(newState));
-    };
+    // Removed updateSentToEducator function
 
     const getCourseProgress = async () => {
         try {
@@ -152,8 +143,6 @@ const MyEnrollments = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            // Lưu state vào localStorage
-            updateSentToEducator(courseId);
             toast.success('Address saved and notification sent to educator!');
         } catch (error) {
             console.error('Error saving address:', error);
@@ -268,10 +257,42 @@ const MyEnrollments = () => {
     const handleCertificate = async (courseId) => {
         try {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
-            toast.info("Certificate download coming soon!");
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const token = await getToken();
+
+            // First get certificate info to get policyId and transactionHash
+            const { data: certData } = await axios.get(
+                `${backendUrl}/api/certificate/${userData._id}/${courseId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (!certData.success || !certData.certificate) {
+                toast.error(certData.message || 'Certificate not found');
+                return;
+            }
+
+            const certificate = certData.certificate;
+
+            // Then use policyId and transactionHash to get NFT info
+            const { data: nftData } = await axios.get(
+                `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (nftData.success) {
+                setSelectedNFT({
+                    policyId: nftData.policyId,
+                    assetName: nftData.assetName,
+                    courseTitle: nftData.courseTitle,
+                    metadata: nftData.metadata,
+                    mintTransaction: nftData.mintTransaction
+                });
+                setShowNFTModal(true);
+            } else {
+                toast.error('Could not find certificate NFT information');
+            }
         } catch (error) {
-            toast.error("Something went wrong!");
+            console.error('Error fetching certificate:', error);
+            toast.error(error.response?.data?.message || error.message || 'Failed to fetch certificate information');
         } finally {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
         }
@@ -437,17 +458,15 @@ const MyEnrollments = () => {
                                                     <button
                                                         onClick={() => handleSaveAddress(course._id)}
                                                         className={`px-3 py-1 rounded-md text-xs font-medium ${
-                                                            savingAddress[course._id] || sentToEducator[course._id]
+                                                            savingAddress[course._id]
                                                                 ? 'bg-gray-400'
                                                                 : 'bg-orange-500 hover:bg-orange-600'
                                                         } text-white`}
-                                                        disabled={savingAddress[course._id] || sentToEducator[course._id]}
+                                                        disabled={savingAddress[course._id]}
                                                     >
                                                         {savingAddress[course._id] 
                                                             ? 'Loading...' 
-                                                            : sentToEducator[course._id]
-                                                                ? 'Sent'
-                                                                : 'Send Educator'
+                                                            : 'Send Educator'
                                                         }
                                                     </button>
                                                     <button
@@ -477,7 +496,7 @@ const MyEnrollments = () => {
                                                 className="px-3 py-1.5 bg-yellow-600 text-white rounded text-sm"
                                                 disabled={loadingCertificate[course._id]}
                                             >
-                                                {loadingCertificate[course._id] ? 'Đang tải' : 'Certificate'}
+                                                {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
                                             </button>
                                         </div>
                                     )}

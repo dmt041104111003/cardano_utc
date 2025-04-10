@@ -218,7 +218,9 @@ const NotificationPage = () => {
                     userId: notification.studentId?._id,
                     courseId: notification.courseId?._id,
                     mintUserId: userData?._id,
-                    ipfsHash: mintData.ipfsHash
+                    ipfsHash: mintData.ipfsHash,
+                    policyId: nftInfo.policyId,
+                    transactionHash: txHash
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

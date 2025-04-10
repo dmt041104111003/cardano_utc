@@ -31,7 +31,7 @@ export const getDetailCertificate = async (req, res) => {
 
 export const createNewCertificate = async (req, res) => {
     try {
-        const { userId, courseId, mintUserId, transactionHash, ipfsHash } = req.body;
+        const { userId, courseId, mintUserId, transactionHash, ipfsHash, policyId } = req.body;
 
         if (!ipfsHash) {
             return res.status(400).json({ success: false, message: "Thiếu ipfsHash" });
@@ -43,6 +43,7 @@ export const createNewCertificate = async (req, res) => {
             courseId,
             certificateUrl: `${PINATA_PREFIX_WEBSITE}${ipfsHash}`,
             transactionHash,
+            policyId,
             issueBy: mintUserId,
             issueAt: issueAt, 
         });

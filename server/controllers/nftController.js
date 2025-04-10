@@ -121,3 +121,96 @@ export const getNFTInfo = async (req, res) => {
         });
     }
 };
+
+export const getNFTInfoByPolicy = async (req, res) => {
+    const { policyId, txHash } = req.params;
+    console.log(' [NFT Query] Starting for policyId:', policyId, 'and txHash:', txHash);
+    
+    try {
+        try {
+            console.log(' [NFT Query] Getting transaction:', txHash);
+            const txDetails = await blockfrost.txs(txHash);
+            console.log(' [NFT Query] Transaction details:', txDetails);
+
+            // Get metadata from transaction
+            const txMetadata = await blockfrost.txsMetadata(txHash);
+            console.log(' [NFT Query] Transaction metadata:', txMetadata);
+
+            // Get minted assets from transaction
+            const txUtxos = await blockfrost.txsUtxos(txHash);
+            console.log(' [NFT Query] Transaction UTXOs:', txUtxos);
+
+            // Find the NFT in the outputs with matching policy ID
+            const mintedAsset = txUtxos.outputs.find(output => 
+                output.amount.find(amt => amt.unit !== 'lovelace' && amt.unit.startsWith(policyId))
+            );
+
+            if (!mintedAsset) {
+                throw new Error('No NFT found in transaction outputs');
+            }
+
+            const assetInfo = mintedAsset.amount.find(amt => amt.unit !== 'lovelace' && amt.unit.startsWith(policyId));
+            if (!assetInfo) {
+                throw new Error('No NFT found in transaction outputs');
+            }
+
+            console.log(' [NFT Query] Found NFT:', assetInfo.unit);
+
+            // Get asset name from unit
+            const assetName = assetInfo.unit.slice(56);
+
+            // Get asset details
+            const assetDetails = await blockfrost.assetsById(assetInfo.unit);
+            console.log(' [NFT Query] Asset details:', assetDetails);
+
+            // Format metadata theo CIP-721
+            const nftMetadata = {
+                "721": {
+                    [policyId]: {
+                        [assetName]: {
+                            name: assetDetails.onchain_metadata?.name || "Certificate NFT",
+                            image: assetDetails.onchain_metadata?.image || {},
+                            mediaType: assetDetails.onchain_metadata?.mediaType || "image/png",
+                            description: assetDetails.onchain_metadata?.description || "",
+                            properties: assetDetails.onchain_metadata?.properties || {
+                                created: txDetails.block_time
+                            }
+                        }
+                    }
+                }
+            };
+
+            return res.json({
+                success: true,
+                policyId,
+                assetName,
+                courseTitle: assetDetails.onchain_metadata?.name || "Certificate NFT",
+                metadata: nftMetadata,
+                mintTransaction: {
+                    txHash,
+                    block: txDetails.block_height,
+                    timestamp: txDetails.block_time
+                },
+                blockchainData: {
+                    assetDetails,
+                    transaction: txDetails,
+                    metadata: txMetadata
+                }
+            });
+
+        } catch (blockchainError) {
+            console.error(' [NFT Query] Blockchain query error:', blockchainError);
+            throw new Error('Failed to fetch blockchain data: ' + blockchainError.message);
+        }
+
+    } catch (error) {
+        console.error(' [NFT Query] Error:', error);
+        console.error('Stack:', error.stack);
+        
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error querying NFT information',
+            error: error.message 
+        });
+    }
+};
