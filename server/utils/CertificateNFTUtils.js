@@ -72,21 +72,17 @@ async function createCertificateNFT({
                 [policyId]: {
                     [assetName]: {
                         name: `${courseData.courseTitle} Certificate`,
-                        // description: "Course completion certificate",
-                        image: ipfsHash,  // Just store the hash
+                        image: ipfsHash,
                         mediaType: "image/png",
-                        courseId: courseData._id.toString(),
-                        courseTitle: courseData.courseTitle,
-                        // courseDescription: courseData.courseDescription || "",
-                        recipient: {
-                            name: courseData.studentName,
-                            address: shortUserAddress
-                        },
-                        issuer: {
-                            name: typeof courseData.educator === 'object' ? courseData.educator.name : courseData.educator,
-                            address: shortCreatorAddress
-                        },
-                        issuedAt: new Date().toISOString().split('T')[0]
+                        course_id: courseData._id.toString(),
+                        course_title: courseData.courseTitle,
+                        student_id: courseData.studentId || '',
+                        student_name: courseData.studentName,
+                        student_address: shortUserAddress,
+                        educator_id: (typeof courseData.educator === 'object' ? courseData.educator._id : courseData.educatorId) || '',
+                        educator_name: typeof courseData.educator === 'object' ? courseData.educator.name : courseData.educator,
+                        educator_address: shortCreatorAddress,
+                        issued_at: new Date().toISOString().split('T')[0]
                     }
                 }
             }
@@ -135,7 +131,10 @@ async function createCertificateNFT({
         );
 
         const unsignedTx = await tx.build();
-        return unsignedTx;
+        return {
+            unsignedTx,
+            policyId
+        };
 
     } catch (error) {
         console.error("Error creating certificate NFT:", error);

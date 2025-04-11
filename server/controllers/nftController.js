@@ -122,6 +122,54 @@ export const getNFTInfo = async (req, res) => {
     }
 };
 
+export const getNFTInfoByTx = async (req, res) => {
+    const { txHash } = req.params;
+    console.log(' [NFT Query] Starting for txHash:', txHash);
+    
+    try {
+        // Get transaction details
+        const txDetails = await blockfrost.txs(txHash);
+        console.log(' [NFT Query] Transaction details:', txDetails);
+
+        // Get minted assets from transaction
+        const txUtxos = await blockfrost.txsUtxos(txHash);
+        console.log(' [NFT Query] Transaction UTXOs:', txUtxos);
+
+        // Find the NFT in the outputs
+        const mintedAsset = txUtxos.outputs.find(output => 
+            output.amount.find(amt => amt.unit !== 'lovelace')
+        );
+
+        if (!mintedAsset) {
+            throw new Error('No NFT found in transaction outputs');
+        }
+
+        const assetInfo = mintedAsset.amount.find(amt => amt.unit !== 'lovelace');
+        if (!assetInfo) {
+            throw new Error('No NFT found in transaction outputs');
+        }
+
+        // Get policy ID from unit
+        const policyId = assetInfo.unit.slice(0, 56);
+
+        res.json({
+            success: true,
+            policyId,
+            txHash
+        });
+
+    } catch (error) {
+        console.error(' [NFT Query] Error:', error);
+        console.error('Stack:', error.stack);
+        
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error querying NFT information',
+            error: error.message 
+        });
+    }
+};
+
 export const getNFTInfoByPolicy = async (req, res) => {
     const { policyId, txHash } = req.params;
     console.log(' [NFT Query] Starting for policyId:', policyId, 'and txHash:', txHash);
@@ -163,29 +211,35 @@ export const getNFTInfoByPolicy = async (req, res) => {
             const assetDetails = await blockfrost.assetsById(assetInfo.unit);
             console.log(' [NFT Query] Asset details:', assetDetails);
 
-            // Format metadata theo CIP-721
-            const nftMetadata = {
-                "721": {
-                    [policyId]: {
-                        [assetName]: {
-                            name: assetDetails.onchain_metadata?.name || "Certificate NFT",
-                            image: assetDetails.onchain_metadata?.image || {},
-                            mediaType: assetDetails.onchain_metadata?.mediaType || "image/png",
-                            description: assetDetails.onchain_metadata?.description || "",
-                            properties: assetDetails.onchain_metadata?.properties || {
-                                created: txDetails.block_time
-                            }
-                        }
-                    }
-                }
-            };
+            // Get the raw metadata
+            let metadata = assetDetails.onchain_metadata;
+            if (!metadata) {
+                throw new Error('Asset metadata not found');
+            }
+
+            console.log(' [NFT Query] Raw metadata:', metadata);
+
+            // Extract full CIP-721 metadata
+            let nftMetadata;
+            if (metadata['721'] && metadata['721'][policyId]) {
+                // If metadata is already in CIP-721 format
+                console.log(' [NFT Query] Using existing CIP-721 metadata');
+                nftMetadata = metadata;
+            } else {
+                // Format metadata according to CIP-721
+                console.log(' [NFT Query] Formatting as CIP-721 metadata');
+                nftMetadata = metadata; // Return raw metadata instead of formatting
+            }
+
+            console.log(' [NFT Query] Final metadata:', nftMetadata);
 
             return res.json({
                 success: true,
                 policyId,
                 assetName,
-                courseTitle: assetDetails.onchain_metadata?.name || "Certificate NFT",
+                courseTitle: metadata.course_title || metadata.name,
                 metadata: nftMetadata,
+                rawMetadata: metadata, // Include raw metadata as well
                 mintTransaction: {
                     txHash,
                     block: txDetails.block_height,

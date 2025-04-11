@@ -31,7 +31,7 @@ export const getDetailCertificate = async (req, res) => {
 
 export const createNewCertificate = async (req, res) => {
     try {
-        const { userId, courseId, mintUserId, transactionHash, ipfsHash } = req.body;
+        const { userId, courseId, mintUserId, transactionHash, ipfsHash, policyId } = req.body;
 
         if (!ipfsHash) {
             return res.status(400).json({ success: false, message: "Thiếu ipfsHash" });
@@ -43,6 +43,7 @@ export const createNewCertificate = async (req, res) => {
             courseId,
             certificateUrl: `${PINATA_PREFIX_WEBSITE}${ipfsHash}`,
             transactionHash,
+            policyId,
             issueBy: mintUserId,
             issueAt: issueAt, 
         });
@@ -99,21 +100,62 @@ export const createUnsignedMintTx = async (req, res) => {
 
         // Create unsigned mint transaction
         console.log('Creating unsigned mint transaction...');
-        const unsignedTx = await createCertificateNFT({
+        const { unsignedTx, policyId } = await createCertificateNFT({
             utxos,
             userAddress,
             collateral,
             courseData: courseInfo
         });
 
+        console.log('Got policy ID:', policyId);
+
         res.json({
             success: true,
             unsignedTx,
-            ipfsHash: ipfsResult.IpfsHash
+            ipfsHash: ipfsResult.IpfsHash,
+            policyId
         });
 
     } catch (error) {
         console.error("Lỗi tạo certificate NFT:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const updateCertificate = async (req, res) => {
+    try {
+        const { certificateId, policyId } = req.body;
+
+        if (!certificateId || !policyId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Certificate ID and Policy ID are required'
+            });
+        }
+
+        const certificate = await Certificate.findByIdAndUpdate(
+            certificateId,
+            { policyId },
+            { new: true }
+        );
+
+        if (!certificate) {
+            return res.status(404).json({
+                success: false,
+                message: 'Certificate not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            certificate
+        });
+
+    } catch (error) {
+        console.error('Error updating certificate:', error);
         res.status(500).json({
             success: false,
             message: error.message

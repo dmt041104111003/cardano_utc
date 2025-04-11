@@ -268,30 +268,40 @@ const MyEnrollments = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
+            console.log('Certificate data:', certData);
+
             if (!certData.success || !certData.certificate) {
                 toast.error(certData.message || 'Certificate not found');
                 return;
             }
 
             const certificate = certData.certificate;
+            console.log('Certificate details:', certificate);
 
-            // Then use policyId and transactionHash to get NFT info
-            const { data: nftData } = await axios.get(
-                `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            try {
+                // Get NFT info directly using policy ID and transaction hash
+                const { data: nftData } = await axios.get(
+                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
 
-            if (nftData.success) {
-                setSelectedNFT({
-                    policyId: nftData.policyId,
-                    assetName: nftData.assetName,
-                    courseTitle: nftData.courseTitle,
-                    metadata: nftData.metadata,
-                    mintTransaction: nftData.mintTransaction
-                });
-                setShowNFTModal(true);
-            } else {
-                toast.error('Could not find certificate NFT information');
+                console.log('NFT data:', nftData);
+
+                if (nftData.success) {
+                    setSelectedNFT({
+                        policyId: nftData.policyId,
+                        assetName: nftData.assetName,
+                        courseTitle: nftData.courseTitle,
+                        metadata: nftData.metadata,
+                        mintTransaction: nftData.mintTransaction
+                    });
+                    setShowNFTModal(true);
+                } else {
+                    toast.error('Could not find certificate NFT information');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                toast.error(error.response?.data?.message || 'Error fetching NFT information');
             }
         } catch (error) {
             console.error('Error fetching certificate:', error);
@@ -300,9 +310,6 @@ const MyEnrollments = () => {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
         }
     }
-
-    const [showQRModal, setShowQRModal] = useState(false);
-    const [selectedNFTForQR, setSelectedNFTForQR] = useState(null);
 
     const handleViewCertificate2 = async (courseId) => {
         console.log('Starting handleViewCertificate2 with courseId:', courseId);
@@ -326,27 +333,34 @@ const MyEnrollments = () => {
             const certificate = certData.certificate;
             console.log('Certificate details:', certificate);
 
-            // Then use policyId and transactionHash to get NFT info
-            const { data: nftData } = await axios.get(
-                `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            try {
+                // Get NFT info directly using policy ID and transaction hash
+                const { data: nftData } = await axios.get(
+                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
 
-            console.log('Raw NFT data:', nftData);
+                console.log('NFT data:', nftData);
 
-            if (nftData.success) {
-                const qrData = {
-                    policyId: nftData.policyId,
-                    assetName: nftData.assetName,
-                    courseTitle: nftData.courseTitle,
-                    mintTransaction: nftData.mintTransaction,
-                    metadata: nftData.metadata || {}
-                };
-                console.log('QR data to be set:', qrData);
-                setSelectedNFTForQR(qrData);
-                setShowQRModal(true);
-            } else {
-                toast.error(nftData.message || 'Failed to get NFT information');
+                if (nftData.success) {
+                    const qrData = {
+                        policyId: nftData.policyId,
+                        assetName: nftData.assetName,
+                        courseTitle: nftData.courseTitle,
+                        metadata: nftData.metadata,
+                        mintTransaction: nftData.mintTransaction
+                    };
+                    console.log('QR data to be set:', qrData);
+                    setSelectedNFTForQR(qrData);
+                    setShowQRModal(true);
+                } else {
+                    toast.error(nftData.message || 'Failed to get NFT information');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                toast.error('Failed to get certificate information');
+            } finally {
+                setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
             }
         } catch (error) {
             console.error('Error:', error);
@@ -355,6 +369,9 @@ const MyEnrollments = () => {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
         }
     };
+
+    const [showQRModal, setShowQRModal] = useState(false);
+    const [selectedNFTForQR, setSelectedNFTForQR] = useState(null);
 
     useEffect(() => {
         if (enrolledCourses) {
