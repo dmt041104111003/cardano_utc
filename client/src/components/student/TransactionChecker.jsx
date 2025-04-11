@@ -197,7 +197,7 @@ const TransactionChecker = () => {
                             <div>
                                 <h3 className="text-xl font-semibold text-gray-800 mb-4">Metadata (CIP-721)</h3>
                                 <div className="bg-gray-50 p-6 rounded-lg">
-                                    <pre className="font-mono text-base whitespace-pre-wrap overflow-x-auto bg-white p-4 rounded-lg border border-gray-100">
+                                    <pre className="font-mono text-base whitespace-pre-wrap overflow-x-auto bg-white p-4 rounded-lg border border-gray-100 text-left">
                                         {JSON.stringify(selectedNFT.metadata, null, 2)}
                                     </pre>
                                 </div>
