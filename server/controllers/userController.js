@@ -427,6 +427,38 @@ export const updateCourseEducator = async (req, res) => {
     }
 };
 
+export const getSimpleCertificateData = async (req, res) => {
+    try {
+        const userId = req.auth.userId;
+        const { courseId } = req.body;
+
+        // Get course progress with all required info
+        const progressData = await CourseProgress.findOne({ 
+            userId, 
+            courseId,
+            completed: true 
+        });
+
+        if (!progressData) {
+            return res.json({ 
+                success: false, 
+                message: 'No completed course progress found' 
+            });
+        }
+
+        res.json({
+            success: true,
+            certificateData: {
+                courseInfo: progressData.courseInfo,
+                studentInfo: progressData.studentInfo,
+                completedAt: progressData.completedAt
+            }
+        });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
 export const enrollCourses = async (req, res) => {
     const { origin } = req.headers;
     const userId = req.auth.userId;

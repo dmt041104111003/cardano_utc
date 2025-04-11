@@ -33,15 +33,15 @@ const MyEnrollments = () => {
     const [savingAddress, setSavingAddress] = useState({});
     const [loadingCertificate, setLoadingCertificate] = useState({});
     const [certificateStatus, setCertificateStatus] = useState({});
-    // Removed sentToEducator state
+    const [showSimpleCertModal, setShowSimpleCertModal] = useState(false);
+    const [selectedCertData, setSelectedCertData] = useState(null);
+    const [loadingSimpleCert, setLoadingSimpleCert] = useState({});
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredCourses, setFilteredCourses] = useState([]);
     const [showCompleted, setShowCompleted] = useState(false);
     const [showCertified, setShowCertified] = useState(false);
     const itemsPerPage = 7;
-
-    // Removed updateSentToEducator function
 
     const getCourseProgress = async () => {
         try {
@@ -224,7 +224,7 @@ const MyEnrollments = () => {
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
                     if (data.success && data.exists) {
-                        updateSentToEducator(course._id);
+                        // updateSentToEducator(course._id);
                     }
                 } catch (error) {
                     console.error(`Error checking address status for course ${course._id}:`, error);
@@ -235,6 +235,77 @@ const MyEnrollments = () => {
         } catch (error) {
             console.error("Error checking statuses:", error);
         }
+    };
+
+    const handleSimpleCertificate = async (courseId) => {
+        try {
+            setLoadingSimpleCert(prev => ({ ...prev, [courseId]: true }));
+            const token = await getToken();
+            
+            const { data } = await axios.post(
+                `${backendUrl}/api/user/get-simple-certificate`,
+                { courseId },
+                { headers: { Authorization: `Bearer ${token}` }}
+            );
+
+            if (!data.success) {
+                toast.error(data.message);
+                return;
+            }
+
+            setSelectedCertData(data.certificateData);
+            setShowSimpleCertModal(true);
+
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setLoadingSimpleCert(prev => ({ ...prev, [courseId]: false }));
+        }
+    };
+
+    const handleDownloadSimpleCertificate = () => {
+        if (!selectedCertData) return;
+
+        const pdf = new jsPDF();
+        
+        // Set font
+        pdf.setFont("helvetica", "bold");
+        
+        // Add title
+        pdf.setFontSize(24);
+        pdf.text("Certificate of Completion", 105, 30, { align: "center" });
+        
+        // Add content
+        pdf.setFontSize(16);
+        pdf.setFont("helvetica", "normal");
+        
+        // Student info
+        pdf.text(`This is to certify that`, 105, 60, { align: "center" });
+        pdf.setFont("helvetica", "bold");
+        pdf.text(selectedCertData.studentInfo.name, 105, 70, { align: "center" });
+        
+        // Course info
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`has successfully completed the course`, 105, 85, { align: "center" });
+        pdf.setFont("helvetica", "bold");
+        pdf.text(selectedCertData.courseInfo.title, 105, 95, { align: "center" });
+        
+        // Completion date
+        pdf.setFont("helvetica", "normal");
+        const completedDate = new Date(selectedCertData.completedAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        pdf.text(`Completed on ${completedDate}`, 105, 110, { align: "center" });
+        
+        // Educator info
+        pdf.text(`Certified by:`, 105, 130, { align: "center" });
+        pdf.setFont("helvetica", "bold");
+        pdf.text(selectedCertData.courseInfo.educatorName, 105, 140, { align: "center" });
+        
+        // Save PDF
+        pdf.save(`${selectedCertData.courseInfo.title}-simple-certificate.pdf`);
     };
 
     useEffect(() => {
@@ -563,22 +634,30 @@ const MyEnrollments = () => {
                                                                 : 'Status Send Educator'
                                                         }
                                                     </button>
-                                                </>
+                                                    <button 
+                                                        onClick={() => handleCertificate(course._id)}
+                                                        className="px-3 py-1.5 text-white rounded text-sm bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                                                        disabled={loadingCertificate[course._id]}
+                                                    >
+                                                        {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleViewCertificate2(course._id)}
+                                                        disabled={loadingCertificate[course._id]}
+                                                        className="px-3 py-1.5 text-white rounded text-sm ml-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                                                    >
+                                                        {loadingCertificate[course._id] ? 'Loading...' : 'Info Download Certificate NFT'}
+                                                    </button>
+                                                    </>
                                             )}
-                                            <button 
-                                                onClick={() => handleCertificate(course._id)}
-                                                className="px-3 py-1.5 bg-yellow-600 text-white rounded text-sm"
-                                                disabled={loadingCertificate[course._id]}
-                                            >
-                                                {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
-                                            </button>
-                                            <button
-                                                onClick={() => handleViewCertificate2(course._id)}
-                                                disabled={loadingCertificate[course._id]}
-                                                className="px-3 py-1.5 bg-orange-600 text-white rounded text-sm ml-2"
-                                            >
-                                                {loadingCertificate[course._id] ? 'Loading...' : 'Info Download Certificate NFT'}
-                                            </button>
+                                                    <button 
+                                                        onClick={() => handleSimpleCertificate(course._id)}
+                                                        className="px-3 py-1.5 text-white rounded text-sm bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
+                                                        disabled={loadingSimpleCert[course._id]}
+                                                    >
+                                                        {loadingSimpleCert[course._id] ? 'Loading...' : 'Simple Certificate'}
+                                                    </button>
+                                   
                                         </div>
                                     )}
                                 </td>
@@ -837,29 +916,35 @@ const MyEnrollments = () => {
                                             
                                             // Add content
                                             pdf.setFontSize(12);
-                                            pdf.text(`Course Title: ${certificateData.courseTitle}`, 20, 40);
+                                            pdf.setFont("helvetica", "normal");
                                             
-                                            // Split long text into multiple lines
-                                            const policyIdText = `Policy ID: ${certificateData.policyId}`;
-                                            const txHashText = `Transaction Hash: ${certificateData.txHash}`;
-                                            const splitPolicyId = pdf.splitTextToSize(policyIdText, 170);
-                                            const splitTxHash = pdf.splitTextToSize(txHashText, 170);
+                                            // Student info
+                                            pdf.text(`This is to certify that`, 105, 40);
+                                            pdf.setFont("helvetica", "bold");
+                                            pdf.text(selectedCertData.studentInfo.name, 105, 50, { align: 'center' });
                                             
-                                            pdf.text(splitPolicyId, 20, 50);
-                                            pdf.text(`Asset Name: ${certificateData.assetName}`, 20, 60);
-                                            pdf.text(splitTxHash, 20, 70);
-                                            pdf.text(`Block Height: ${certificateData.block}`, 20, 80);
-                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 90);
+                                            // Course info
+                                            pdf.setFont("helvetica", "normal");
+                                            pdf.text(`has successfully completed the course`, 105, 65, { align: 'center' });
+                                            pdf.setFont("helvetica", "bold");
+                                            pdf.text(selectedCertData.courseInfo.title, 105, 75, { align: 'center' });
                                             
-                                            // Add metadata
-                                            pdf.text('NFT Metadata:', 20, 110);
-                                            const metadataText = JSON.stringify(certificateData.metadata, null, 2);
-                                            const splitMetadata = pdf.splitTextToSize(metadataText, 170);
-                                            pdf.setFontSize(10);
-                                            pdf.text(splitMetadata, 20, 120);
+                                            // Completion date
+                                            pdf.setFont("helvetica", "normal");
+                                            const completedDate = new Date(selectedCertData.completedAt).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            });
+                                            pdf.text(`Completed on ${completedDate}`, 105, 90, { align: 'center' });
+                                            
+                                            // Educator info
+                                            pdf.text(`Certified by:`, 105, 110, { align: 'center' });
+                                            pdf.setFont("helvetica", "bold");
+                                            pdf.text(selectedCertData.courseInfo.educatorName, 105, 120, { align: 'center' });
                                             
                                             // Calculate metadata height and ensure enough space for QR codes
-                                            const metadataHeight = splitMetadata.length * 5; // 5mm per line
+                                            const metadataHeight = 0; // No metadata in this case
                                             const qrCodeSize = 50; // Smaller QR codes
                                             const qrStartY = 220; // Move QR codes further down
                                             
@@ -912,7 +997,7 @@ const MyEnrollments = () => {
                                 href={`https://preprod.cardanoscan.io/token/${selectedNFTForQR.policyId}${selectedNFTForQR.assetName}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                className="px-6 py-2 text-white rounded bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
                             >
                                 View on Explorer
                             </a>
@@ -921,7 +1006,62 @@ const MyEnrollments = () => {
                                     setShowQRModal(false);
                                     setSelectedNFTForQR(null);
                                 }}
-                                className="px-6 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                                className="px-6 py-2 rounded bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+   
+            {/* Simple Certificate Modal */}
+            {showSimpleCertModal && selectedCertData && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+                        <h2 className="text-2xl font-bold mb-4">Course Certificate</h2>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-gray-600">Student Name</p>
+                                <p className="font-semibold">{selectedCertData.studentInfo.name}</p>
+                            </div>
+                            
+                            <div>
+                                <p className="text-gray-600">Course</p>
+                                <p className="font-semibold">{selectedCertData.courseInfo.title}</p>
+                            </div>
+                            
+                            <div>
+                                <p className="text-gray-600">Educator</p>
+                                <p className="font-semibold">{selectedCertData.courseInfo.educatorName}</p>
+                            </div>
+                            
+                            <div>
+                                <p className="text-gray-600">Completed On</p>
+                                <p className="font-semibold">
+                                    {new Date(selectedCertData.completedAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button 
+                                onClick={handleDownloadSimpleCertificate}
+                                className="px-4 py-2 text-white rounded bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                            >
+                                Download Certificate
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setShowSimpleCertModal(false);
+                                    setSelectedCertData(null);
+                                }}
+                                className="px-4 py-2 rounded bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800"
                             >
                                 Close
                             </button>

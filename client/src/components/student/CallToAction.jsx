@@ -96,9 +96,9 @@ const CallToAction = () => {
                             <div className='flex items-center justify-between'>
                                 <div className='flex flex-col'>
                                     <div className='flex items-center gap-2'>
-                                        <span className='text-2xl font-bold text-blue-600'>${course.price}</span>
+                                        <span className='text-2xl font-bold text-blue-600'>${Number(course.price).toFixed(2)}</span>
                                         {course.hasDiscount && (
-                                            <span className='text-gray-500 text-sm line-through'>${course.originalPrice}</span>
+                                            <span className='text-gray-500 text-sm line-through'>${Number(course.originalPrice).toFixed(2)}</span>
                                         )}
                                     </div>
                                     <span className='text-gray-500 text-sm'>({course.totalRatings || 0} ratings)</span>
