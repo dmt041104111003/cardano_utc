@@ -8,13 +8,23 @@ const courseProgressSchema = new mongoose.Schema({
     },
     courseId: { type: String, required: true },
     completed: { type: Boolean, default: false, required: false },
+    completedAt: { type: Date },
     lectureCompleted: [],
     tests: [{
         testId: { type: String },
         passed: { type: Boolean, default: false },
         score: { type: Number },
         completedAt: { type: Date }
-    }]
+    }],
+    courseInfo: {
+        title: { type: String },
+        educatorId: { type: String },
+        educatorName: { type: String }
+    },
+    studentInfo: {
+        name: { type: String },
+        userId: { type: String }
+    }
 }, { minimize: false });
 
 export const CourseProgress = mongoose.model("CourseProgress", courseProgressSchema);

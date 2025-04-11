@@ -575,9 +575,9 @@ const MyEnrollments = () => {
                                             <button
                                                 onClick={() => handleViewCertificate2(course._id)}
                                                 disabled={loadingCertificate[course._id]}
-                                                className="px-3 py-1.5 bg-yellow-600 text-white rounded text-sm ml-2"
+                                                className="px-3 py-1.5 bg-orange-600 text-white rounded text-sm ml-2"
                                             >
-                                                {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate 2'}
+                                                {loadingCertificate[course._id] ? 'Loading...' : 'Info Download Certificate NFT'}
                                             </button>
                                         </div>
                                     )}
@@ -790,24 +790,43 @@ const MyEnrollments = () => {
                             <div>
                                 <h3 className="text-gray-600 mb-2">QR Code</h3> 
                                 <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
-                                    {console.log('Rendering QR code for:', selectedNFTForQR)}
                                     <div className="border border-gray-200 p-2">
                                         <QRCodeSVG
-                                        value={`https://transaction-sand.vercel.app/`}
+                                            value={`https://transaction-sand.vercel.app/`}
                                             size={200}
                                             level="H"
                                             includeMargin={true}
                                         />
                                     </div>
                                     <p className="mt-4 text-sm text-gray-600">Scan to verify certificate</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Direct Info QR Code</h3>
+                                <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
+                                    <div className="border border-gray-200 p-2">
+                                        <QRCodeSVG
+                                            value={JSON.stringify({
+                                                policyId: selectedNFTForQR.policyId,
+                                                txHash: selectedNFTForQR.mintTransaction.txHash
+                                            })}
+                                            size={200}
+                                            level="H"
+                                            includeMargin={true}
+                                        />
+                                    </div>
+                                    <p className="mt-4 text-sm text-gray-600">Scan for blockchain info</p>
                                     <button
                                         onClick={() => {
                                             const certificateData = {
+                                                courseTitle: selectedNFTForQR.courseTitle,
                                                 policyId: selectedNFTForQR.policyId,
                                                 assetName: selectedNFTForQR.assetName,
-                                                courseTitle: selectedNFTForQR.courseTitle,
                                                 txHash: selectedNFTForQR.mintTransaction.txHash,
-                                                timestamp: selectedNFTForQR.mintTransaction.timestamp,
+                                                timestamp: selectedNFTForQR.mintTransaction.timestamp * 1000, // Convert to milliseconds
+                                                block: selectedNFTForQR.mintTransaction.block,
+                                                metadata: selectedNFTForQR.metadata
                                             };
 
                                             const pdf = new jsPDF('p', 'mm', 'a4');
@@ -819,10 +838,30 @@ const MyEnrollments = () => {
                                             // Add content
                                             pdf.setFontSize(12);
                                             pdf.text(`Course Title: ${certificateData.courseTitle}`, 20, 40);
-                                            pdf.text(`Policy ID: ${certificateData.policyId}`, 20, 50);
+                                            
+                                            // Split long text into multiple lines
+                                            const policyIdText = `Policy ID: ${certificateData.policyId}`;
+                                            const txHashText = `Transaction Hash: ${certificateData.txHash}`;
+                                            const splitPolicyId = pdf.splitTextToSize(policyIdText, 170);
+                                            const splitTxHash = pdf.splitTextToSize(txHashText, 170);
+                                            
+                                            pdf.text(splitPolicyId, 20, 50);
                                             pdf.text(`Asset Name: ${certificateData.assetName}`, 20, 60);
-                                            pdf.text(`Transaction Hash: ${certificateData.txHash}`, 20, 70);
-                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 80);
+                                            pdf.text(splitTxHash, 20, 70);
+                                            pdf.text(`Block Height: ${certificateData.block}`, 20, 80);
+                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 90);
+                                            
+                                            // Add metadata
+                                            pdf.text('NFT Metadata:', 20, 110);
+                                            const metadataText = JSON.stringify(certificateData.metadata, null, 2);
+                                            const splitMetadata = pdf.splitTextToSize(metadataText, 170);
+                                            pdf.setFontSize(10);
+                                            pdf.text(splitMetadata, 20, 120);
+                                            
+                                            // Calculate metadata height and ensure enough space for QR codes
+                                            const metadataHeight = splitMetadata.length * 5; // 5mm per line
+                                            const qrCodeSize = 50; // Smaller QR codes
+                                            const qrStartY = 220; // Move QR codes further down
                                             
                                             // Add both QR Codes side by side
                                             Promise.all([
@@ -832,47 +871,29 @@ const MyEnrollments = () => {
                                                 const imgData1 = canvas1.toDataURL('image/png');
                                                 const imgData2 = canvas2.toDataURL('image/png');
                                                 
+                                                // Add a page break if needed
+                                                if (qrStartY + qrCodeSize + 10 > pdf.internal.pageSize.height) {
+                                                    pdf.addPage();
+                                                    qrStartY = 20; // Start at top of new page
+                                                }
+                                                
                                                 // First QR code on the left
-                                                pdf.addImage(imgData1, 'PNG', 30, 90, 70, 70);
+                                                pdf.addImage(imgData1, 'PNG', 40, qrStartY, qrCodeSize, qrCodeSize);
                                                 pdf.setFontSize(10);
-                                                pdf.text('Verification QR Code', 65, 170, { align: 'center' });
+                                                pdf.text('Verification QR Code', 65, qrStartY + qrCodeSize + 5, { align: 'center' });
                                                 
                                                 // Second QR code on the right
-                                                pdf.addImage(imgData2, 'PNG', 110, 90, 70, 70);
-                                                pdf.text('Direct Info QR Code', 145, 170, { align: 'center' });
+                                                pdf.addImage(imgData2, 'PNG', 120, qrStartY, qrCodeSize, qrCodeSize);
+                                                pdf.text('Blockchain Info QR Code', 145, qrStartY + qrCodeSize + 5, { align: 'center' });
                                                 
                                                 // Save the PDF
-                                                pdf.save(`certificate-${certificateData.assetName}.pdf`);
+                                                pdf.save(`${certificateData.courseTitle}-certificate.pdf`);
                                             });
                                         }}
                                         className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
                                     >
-                                        Download Certificate with Both QR Codes
+                                        Download Certificate with QR Codes
                                     </button>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-gray-600 mb-2">Direct Info QR Code</h3>
-                                <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
-                                    <div className="border border-gray-200 p-2">
-                                        <QRCodeSVG
-                                            value={JSON.stringify({
-                   
-                                                policyId: selectedNFTForQR.policyId,
-                                                assetName: selectedNFTForQR.assetName,
-                                                courseTitle: selectedNFTForQR.courseTitle,
-                                                txHash: selectedNFTForQR.mintTransaction.txHash,
-                                                timestamp: selectedNFTForQR.mintTransaction.timestamp,
-                                                // metadata: selectedNFTForQR.metadata,
-                                                explorerUrl: `https://preprod.cardanoscan.io/token/${selectedNFTForQR.policyId}${selectedNFTForQR.assetName}`
-                                            })}
-                                            size={200}
-                                            level="H"
-                                            includeMargin={true}
-                                        />
-                                    </div>
-                                    <p className="mt-4 text-sm text-gray-600">Scan for direct info display</p>
                                 </div>
                             </div>
 

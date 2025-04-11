@@ -2,7 +2,7 @@ import User from "../models/User.js"
 import { Purchase } from "../models/Purchase.js";
 import Stripe from "stripe"
 import Course from "../models/Course.js"
-import { CourseProgress } from "../models/courseProgress.js";
+import { CourseProgress } from "../models/CourseProgress.js";
 import mongoose from "mongoose";
 import moment from "moment"
 
@@ -198,11 +198,26 @@ export const updateUserCourseProgress = async (req, res) => {
         // Lấy hoặc tạo mới progress data
         let progressData = await CourseProgress.findOne({ userId, courseId });
         if (!progressData) {
+            // Get course, educator and student info
+            const [courseWithEducator, student] = await Promise.all([
+                Course.findById(courseId).populate('educator'),
+                User.findById(userId)
+            ]);
+            
             progressData = await CourseProgress.create({
                 userId,
                 courseId,
                 lectureCompleted: [],
-                tests: []
+                tests: [],
+                courseInfo: {
+                    title: courseWithEducator.courseTitle,
+                    educatorId: courseWithEducator.educator?._id || '',
+                    educatorName: courseWithEducator.educator?.name || ''
+                },
+                studentInfo: {
+                    name: student?.name || '',
+                    userId: student?._id
+                }
             });
         }
 
@@ -290,8 +305,34 @@ export const updateUserCourseProgress = async (req, res) => {
         console.log('Passed tests:', passedTests.length);
 
         // Chỉ completed = true khi hoàn thành cả lecture và pass hết test
-        progressData.completed = (totalLectures === 0 || completedLectures >= totalLectures) && 
-                               (totalTests === 0 || passedTests.length >= totalTests);
+        const isNowCompleted = (totalLectures === 0 || completedLectures >= totalLectures) && 
+                              (totalTests === 0 || passedTests.length >= totalTests);
+
+        // If course is being completed for the first time, set completedAt and update educator info
+        if (isNowCompleted && !progressData.completed) {
+            progressData.completedAt = new Date();
+            
+                // Get course and educator info
+            const courseWithEducator = await Course.findById(courseId).populate('educator');
+            if (courseWithEducator) {
+                progressData.courseInfo = {
+                    title: courseWithEducator.courseTitle,
+                    educatorId: courseWithEducator.educator?._id || '',
+                    educatorName: courseWithEducator.educator?.name || ''
+                };
+            }
+            
+            // Get student info
+            const student = await User.findById(userId);
+            if (student) {
+                progressData.studentInfo = {
+                    name: student.name || '',
+                    userId: student._id
+                };
+            }
+        }
+        
+        progressData.completed = isNowCompleted;
 
         console.log('Course completed:', progressData.completed);
 
@@ -355,6 +396,36 @@ export const addUserRating = async (req, res) => {
         res.json({ success: false, message: error.message })
     }
 }
+
+export const updateCourseEducator = async (req, res) => {
+    try {
+        const { courseId, educatorInfo } = req.body;
+        const userId = req.auth.userId;
+
+        // Find the course progress
+        const progressData = await CourseProgress.findOne({ userId, courseId });
+
+        if (!progressData) {
+            return res.json({ success: false, message: 'Course progress not found' });
+        }
+
+        // Update educator information
+        progressData.educator = {
+            ...educatorInfo,
+            updatedAt: new Date()
+        };
+
+        await progressData.save();
+
+        res.json({ 
+            success: true, 
+            message: 'Educator information updated successfully',
+            educator: progressData.educator
+        });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
 
 export const enrollCourses = async (req, res) => {
     const { origin } = req.headers;
