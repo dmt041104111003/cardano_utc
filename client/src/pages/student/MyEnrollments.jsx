@@ -33,9 +33,10 @@ const MyEnrollments = () => {
     const [savingAddress, setSavingAddress] = useState({});
     const [loadingCertificate, setLoadingCertificate] = useState({});
     const [certificateStatus, setCertificateStatus] = useState({});
-    const [showSimpleCertModal, setShowSimpleCertModal] = useState(false);
-    const [selectedCertData, setSelectedCertData] = useState(null);
+    const [certificateData, setCertificateData] = useState({});
     const [loadingSimpleCert, setLoadingSimpleCert] = useState({});
+    const [showCertModal, setShowCertModal] = useState(false);
+    const [selectedCertData, setSelectedCertData] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredCourses, setFilteredCourses] = useState([]);
@@ -237,77 +238,6 @@ const MyEnrollments = () => {
         }
     };
 
-    const handleSimpleCertificate = async (courseId) => {
-        try {
-            setLoadingSimpleCert(prev => ({ ...prev, [courseId]: true }));
-            const token = await getToken();
-            
-            const { data } = await axios.post(
-                `${backendUrl}/api/user/get-simple-certificate`,
-                { courseId },
-                { headers: { Authorization: `Bearer ${token}` }}
-            );
-
-            if (!data.success) {
-                toast.error(data.message);
-                return;
-            }
-
-            setSelectedCertData(data.certificateData);
-            setShowSimpleCertModal(true);
-
-        } catch (error) {
-            toast.error(error.message);
-        } finally {
-            setLoadingSimpleCert(prev => ({ ...prev, [courseId]: false }));
-        }
-    };
-
-    const handleDownloadSimpleCertificate = () => {
-        if (!selectedCertData) return;
-
-        const pdf = new jsPDF();
-        
-        // Set font
-        pdf.setFont("helvetica", "bold");
-        
-        // Add title
-        pdf.setFontSize(24);
-        pdf.text("Certificate of Completion", 105, 30, { align: "center" });
-        
-        // Add content
-        pdf.setFontSize(16);
-        pdf.setFont("helvetica", "normal");
-        
-        // Student info
-        pdf.text(`This is to certify that`, 105, 60, { align: "center" });
-        pdf.setFont("helvetica", "bold");
-        pdf.text(selectedCertData.studentInfo.name, 105, 70, { align: "center" });
-        
-        // Course info
-        pdf.setFont("helvetica", "normal");
-        pdf.text(`has successfully completed the course`, 105, 85, { align: "center" });
-        pdf.setFont("helvetica", "bold");
-        pdf.text(selectedCertData.courseInfo.title, 105, 95, { align: "center" });
-        
-        // Completion date
-        pdf.setFont("helvetica", "normal");
-        const completedDate = new Date(selectedCertData.completedAt).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-        pdf.text(`Completed on ${completedDate}`, 105, 110, { align: "center" });
-        
-        // Educator info
-        pdf.text(`Certified by:`, 105, 130, { align: "center" });
-        pdf.setFont("helvetica", "bold");
-        pdf.text(selectedCertData.courseInfo.educatorName, 105, 140, { align: "center" });
-        
-        // Save PDF
-        pdf.save(`${selectedCertData.courseInfo.title}-simple-certificate.pdf`);
-    };
-
     useEffect(() => {
         if (enrolledCourses.length > 0 && userData) {
             checkAllStatuses();
@@ -475,6 +405,40 @@ const MyEnrollments = () => {
         }
     };
 
+    const handleGetSimpleCertificate = async (courseId) => {
+        try {
+            setLoadingSimpleCert(prev => ({ ...prev, [courseId]: true }));
+            const token = await getToken();
+            const { data } = await axios.post(
+                `${backendUrl}/api/user/get-simple-certificate`,
+                { courseId },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            if (data.success) {
+                setSelectedCertData(data.progressData);
+                setShowCertModal(true);
+                // toast.success('Course progress data fetched successfully');
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setLoadingSimpleCert(prev => ({ ...prev, [courseId]: false }));
+        }
+    };
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const isCompleted = (index) => {
+        if (!progressArray[index]) return false;
+        return progressArray[index].completed;
+    }
+
     useEffect(() => {
         if (enrolledCourses) {
             let filtered = enrolledCourses;
@@ -512,15 +476,98 @@ const MyEnrollments = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedCourses = filteredCourses.slice(startIndex, startIndex + itemsPerPage);
 
-    const handlePageChange = (page) => {
-        setCurrentPage(page);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    const handleViewCertificate = async (courseId) => {
+        try {
+            setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
+            const token = await getToken();
 
-    const isCompleted = (index) => {
-        if (!progressArray[index]) return false;
-        return progressArray[index].completed;
+            // First get certificate info to get policyId and transactionHash
+            const { data: certData } = await axios.get(
+                `${backendUrl}/api/certificate/${userData._id}/${courseId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            console.log('Certificate data:', certData);
+
+            if (!certData.success || !certData.certificate) {
+                toast.error(certData.message || 'Certificate not found');
+                return;
+            }
+
+            const certificate = certData.certificate;
+            console.log('Certificate details:', certificate);
+
+            try {
+                // Get NFT info directly using policy ID and transaction hash
+                const { data: nftData } = await axios.get(
+                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+
+                console.log('NFT data:', nftData);
+
+                if (nftData.success) {
+                    setSelectedNFT({
+                        policyId: nftData.policyId,
+                        assetName: nftData.assetName,
+                        courseTitle: nftData.courseTitle,
+                        metadata: nftData.metadata,
+                        mintTransaction: nftData.mintTransaction
+                    });
+                    setShowNFTModal(true);
+                } else {
+                    toast.error('Could not find certificate NFT information');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                toast.error(error.response?.data?.message || 'Error fetching NFT information');
+            }
+        } catch (error) {
+            console.error('Error fetching certificate:', error);
+            toast.error(error.response?.data?.message || error.message || 'Failed to fetch certificate information');
+        } finally {
+            setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
+        }
     }
+
+    const handleDownloadCertPDF = (certData) => {
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // Set up the PDF
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(30);
+        pdf.setTextColor(44, 62, 80);
+
+        // Add title
+        pdf.text("Course Certificate", pdf.internal.pageSize.width/2, 40, { align: "center" });
+
+        // Set font for content
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(16);
+        pdf.setTextColor(52, 73, 94);
+
+        // Add content
+        const startY = 70;
+        const lineHeight = 12;
+        
+        pdf.text(`Course: ${certData.courseInfo.title}`, 40, startY);
+        pdf.text(`Course ID: ${certData.courseId}`, 40, startY + lineHeight);
+        pdf.text(`Educator: ${certData.courseInfo.educatorName}`, 40, startY + lineHeight * 2);
+        pdf.text(`Student Name: ${certData.studentInfo.name}`, 40, startY + lineHeight * 4);
+        pdf.text(`Completion Date: ${new Date(certData.completedAt).toLocaleDateString()}`, 40, startY + lineHeight * 5);
+
+        // Add decorative border
+        pdf.setDrawColor(41, 128, 185);
+        pdf.setLineWidth(1);
+        pdf.rect(20, 20, pdf.internal.pageSize.width - 40, pdf.internal.pageSize.height - 40);
+
+        // Save the PDF
+        pdf.save(`${certData.courseInfo.title}-certificate.pdf`);
+    };
 
     return enrolledCourses ? (
         <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
@@ -559,7 +606,7 @@ const MyEnrollments = () => {
                                     {startIndex + index + 1}
                                 </td>
                                 <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm'>
-                                    {course._id}
+                                    <div className="break-all max-w-[200px]">{course._id}</div>
                                 </td>
                                 <td className='md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3'>
                                     <img src={course.courseThumbnail} alt=""
@@ -590,74 +637,60 @@ const MyEnrollments = () => {
                                 </td>
                                 <td className='px-4 py-3'>
                                     {isCompleted(index) && (
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                onClick={() => handleGetSimpleCertificate(course._id)}
+                                                disabled={loadingSimpleCert[course._id]}
+                                                className="px-3 py-1 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500"
+                                            >
+                                                {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
+                                            </button>
+                                            {certificateData[course._id] && (
+                                                <div className="mt-4 p-4 bg-gray-50 rounded shadow">
+                                                    <h3 className="text-lg font-semibold mb-2">Certificate Information</h3>
+                                                    <div className="space-y-2">
+                                                        <p><span className="font-medium">Course:</span> {certificateData[course._id].courseInfo.title}</p>
+                                                        <p><span className="font-medium">Student:</span> {certificateData[course._id].studentInfo.name}</p>
+                                                        <p><span className="font-medium">Completed:</span> {new Date(certificateData[course._id].completedAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                            )}
                                             {connected && (
                                                 <>
                                                     <button 
                                                         onClick={() => handleNFT(course._id)}
-                                                        className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm"
-                                                        disabled={loadingNFT[course._id]}
+                                                        disabled={minting[course._id]}
+                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded hover:from-purple-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500"
                                                     >
-                                                        {loadingNFT[course._id] ? 'Loading...' : 'NFT'}
+                                                        {minting[course._id] ? 'Minting...' : 'NFT'}
                                                     </button>
                                                     <button
                                                         onClick={() => handleSaveAddress(course._id)}
-                                                        className={`px-3 py-1 rounded-md text-xs font-medium ${
-                                                            savingAddress[course._id]
-                                                                ? 'bg-gray-400'
-                                                                : 'bg-orange-500 hover:bg-orange-600'
-                                                        } text-white`}
                                                         disabled={savingAddress[course._id]}
+                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded hover:from-orange-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-500"
                                                     >
-                                                        {savingAddress[course._id] 
-                                                            ? 'Loading...' 
-                                                            : 'Send Educator'
-                                                        }
-                                                    </button>
-                                                    <button
-                                                        onClick={() => checkCertificateStatus(course._id)}
-                                                        disabled={loading || minting[course._id] || !isCompleted(index)}
-                                                        className={`px-3 py-1 rounded-md text-xs font-medium ${
-                                                            loading || minting[course._id]
-                                                                ? 'bg-gray-400'
-                                                                : !isCompleted(index)
-                                                                    ? 'bg-gray-400'
-                                                                    : certificateStatus[course._id] === 'completed'
-                                                                        ? 'bg-gray-400'
-                                                                        : 'bg-orange-500 hover:bg-orange-600'
-                                                        } text-white`}
-                                                    >
-                                                        {minting[course._id] 
-                                                            ? 'Loading...' 
-                                                            : certificateStatus[course._id] === 'completed'
-                                                                ? 'Successful'
-                                                                : 'Status Send Educator'
+                                                        {savingAddress[course._id]
+                                                            ? 'Saving...'
+                                                            : certificateStatus[course._id]?.addressSaved
+                                                                ? 'Educator Notified'
+                                                                : 'Send Educator'
                                                         }
                                                     </button>
                                                     <button 
                                                         onClick={() => handleCertificate(course._id)}
-                                                        className="px-3 py-1.5 text-white rounded text-sm bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
-                                                        disabled={loadingCertificate[course._id]}
+                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded hover:from-amber-600 hover:to-amber-700"
                                                     >
                                                         {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
                                                     </button>
                                                     <button
                                                         onClick={() => handleViewCertificate2(course._id)}
                                                         disabled={loadingCertificate[course._id]}
-                                                        className="px-3 py-1.5 text-white rounded text-sm ml-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white rounded hover:from-orange-700 hover:to-red-700"
                                                     >
                                                         {loadingCertificate[course._id] ? 'Loading...' : 'Info Download Certificate NFT'}
                                                     </button>
-                                                    </>
+                                                </>
                                             )}
-                                                    <button 
-                                                        onClick={() => handleSimpleCertificate(course._id)}
-                                                        className="px-3 py-1.5 text-white rounded text-sm bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
-                                                        disabled={loadingSimpleCert[course._id]}
-                                                    >
-                                                        {loadingSimpleCert[course._id] ? 'Loading...' : 'Simple Certificate'}
-                                                    </button>
-                                   
                                         </div>
                                     )}
                                 </td>
@@ -797,13 +830,13 @@ const MyEnrollments = () => {
                                 href={`https://preprod.cardanoscan.io/token/${selectedNFT.policyId}${selectedNFT.assetName}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                className="px-3 py-1 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded hover:from-blue-600 hover:to-blue-700"
                             >
                                 View on Explorer
                             </a>
                             <button 
                                 onClick={() => setShowNFTModal(false)}
-                                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                                className="px-3 py-1 text-sm bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 rounded hover:from-gray-300 hover:to-gray-400"
                             >
                                 Close
                             </button>
@@ -912,55 +945,56 @@ const MyEnrollments = () => {
                                             
                                             // Add title
                                             pdf.setFontSize(20);
-                                            pdf.text('Certificate Information', 105, 20, { align: 'center' });
+                                            pdf.text('Certificate Information', pdf.internal.pageSize.width/2, 20, { align: 'center' });
                                             
                                             // Add content
                                             pdf.setFontSize(12);
-                                            pdf.setFont("helvetica", "normal");
+                                            pdf.text(`Course Title: ${certificateData.courseTitle}`, 20, 40);
                                             
-                                            // Student info
-                                            pdf.text(`This is to certify that`, 105, 40);
-                                            pdf.setFont("helvetica", "bold");
-                                            pdf.text(selectedCertData.studentInfo.name, 105, 50, { align: 'center' });
+                                            // Split long text into multiple lines
+                                            const policyIdText = `Policy ID: ${certificateData.policyId}`;
+                                            const txHashText = `Transaction Hash: ${certificateData.txHash}`;
+                                            const splitPolicyId = pdf.splitTextToSize(policyIdText, 170);
+                                            const splitTxHash = pdf.splitTextToSize(txHashText, 170);
                                             
-                                            // Course info
-                                            pdf.setFont("helvetica", "normal");
-                                            pdf.text(`has successfully completed the course`, 105, 65, { align: 'center' });
-                                            pdf.setFont("helvetica", "bold");
-                                            pdf.text(selectedCertData.courseInfo.title, 105, 75, { align: 'center' });
+                                            pdf.text(splitPolicyId, 20, 50);
+                                            pdf.text(`Asset Name: ${certificateData.assetName}`, 20, 60);
+                                            pdf.text(splitTxHash, 20, 70);
+                                            pdf.text(`Block Height: ${certificateData.block}`, 20, 80);
+                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 90);
                                             
-                                            // Completion date
-                                            pdf.setFont("helvetica", "normal");
-                                            const completedDate = new Date(selectedCertData.completedAt).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            });
-                                            pdf.text(`Completed on ${completedDate}`, 105, 90, { align: 'center' });
-                                            
-                                            // Educator info
-                                            pdf.text(`Certified by:`, 105, 110, { align: 'center' });
-                                            pdf.setFont("helvetica", "bold");
-                                            pdf.text(selectedCertData.courseInfo.educatorName, 105, 120, { align: 'center' });
+                                            // Add metadata
+                                            pdf.text('NFT Metadata:', 20, 110);
+                                            const metadataText = JSON.stringify(certificateData.metadata, null, 2);
+                                            const splitMetadata = pdf.splitTextToSize(metadataText, 170);
+                                            pdf.setFontSize(10);
+                                            pdf.text(splitMetadata, 20, 120);
                                             
                                             // Calculate metadata height and ensure enough space for QR codes
-                                            const metadataHeight = 0; // No metadata in this case
+                                            const metadataHeight = splitMetadata.length * 5; // 5mm per line
                                             const qrCodeSize = 50; // Smaller QR codes
                                             const qrStartY = 220; // Move QR codes further down
                                             
                                             // Add both QR Codes side by side
                                             Promise.all([
-                                                html2canvas(document.querySelector('.border.border-gray-200.p-2')),
-                                                html2canvas(document.querySelectorAll('.border.border-gray-200.p-2')[1])
+                                                html2canvas(document.getElementById('verificationQR')),
+                                                html2canvas(document.getElementById('blockchainQR'))
                                             ]).then(([canvas1, canvas2]) => {
                                                 const imgData1 = canvas1.toDataURL('image/png');
                                                 const imgData2 = canvas2.toDataURL('image/png');
                                                 
-                                                // Add a page break if needed
-                                                if (qrStartY + qrCodeSize + 10 > pdf.internal.pageSize.height) {
-                                                    pdf.addPage();
-                                                    qrStartY = 20; // Start at top of new page
-                                                }
+                                                // Create PDF
+                                                const pdf = new jsPDF();
+                                                const qrCodeSize = 50;
+                                                const qrStartY = 60;
+                                                
+                                                // Add title
+                                                pdf.setFontSize(20);
+                                                pdf.text('Certificate Information', pdf.internal.pageSize.width/2, 20, { align: 'center' });
+                                                
+                                                // Add content
+                                                pdf.setFontSize(12);
+                                                pdf.text(`Course: ${selectedNFTForQR.courseTitle}`, 20, 40);
                                                 
                                                 // First QR code on the left
                                                 pdf.addImage(imgData1, 'PNG', 40, qrStartY, qrCodeSize, qrCodeSize);
@@ -975,9 +1009,12 @@ const MyEnrollments = () => {
                                                 pdf.save(`${certificateData.courseTitle}-certificate.pdf`);
                                             });
                                         }}
-                                        className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                                        className="px-3 py-1 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded hover:from-blue-600 hover:to-blue-700 flex items-center gap-2"
                                     >
-                                        Download Certificate with QR Codes
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Download Certificate
                                     </button>
                                 </div>
                             </div>
@@ -997,7 +1034,7 @@ const MyEnrollments = () => {
                                 href={`https://preprod.cardanoscan.io/token/${selectedNFTForQR.policyId}${selectedNFTForQR.assetName}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-6 py-2 text-white rounded bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                                className="px-3 py-1 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded hover:from-blue-600 hover:to-blue-700"
                             >
                                 View on Explorer
                             </a>
@@ -1006,7 +1043,7 @@ const MyEnrollments = () => {
                                     setShowQRModal(false);
                                     setSelectedNFTForQR(null);
                                 }}
-                                className="px-6 py-2 rounded bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800"
+                                className="px-3 py-1 text-sm bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 rounded hover:from-gray-300 hover:to-gray-400"
                             >
                                 Close
                             </button>
@@ -1015,56 +1052,99 @@ const MyEnrollments = () => {
                 </div>
             )}
    
-            {/* Simple Certificate Modal */}
-            {showSimpleCertModal && selectedCertData && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-                        <h2 className="text-2xl font-bold mb-4">Course Certificate</h2>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-gray-600">Student Name</p>
-                                <p className="font-semibold">{selectedCertData.studentInfo.name}</p>
-                            </div>
-                            
-                            <div>
-                                <p className="text-gray-600">Course</p>
-                                <p className="font-semibold">{selectedCertData.courseInfo.title}</p>
-                            </div>
-                            
-                            <div>
-                                <p className="text-gray-600">Educator</p>
-                                <p className="font-semibold">{selectedCertData.courseInfo.educatorName}</p>
-                            </div>
-                            
-                            <div>
-                                <p className="text-gray-600">Completed On</p>
-                                <p className="font-semibold">
-                                    {new Date(selectedCertData.completedAt).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
-                                </p>
-                            </div>
+            {showCertModal && selectedCertData && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold">Course Progress Details</h2>
+                            <button 
+                                onClick={() => setShowCertModal(false)}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
+                        
+                        <div className="space-y-6">
+                            {/* Download Button */}
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => handleDownloadCertPDF(selectedCertData)}
+                                    className="px-3 py-1 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded hover:from-blue-600 hover:to-blue-700 flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Download Certificate
+                                </button>
+                            </div>
 
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button 
-                                onClick={handleDownloadSimpleCertificate}
-                                className="px-4 py-2 text-white rounded bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
-                            >
-                                Download Certificate
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    setShowSimpleCertModal(false);
-                                    setSelectedCertData(null);
-                                }}
-                                className="px-4 py-2 rounded bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800"
-                            >
-                                Close
-                            </button>
+                            {/* Course Info */}
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <h3 className="text-lg font-semibold mb-2">Course Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <p><span className="font-medium">Title:</span> {selectedCertData.courseInfo.title}</p>
+                                    <p><span className="font-medium">Educator:</span> {selectedCertData.courseInfo.educatorName}</p>
+                                    <p><span className="font-medium">Course ID:</span> {selectedCertData.courseId}</p>
+                                </div>
+                            </div>
+
+                            {/* Student Info */}
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <h3 className="text-lg font-semibold mb-2">Student Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <p><span className="font-medium">Name:</span> {selectedCertData.studentInfo.name}</p>
+                                    <p><span className="font-medium">User ID:</span> {selectedCertData.userId}</p>
+                                </div>
+                            </div>
+
+                            {/* Progress Info */}
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <h3 className="text-lg font-semibold mb-2">Progress Information</h3>
+                                <div className="space-y-2">
+                                    <p><span className="font-medium">Completion Status:</span> {selectedCertData.completed ? 'Completed' : 'In Progress'}</p>
+                                    <p><span className="font-medium">Completed At:</span> {new Date(selectedCertData.completedAt).toLocaleDateString()}</p>
+                                    <p><span className="font-medium">Lectures Completed:</span> {selectedCertData.lectureCompleted?.length || 0}</p>
+                                    <div className="mt-2">
+                                        <p className="font-medium mb-1">Completed Lectures:</p>
+                                        <ul className="list-disc pl-5">
+                                            {selectedCertData.lectureCompleted?.map((lecture, idx) => (
+                                                <li key={idx}>{lecture}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Test Results */}
+                            {selectedCertData.tests && selectedCertData.tests.length > 0 && (
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <h3 className="text-lg font-semibold mb-2">Test Results</h3>
+                                    <div className="space-y-4">
+                                        {selectedCertData.tests.map((test, index) => (
+                                            <div key={index} className="border-b pb-4">
+                                                <p><span className="font-medium">Test {index + 1}:</span></p>
+                                                <div className="ml-4 space-y-1">
+                                                    <p><span className="font-medium">Status:</span> {test.passed ? 'Passed' : 'Not Passed'}</p>
+                                                    {test.score !== undefined && (
+                                                        <p><span className="font-medium">Score:</span> {test.score}</p>
+                                                    )}
+                                                    {test.answers && (
+                                                        <div>
+                                                            <p className="font-medium">Answers:</p>
+                                                            <pre className="bg-gray-100 p-2 rounded mt-1 text-sm">
+                                                                {JSON.stringify(test.answers, null, 2)}
+                                                            </pre>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

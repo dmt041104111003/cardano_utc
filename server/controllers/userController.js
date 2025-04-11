@@ -448,11 +448,7 @@ export const getSimpleCertificateData = async (req, res) => {
 
         res.json({
             success: true,
-            certificateData: {
-                courseInfo: progressData.courseInfo,
-                studentInfo: progressData.studentInfo,
-                completedAt: progressData.completedAt
-            }
+            progressData: progressData
         });
     } catch (error) {
         res.json({ success: false, message: error.message });
