@@ -6,6 +6,8 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const MyEnrollments = () => {
     const { 
@@ -492,7 +494,7 @@ const MyEnrollments = () => {
                                 </td> */}
                                 <td className='px-4 py-3 max-sm:text-right'>
                                     <button 
-                                        className={`px-3 sm:px-5 py-1.5 sm:py-2 ${isCompleted(index) ? 'bg-green-600' : 'bg-blue-600'} max-sm:text-xs text-white rounded`} 
+                                        className={`px-3 sm:px-5 py-1.5 ${isCompleted(index) ? 'bg-green-600' : 'bg-blue-600'} max-sm:text-xs text-white rounded`} 
                                         onClick={() => navigate('/player/' + course._id)}
                                     >
                                         {isCompleted(index) ? 'Completed' : 'On Going'}
@@ -774,13 +776,62 @@ const MyEnrollments = () => {
                                     {console.log('Rendering QR code for:', selectedNFTForQR)}
                                     <div className="border border-gray-200 p-2">
                                         <QRCodeSVG
-                                        value={`${window.location.origin}/certificate-checker?policyId=${selectedNFTForQR.policyId}&txHash=${selectedNFTForQR.mintTransaction.txHash}`}
-                                        size={200}
-                                        level="H"
-                                        includeMargin={true}
+                                        value={`https://transaction-sand.vercel.app/`}
+                                            size={200}
+                                            level="H"
+                                            includeMargin={true}
                                         />
                                     </div>
                                     <p className="mt-4 text-sm text-gray-600">Scan to verify certificate</p>
+                                    <button
+                                        onClick={() => {
+                                            const certificateData = {
+                                                policyId: selectedNFTForQR.policyId,
+                                                assetName: selectedNFTForQR.assetName,
+                                                courseTitle: selectedNFTForQR.courseTitle,
+                                                txHash: selectedNFTForQR.mintTransaction.txHash,
+                                                timestamp: selectedNFTForQR.mintTransaction.timestamp,
+                                            };
+
+                                            const pdf = new jsPDF('p', 'mm', 'a4');
+                                            
+                                            // Add title
+                                            pdf.setFontSize(20);
+                                            pdf.text('Certificate Information', 105, 20, { align: 'center' });
+                                            
+                                            // Add content
+                                            pdf.setFontSize(12);
+                                            pdf.text(`Course Title: ${certificateData.courseTitle}`, 20, 40);
+                                            pdf.text(`Policy ID: ${certificateData.policyId}`, 20, 50);
+                                            pdf.text(`Asset Name: ${certificateData.assetName}`, 20, 60);
+                                            pdf.text(`Transaction Hash: ${certificateData.txHash}`, 20, 70);
+                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 80);
+                                            
+                                            // Add both QR Codes side by side
+                                            Promise.all([
+                                                html2canvas(document.querySelector('.border.border-gray-200.p-2')),
+                                                html2canvas(document.querySelectorAll('.border.border-gray-200.p-2')[1])
+                                            ]).then(([canvas1, canvas2]) => {
+                                                const imgData1 = canvas1.toDataURL('image/png');
+                                                const imgData2 = canvas2.toDataURL('image/png');
+                                                
+                                                // First QR code on the left
+                                                pdf.addImage(imgData1, 'PNG', 30, 90, 70, 70);
+                                                pdf.setFontSize(10);
+                                                pdf.text('Verification QR Code', 65, 170, { align: 'center' });
+                                                
+                                                // Second QR code on the right
+                                                pdf.addImage(imgData2, 'PNG', 110, 90, 70, 70);
+                                                pdf.text('Direct Info QR Code', 145, 170, { align: 'center' });
+                                                
+                                                // Save the PDF
+                                                pdf.save(`certificate-${certificateData.assetName}.pdf`);
+                                            });
+                                        }}
+                                        className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                                    >
+                                        Download Certificate with Both QR Codes
+                                    </button>
                                 </div>
                             </div>
 
