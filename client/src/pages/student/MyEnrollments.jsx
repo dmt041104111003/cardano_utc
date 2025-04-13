@@ -904,7 +904,7 @@ const MyEnrollments = () => {
                                 <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
                                     <div className="border border-gray-200 p-2">
                                         <QRCodeSVG
-                                            value={`https://transaction-sand.vercel.app/`}
+                                            value={`https://transaction-sand.vercel.app/verify?policyId=${selectedNFTForQR.policyId}&txHash=${selectedNFTForQR.mintTransaction.txHash}`}
                                             size={200}
                                             level="H"
                                             includeMargin={true}
