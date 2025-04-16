@@ -105,7 +105,8 @@ const MyEnrollments = () => {
             if (data.success) {
                 setSelectedNFT({
                     policyId: data.policyId,
-                    assetName: data.assetName,
+                    hexName: data.assetName,
+                    assetName: data.readableAssetName,
                     courseTitle: data.courseTitle,
                     metadata: data.metadata,
                     mintTransaction: data.mintTransaction
@@ -291,7 +292,8 @@ const MyEnrollments = () => {
                 if (nftData.success) {
                     setSelectedNFT({
                         policyId: nftData.policyId,
-                        assetName: nftData.assetName,
+                        hexName: nftData.assetName,
+                        assetName: nftData.readableAssetName,
                         courseTitle: nftData.courseTitle,
                         metadata: nftData.metadata,
                         mintTransaction: nftData.mintTransaction
@@ -346,7 +348,8 @@ const MyEnrollments = () => {
                 if (nftData.success) {
                     const qrData = {
                         policyId: nftData.policyId,
-                        assetName: nftData.assetName,
+                        hexName: nftData.assetName,
+                        assetName: nftData.readableAssetName,
                         courseTitle: nftData.courseTitle,
                         metadata: nftData.metadata,
                         mintTransaction: nftData.mintTransaction
@@ -509,7 +512,8 @@ const MyEnrollments = () => {
                 if (nftData.success) {
                     setSelectedNFT({
                         policyId: nftData.policyId,
-                        assetName: nftData.assetName,
+                        hexName: nftData.assetName,
+                        assetName: nftData.readableAssetName,
                         courseTitle: nftData.courseTitle,
                         metadata: nftData.metadata,
                         mintTransaction: nftData.mintTransaction
@@ -775,10 +779,10 @@ const MyEnrollments = () => {
 
             {/* NFT Information Modal */}
             {showNFTModal && selectedNFT && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold">NFT Information</h2>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl">NFT Information</h2>
                             <button 
                                 onClick={() => setShowNFTModal(false)}
                                 className="text-gray-500 hover:text-gray-700"
@@ -786,14 +790,18 @@ const MyEnrollments = () => {
                                 ✕
                             </button>
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto pr-2 custom-scrollbar">
                             <div>
                                 <label className="text-sm text-gray-600">Policy ID</label>
                                 <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.policyId}</p>
                             </div>
                             <div>
-                                <label className="text-sm text-gray-600">Asset Name</label>
-                                <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.assetName}</p>
+                                <label className="text-sm text-gray-600">Asset Name (Hex)</label>
+                                <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.hexName}</p>
+                            </div>
+                            <div>
+                                <label className="text-sm text-gray-600">Asset Name (Readable)</label>
+                                <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.assetName || 'Loading...'}</p>
                             </div>
                             <div>
                                 <label className="text-sm text-gray-600">Course Title</label>
@@ -825,9 +833,9 @@ const MyEnrollments = () => {
                                 </pre>
                             </div>
                         </div>
-                        <div className="mt-6 flex justify-end gap-2">
+                        <div className="mt-6 flex justify-end gap-2 pt-4 border-t">
                             <a 
-                                href={`https://preprod.cardanoscan.io/token/${selectedNFT.policyId}${selectedNFT.assetName}`}
+                                href={`https://preprod.cardanoscan.io/token/${selectedNFT.policyId}${selectedNFT.hexName}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -847,8 +855,8 @@ const MyEnrollments = () => {
 
             {/* QR Code Modal */}
             {showQRModal && selectedNFTForQR && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-hidden">
-                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl">NFT Information</h2>
                             <button 
@@ -861,8 +869,7 @@ const MyEnrollments = () => {
                                 ✕
                             </button>
                         </div>
-                        
-                        <div className="space-y-6">
+                        <div className="space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto pr-2 custom-scrollbar">
                             <div>
                                 <h3 className="text-gray-600 mb-2">Policy ID</h3>
                                 <div className="bg-gray-50 p-4 rounded">
@@ -871,9 +878,16 @@ const MyEnrollments = () => {
                             </div>
 
                             <div>
-                                <h3 className="text-gray-600 mb-2">Asset Name</h3>
+                                <h3 className="text-gray-600 mb-2">Asset Name (Hex)</h3>
                                 <div className="bg-gray-50 p-4 rounded">
-                                    {selectedNFTForQR.assetName}
+                                    {selectedNFTForQR.hexName}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-gray-600 mb-2">Asset Name (Readable)</h3>
+                                <div className="bg-gray-50 p-4 rounded">
+                                    {selectedNFTForQR.assetName || 'Loading...'}
                                 </div>
                             </div>
 
@@ -934,6 +948,7 @@ const MyEnrollments = () => {
                                             const certificateData = {
                                                 courseTitle: selectedNFTForQR.courseTitle,
                                                 policyId: selectedNFTForQR.policyId,
+                                                hexName: selectedNFTForQR.hexName,
                                                 assetName: selectedNFTForQR.assetName,
                                                 txHash: selectedNFTForQR.mintTransaction.txHash,
                                                 timestamp: selectedNFTForQR.mintTransaction.timestamp * 1000, // Convert to milliseconds
@@ -958,17 +973,18 @@ const MyEnrollments = () => {
                                             const splitTxHash = pdf.splitTextToSize(txHashText, 170);
                                             
                                             pdf.text(splitPolicyId, 20, 50);
-                                            pdf.text(`Asset Name: ${certificateData.assetName}`, 20, 60);
-                                            pdf.text(splitTxHash, 20, 70);
-                                            pdf.text(`Block Height: ${certificateData.block}`, 20, 80);
-                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 90);
+                                            pdf.text(`Asset Name (Hex): ${certificateData.hexName}`, 20, 60);
+                                            pdf.text(`Asset Name (Readable): ${certificateData.assetName}`, 20, 70);
+                                            pdf.text(splitTxHash, 20, 80);
+                                            pdf.text(`Block Height: ${certificateData.block}`, 20, 90);
+                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 100);
                                             
                                             // Add metadata
-                                            pdf.text('NFT Metadata:', 20, 110);
+                                            pdf.text('NFT Metadata:', 20, 120);
                                             const metadataText = JSON.stringify(certificateData.metadata, null, 2);
                                             const splitMetadata = pdf.splitTextToSize(metadataText, 170);
                                             pdf.setFontSize(10);
-                                            pdf.text(splitMetadata, 20, 120);
+                                            pdf.text(splitMetadata, 20, 130);
                                             
                                             // Calculate metadata height and ensure enough space for QR codes
                                             const metadataHeight = splitMetadata.length * 5; // 5mm per line
@@ -1024,7 +1040,7 @@ const MyEnrollments = () => {
 
                         <div className="mt-6 flex justify-end gap-2">
                             <a 
-                                href={`https://preprod.cardanoscan.io/token/${selectedNFTForQR.policyId}${selectedNFTForQR.assetName}`}
+                                href={`https://preprod.cardanoscan.io/token/${selectedNFTForQR.policyId}${selectedNFTForQR.hexName}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -1152,3 +1168,20 @@ const MyEnrollments = () => {
 }
 
 export default MyEnrollments;
+
+<style jsx>{`
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+`}</style>

@@ -91,7 +91,8 @@ export const getNFTInfo = async (req, res) => {
                 success: true,
                 policyId,
                 assetName,
-                courseTitle: course.courseTitle,
+                readableAssetName: assetDetails.onchain_metadata?.name || Buffer.from(assetName, 'hex').toString('utf8'),
+                courseTitle: assetDetails.onchain_metadata?.name || course.courseTitle,
                 metadata: nftMetadata,
                 mintTransaction: {
                     txHash,
@@ -237,9 +238,10 @@ export const getNFTInfoByPolicy = async (req, res) => {
                 success: true,
                 policyId,
                 assetName,
-                courseTitle: metadata.course_title || metadata.name,
+                readableAssetName: assetDetails.onchain_metadata?.name || Buffer.from(assetName, 'hex').toString('utf8'),
+                courseTitle: assetDetails.onchain_metadata?.name || metadata.name, // Chỉ lấy từ metadata
                 metadata: nftMetadata,
-                rawMetadata: metadata, // Include raw metadata as well
+                rawMetadata: metadata,
                 mintTransaction: {
                     txHash,
                     block: txDetails.block_height,
