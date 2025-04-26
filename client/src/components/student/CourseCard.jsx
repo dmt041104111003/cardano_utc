@@ -6,7 +6,10 @@ import { AppContext } from '../../context/AppContext';
 import { Link } from 'react-router-dom';
 
 const CourseCard = ({ course }) => {
-
+    if (!course || !course._id || !course.courseTitle || !course.educator || !course.courseRatings) {
+        return <div>Dữ liệu khóa học không đầy đủ.</div>;
+      }
+      
     const { currency, calculateRating } = useContext(AppContext);
     return (
         <Link to={'/course/' + course._id} onClick={() => scrollTo(0, 0)}
