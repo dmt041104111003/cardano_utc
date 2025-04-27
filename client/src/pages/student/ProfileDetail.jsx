@@ -111,66 +111,73 @@ const ProfilePage = () => {
   };
 
   return (
-    
-    <div className="max-w-7xl mx-auto mt-10">
-      <div className="flex items-center justify-between p-6 border rounded-2xl shadow bg-gray-100">
-        <div className="flex items-center gap-4">
-          <img
-            src={user?.imageUrl || "https://via.placeholder.com/100"}
-            alt="Avatar"
-            className="w-20 h-20 rounded-full"
-          />
-          <div>
-            <h2 className="text-2xl font-semibold">{user?.fullName || "Người dùng"}</h2>
-            <p className="text-gray-600">
-              {user?.primaryEmailAddress?.emailAddress || "Email không có"}
-            </p>
+    <>
+      <div className='relative min-h-screen'>
+        <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-green-100/70 via-cyan-100/50 to-white'></div>
+        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 relative z-10'>
+          <div className='w-full'>
+            
+            <div className="flex items-center justify-between p-6 border rounded-2xl shadow bg-gray-100">
+              <div className="flex items-center gap-4">
+                <img
+                  src={user?.imageUrl || "https://via.placeholder.com/100"}
+                  alt="Avatar"
+                  className="w-20 h-20 rounded-full"
+                />
+                <div>
+                  <h2 className="text-2xl font-semibold">{user?.fullName || "Người dùng"}</h2>
+                  <p className="text-gray-600">
+                    {user?.primaryEmailAddress?.emailAddress || "Email không có"}
+                  </p>
+                </div>
+              </div>
+              <CardanoWallet isDark={true} persist={true} onConnected={getAssets} />
+            </div>
+
+            <div className=" p-4 ">
+                {/* <h3 className="text-xl font-semibold mb-2">Khóa học chờ xét duyệt</h3>
+                <p className="text-gray-600">Hiện tại không có khóa học nào đang chờ xét duyệt.</p> */}
+              </div>
+
+            <div className="mt-6 space-y-6">
+              <div className=" p-4 ">
+                {/* <h3 className="text-xl font-semibold mb-2">Khóa học gần đây</h3>
+                <p className="text-gray-600">Chưa có khóa học gần đây.</p> */}
+              </div>
+
+              <div className="mt-6 space-y-6">
+              <div className="p-4">
+                <h3 className="text-xl font-semibold mb-2">
+                  Courses being studied...
+                </h3>
+                {enrolledCourses.length > 0 ? (
+                  <Slider {...sliderSettings}>
+                    {enrolledCourses.map((course, index) => (
+                      <div key={course._id} className="p-2">
+                        <div className="bg-white/90 p-4 rounded-lg shadow-lg border border-green-200/30 hover:shadow-xl transform transition-all duration-300 hover:scale-105">
+                          <h4 className="font-semibold text-gray-800">{course.courseTitle}</h4>
+                          {progressArray[index] && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              Tiến độ: {progressArray[index].lectureCompleted}/{progressArray[index].totalLectures}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </Slider>
+                ) : (
+                  <p className="text-gray-600 bg-white/80 p-4 rounded-lg shadow">
+                    Haven't taken any courses yet!
+                  </p>
+                )}
+              </div>
+            </div>
+              
+            </div>
           </div>
         </div>
-        <CardanoWallet isDark={true} persist={true} onConnected={getAssets} />
       </div>
-
-      <div className=" p-4 ">
-          {/* <h3 className="text-xl font-semibold mb-2">Khóa học chờ xét duyệt</h3>
-          <p className="text-gray-600">Hiện tại không có khóa học nào đang chờ xét duyệt.</p> */}
-        </div>
-
-      <div className="mt-6 space-y-6">
-        <div className=" p-4 ">
-          {/* <h3 className="text-xl font-semibold mb-2">Khóa học gần đây</h3>
-          <p className="text-gray-600">Chưa có khóa học gần đây.</p> */}
-        </div>
-
-        <div className="mt-6 space-y-6">
-        <div className="p-4">
-          <h3 className="text-xl font-semibold mb-2">
-            Courses being studied...
-          </h3>
-          {enrolledCourses.length > 0 ? (
-            <Slider {...sliderSettings}>
-              {enrolledCourses.map((course, index) => (
-                <div key={course._id} className="p-2">
-                  <div className="bg-white/90 p-4 rounded-lg shadow-lg border border-green-200/30 hover:shadow-xl transform transition-all duration-300 hover:scale-105">
-                    <h4 className="font-semibold text-gray-800">{course.courseTitle}</h4>
-                    {progressArray[index] && (
-                      <p className="text-sm text-gray-600 mt-2">
-                        Tiến độ: {progressArray[index].lectureCompleted}/{progressArray[index].totalLectures}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </Slider>
-          ) : (
-            <p className="text-gray-600 bg-white/80 p-4 rounded-lg shadow">
-              Haven't taken any courses yet!
-            </p>
-          )}
-        </div>
-      </div>
-        
-      </div>
-    </div>
+    </>
   );
 };
 

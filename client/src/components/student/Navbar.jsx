@@ -15,8 +15,6 @@ const Navbar = () => {
     const { openSignIn } = useClerk();
     const { isEducator, backendUrl, setIsEducator, getToken } = useContext(AppContext);
 
-    const isCourseListPage = location.pathname.includes('/course-list');
-
     const becomeEducator = async () => {
         try {
             if (isEducator) {
@@ -39,7 +37,7 @@ const Navbar = () => {
     };
 
     return (
-        <div className={`flex items-center justify-between px-5 sm:px-10 md:px-14 lg:px-36 border-b border-green-200/30 py-4 shadow-md ${isCourseListPage ? 'bg-white' : 'bg-gradient-to-b from-green-100/70 to-cyan-100/50'}`}>
+        <div className="flex items-center justify-between px-5 sm:px-10 md:px-14 lg:px-36 border-b border-green-200/30 py-4 shadow-md bg-gradient-to-b from-green-100/70 to-cyan-100/50">
             <div className='flex items-center gap-4'>
                 <LMSCardanoLogo onClick={() => navigate('/')} className="hover:scale-105 transition-transform" />
             </div>
@@ -49,18 +47,26 @@ const Navbar = () => {
                 <div className='flex items-center gap-6'>
                     {user && (
                         <>
+                        <Link 
+                                to='/' 
+                                className='text-sm font-medium hover:text-cyan-600 transition-colors'
+                            >
+                                Home
+                            </Link>
                             <button 
                                 onClick={becomeEducator} 
                                 className='text-sm font-medium hover:text-green-600 transition-colors'
                             >
                                 {isEducator ? 'Educator Dashboard' : 'Become Educator'}
                             </button>
-                            <Link 
-                                to='/' 
-                                className='text-sm font-medium hover:text-cyan-600 transition-colors'
+                            <button 
+                                onClick={() => navigate('/courses')}
+                                className='text-sm font-medium hover:text-green-600 transition-colors'
                             >
-                                Home
-                            </Link>
+                                Courses
+                            </button>
+                            
+                      
                             <Link 
                                 to='/my-enrollments' 
                                 className='text-sm font-medium hover:text-cyan-600 transition-colors'
@@ -93,6 +99,12 @@ const Navbar = () => {
                 <div className='flex items-center gap-2 max-sm:text-xs'>
                     {user && (
                         <>
+                            <button 
+                                onClick={() => navigate('/courses')}
+                                className='text-xs font-medium hover:text-green-600 transition-colors'
+                            >
+                                Courses
+                            </button>
                             <button 
                                 onClick={becomeEducator} 
                                 className='text-xs font-medium hover:text-green-600 transition-colors'

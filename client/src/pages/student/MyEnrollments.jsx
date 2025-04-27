@@ -574,7 +574,7 @@ const MyEnrollments = () => {
     };
 
     return enrolledCourses ? (
-        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
+        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-green-100/70 via-cyan-100/50 to-white'>
             <div className='w-full'>
                 <div className='flex justify-between items-center mb-4'>
                     <div className='flex items-center gap-4'>
