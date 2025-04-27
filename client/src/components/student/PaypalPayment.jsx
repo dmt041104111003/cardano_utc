@@ -1,78 +1,71 @@
 /* eslint-disable react/prop-types */
-import { useContext, useState, useEffect } from 'react';
-import { AppContext } from '../../context/AppContext';
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import Loading from './Loading';
+import axios from "axios";
+import { useContext, useState, useEffect } from "react";
+import { AppContext } from "../../context/AppContext";
 
-export default function StripePayment({ courseData }) {
-  const { userData, getToken, backendUrl } = useContext(AppContext);
+export default function PaypalPayment({ courseData }) {
+  const { userData, backendUrl, getToken } = useContext(AppContext);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [coursePrice, setCoursePrice] = useState("0.00");
 
   useEffect(() => {
+  
     if (courseData) {
       const currentDate = new Date();
       const discountEnd = courseData.discountEndTime ? new Date(courseData.discountEndTime) : null;
+    
       const isDiscountActive = discountEnd && !isNaN(discountEnd.getTime()) && currentDate <= discountEnd;
-
-      const price = isDiscountActive && courseData.discount > 0
+    
+      const coursePrice = isDiscountActive && courseData.discount > 0
         ? (courseData.coursePrice * (1 - courseData.discount / 100)).toFixed(2)
         : courseData.coursePrice.toFixed(2);
 
-      setCoursePrice(price);
+      setCoursePrice(coursePrice);
     }
   }, [courseData]);
 
-  const handleStripePayment = async () => {
-    if (!userData) {
-      toast.error("Vui lòng đăng nhập để thanh toán");
-      return;
-    }
-
+  const handlePaypalPayment = async () => {
     setIsProcessing(true);
     setError(null);
 
     try {
       const token = await getToken();
       const { data } = await axios.post(
-        `${backendUrl}/api/course/payment-by-stripe`,
+        `${backendUrl}/api/course/payment-by-paypal`,
         {
           courseName: courseData.courseTitle,
           courseId: courseData._id,
           price: coursePrice,
-          userId: userData._id,
+          userId: userData._id
         },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      if (data.sessionUrl) {
-        window.location.href = data.sessionUrl;
+      if (data.forwardLink) {
+        window.location.href = data.forwardLink;
       } else {
-        throw new Error("Không nhận được liên kết Stripe.");
+        throw new Error("Không nhận được liên kết PayPal.");
       }
     } catch (error) {
-      console.error("Stripe Payment error:", error);
+      console.error("PayPal Payment error:", error);
       setError(error.response?.data?.error || "Thanh toán thất bại. Vui lòng thử lại.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (!courseData) return <Loading />;
-
   return (
-    <div className="p-4 border rounded-lg mt-4 bg-indigo-50">
+    <div className="p-4 border rounded-lg mt-4 bg-blue-50">
       <div className="flex items-center mb-3">
         <img
-          src="https://stripe.com/img/v3/home/twitter.png"
-          alt="Stripe"
+          src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg"
+          alt="PayPal"
           className="h-6 mr-2"
         />
-        <h3 className="text-lg font-semibold">Thanh toán qua Stripe</h3>
+        <h3 className="text-lg font-semibold">Thanh toán qua PayPal</h3>
       </div>
 
       <p className="text-gray-600 mb-3">
@@ -80,7 +73,7 @@ export default function StripePayment({ courseData }) {
       </p>
 
       <p className="text-gray-600 mb-3">
-        Sử dụng thẻ Visa/Mastercard để thanh toán an toàn và nhanh chóng.
+        Thanh toán an toàn bằng tài khoản PayPal hoặc thẻ tín dụng quốc tế.
       </p>
 
       {error && (
@@ -90,10 +83,10 @@ export default function StripePayment({ courseData }) {
       )}
 
       <button
-        onClick={handleStripePayment}
+        className={`w-full py-2 px-4 rounded-md bg-blue-600 text-white font-medium
+          hover:bg-blue-700 transition-colors ${isProcessing ? "opacity-70 cursor-not-allowed" : ""}`}
+        onClick={handlePaypalPayment}
         disabled={isProcessing}
-        className={`w-full py-2 px-4 rounded-md font-medium transition-colors
-          ${!isProcessing ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "bg-gray-400 text-gray-700 cursor-not-allowed"}`}
       >
         {isProcessing ? (
           <span className="flex items-center justify-center">
@@ -103,7 +96,7 @@ export default function StripePayment({ courseData }) {
             </svg>
             Đang chuyển hướng...
           </span>
-        ) : "Thanh toán với Stripe"}
+        ) : "Thanh toán với PayPal"}
       </button>
 
       <p className="text-xs text-gray-500 mt-2">

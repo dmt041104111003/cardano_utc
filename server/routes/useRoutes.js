@@ -21,7 +21,6 @@ userRouter.post('/enroll-course', enrollCourses)
 userRouter.post('/update-course-educator', updateCourseEducator)
 userRouter.post('/get-simple-certificate', getSimpleCertificateData)
 
-// Test route to verify schema
 userRouter.get('/test-schema', async (req, res) => {
     try {
         const progress = await CourseProgress.findOne();

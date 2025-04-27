@@ -18,6 +18,7 @@ const PurchaseSchema = new mongoose.Schema({
     },
     currency: { type: String,  enum: ["VND", "USD", "ADA"], default: "ADA" }, 
     paymentMethod: { type: String, required: true }, 
+    receiverAddress: { type: String, required: true },
     note: { type: String }, 
     createdAt: { type: Date, default: Date.now }, 
 }, { timestamps: true });
