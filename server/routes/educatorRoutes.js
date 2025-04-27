@@ -5,14 +5,14 @@ import { protectEducator } from '../middlewares/authMiddleware.js'
 import {
     addCourse, deleteCourse, educatorDashboardData,
     getEducatorCourses, getEnrolledStudentsData, updateCourse,
-    updatetoRoleToEducator
+    updatetoRoleToEducator,educatorDetails
 } from '../controllers/educatorController.js';
 
 const educatorRouter = express.Router()
 
+educatorRouter.get('/details', educatorDetails)
 educatorRouter.get('/update-role', updatetoRoleToEducator)
-educatorRouter.post('/add-course', upload.single('image'), protectEducator,
-    addCourse)
+educatorRouter.post('/add-course', upload.single('image'), protectEducator, addCourse)
 educatorRouter.get('/courses', protectEducator, getEducatorCourses)
 educatorRouter.get('/dashboard', protectEducator, educatorDashboardData)
 educatorRouter.get('/enrolled-students', protectEducator, getEnrolledStudentsData)

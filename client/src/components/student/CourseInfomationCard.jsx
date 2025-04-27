@@ -6,6 +6,7 @@ import { AppContext } from '../../context/AppContext';
 import { NavLink } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const shakeAnimation = `
 @keyframes shake {
@@ -25,7 +26,7 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
     const { currency, backendUrl, getToken } = useContext(AppContext);
     const [timeLeft, setTimeLeft] = useState('');
     const [policyId, setPolicyId] = useState('');
-
+    const navigate = useNavigate();
     useEffect(() => {
         const fetchNFTInfo = async () => {
             try {
@@ -109,6 +110,8 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
         if (isAlreadyEnrolled) {
             return toast.warn('Already Enrolled')
         } 
+        scrollTo(0, 0);
+        navigate(`/payment/${courseId}`);
     }        
 
     return (
@@ -182,22 +185,31 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
                 </div>
             </div>
             {openPaymentPage ?(
-                <NavLink to={`/payment/${courseId}`}>
-                    <button disabled={isAlreadyEnrolled} onClick={isAlreadyEnrolled ? null : handleEnrollCourse} className='md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>
-                        {isAlreadyEnrolled ? 'Already Enrolled' : 'Enroll Now'}
-                    </button>
-                </NavLink>
+                // <NavLink to={`/payment/${courseId}`}>
+                //     <button disabled={isAlreadyEnrolled} onClick={isAlreadyEnrolled ? null : handleEnrollCourse} className='md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>
+                //         {isAlreadyEnrolled ? 'Already Enrolled' : 'Enroll Now'}
+                //     </button>
+                    
+                // </NavLink>
+                <button disabled={isAlreadyEnrolled} onClick={isAlreadyEnrolled ? null : handleEnrollCourse} className='md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>
+                {isAlreadyEnrolled ? 'Already Enrolled' : 'Enroll Now'}
+                 </button>
+
             ): null }
             
 
             <div className='pt-6'>
-                <p className='md:text-xl text-lg font-medium text-gray-800 mb-3'>
+                {
+                    !openPaymentPage && <>
+                    <p className='md:text-xl text-lg font-medium text-gray-800 mb-3'>
                     Information - course description:
-                </p>
+                    </p>
 
-                <div className='text-sm md:text-default text-gray-600'
-                    dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}
-                />
+                    <div className='text-sm md:text-default text-gray-600'
+                        dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}
+                    />
+                    </>
+                }
 
                 <div className='mt-4 space-y-2'>
                     <div className='flex items-center gap-2 text-gray-600'>

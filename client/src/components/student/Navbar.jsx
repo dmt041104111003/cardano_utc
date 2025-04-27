@@ -56,6 +56,12 @@ const Navbar = () => {
                                 {isEducator ? 'Educator Dashboard' : 'Become Educator'}
                             </button>
                             <Link 
+                                to='/' 
+                                className='text-sm font-medium hover:text-cyan-600 transition-colors'
+                            >
+                                Home
+                            </Link>
+                            <Link 
                                 to='/my-enrollments' 
                                 className='text-sm font-medium hover:text-cyan-600 transition-colors'
                             >
@@ -93,6 +99,12 @@ const Navbar = () => {
                             >
                                 {isEducator ? 'Educator' : 'Become Edu'}
                             </button>
+                            <Link 
+                                to='/' 
+                                className='text-sm font-medium hover:text-cyan-600 transition-colors'
+                            >
+                                Home
+                            </Link>
                             <Link 
                                 to='/my-enrollments' 
                                 className='text-xs font-medium hover:text-cyan-600 transition-colors'

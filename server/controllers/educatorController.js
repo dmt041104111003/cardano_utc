@@ -275,3 +275,48 @@ export const deleteCourse = async (req, res) => {
         });
     }
 };
+
+
+// get edu detail
+export const educatorDetails = async (req, res) => {
+    try {
+      const educatorId = req.params.id; 
+  
+      const courses = await Course.find({ educator: educatorId });
+      const totalCourses = courses.length;
+  
+      const totalEnrolledStudents = courses.reduce(
+        (sum, course) => sum + (course.enrolledStudents?.length || 0),
+        0
+      );
+  
+      let totalRatings = 0;
+      let totalRatingPoints = 0;
+  
+      courses.forEach(course => {
+        const ratings = course.courseRatings || [];
+        totalRatings += ratings.length;
+        totalRatingPoints += ratings.reduce((sum, r) => sum + r.rating, 0);
+      });
+  
+      const averageRating = totalRatings > 0 
+        ? Number((totalRatingPoints / totalRatings).toFixed(2))
+        : 0;
+  
+      res.json({
+        success: true,
+        dashboardData: {
+          totalCourses,
+          totalEnrolledStudents,
+          averageRating,
+        },
+      });
+    } catch (error) {
+      res.json({
+        success: false,
+        message: error.message,
+      });
+    }
+  };
+  
+  
