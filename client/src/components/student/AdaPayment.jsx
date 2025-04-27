@@ -96,7 +96,8 @@ export default function AdaPayment({ courseData }) {
             const { data } = await axios.post(`${backendUrl}/api/user/enroll-course`, {
                 courseId: courseData._id,
                 paymentMethod: "ADA Payment",
-                currency: "ADA"
+                currency: "ADA",
+                receiverAddress: courseData.creatorAddress
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });

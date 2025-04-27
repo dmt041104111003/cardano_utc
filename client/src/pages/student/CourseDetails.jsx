@@ -19,6 +19,12 @@ const CourseDetails = () => {
     const [openSections, setOpenSections] = useState({});
     const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
     const [playerData, setPlayerData] = useState(null);
+    const [educatorData, setEducatorData] = useState({
+        totalCourses: 0,
+        totalEnrolledStudents: 0,
+        averageRating: 0,
+        totalCertificates: 0
+    });
     const [timeLeft, setTimeLeft] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     
@@ -53,6 +59,9 @@ const CourseDetails = () => {
                 if (data.courseData?.courseContent?.length > 0) {
                     setOpenSections({ 0: true });
                 }
+                if (data.courseData?.educator?._id) {
+                    fetchEducatorData(data.courseData.educator._id);
+                }
             } else {
                 toast.error(data.message);
             }
@@ -61,12 +70,30 @@ const CourseDetails = () => {
         } finally {
             setIsLoading(false);
         }
-        console.log('Course data:', courseData);
+    };
+
+    const fetchEducatorData = async (educatorId) => {
+        try {
+            const { data } = await axios.get(`${backendUrl}/api/educator/details/${educatorId}`);
+            if (data.success) {
+                setEducatorData({
+                    totalCourses: data.educatorData.totalCourses || 0,
+                    totalEnrolledStudents: data.educatorData.totalEnrolledStudents || 0,
+                    averageRating: data.educatorData.averageRating || 0,
+                    totalCertificates: data.educatorData.totalCertificates || 0
+                });
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || error.message);
+        }
     };
 
     useEffect(() => {
         fetchCourseData();
     }, [id]);
+    
 
     useEffect(() => {
         if (userData && courseData) {
@@ -332,7 +359,65 @@ const CourseDetails = () => {
                        
                     </div>
                     
+<<<<<<< Updated upstream
                     
+=======
+                    <div className="w-full mb-6 mt-8">
+                        <h2 className="text-xl font-semibold text-black mb-6">Instructors</h2>
+                        
+                        <div className="flex-1 mt-3 ">
+                            <div className="flex items-start gap-4 mb-4">
+                                <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
+                                <img 
+                                    src={courseData.educator.imageUrl} 
+                                    alt={courseData.educator.name}  
+                                    className="w-full h-full object-cover"
+                                    />
+
+                                </div>
+                                <div>
+                                <h3 className="text-xl font-bold underline text-blue-600 cursor-pointer"
+                                onClick={() => {
+                                        
+                                    window.scrollTo(0, 0);
+                                  
+                                    navigate(`/user/${courseData.educator._id}`)
+                                }}
+                                >{courseData.educator.name}</h3>
+                                
+                                <p className="text-gray-600">Teaches over {educatorData.totalEnrolledStudents} students</p>
+                                </div>
+                            </div>
+                        
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                <p className="text-sm text-gray-500">Total Certificates Issued</p>
+                                <p className="font-bold">{educatorData.totalCertificates}</p>
+                                
+                                </div>
+                                <div>
+                                <p className="text-sm text-gray-500">Students</p>
+                                <p className="font-bold">{educatorData.totalEnrolledStudents}</p>
+                                </div>
+                                <div>
+                                <p className="text-sm text-gray-500">Average Rating </p>
+                                <p className="font-bold">{educatorData.averageRating }</p>
+                                </div>
+                                <div>
+                                <p className="text-sm text-gray-500">Courses</p>
+                                <p className="font-bold">{educatorData.totalCourses}</p>
+                                </div>
+                            </div>
+                        
+                            <div className="text-gray-700 space-y-3 text-justify">
+                                <p>Hi. I'm Denis. I have a degree in engineering from the University for Applied Science Konstanz in Germany and discovered my love for programming there.</p>
+                                <p>Currently, over 500,000 students learn from my courses. This gives me much energy to create new courses with the highest quality possible. I aim to make learning to code accessible for everyone, as I am convinced, that IT is THE FUTURE!</p>
+                                <p>So join my courses and learn to create apps, games, websites, or any other type of application. The possibilities are limitless.</p>
+                            </div>
+                        </div>
+                    </div>
+                   
+>>>>>>> Stashed changes
                 </div>
             </div>
             <Footer />
