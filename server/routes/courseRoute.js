@@ -1,12 +1,22 @@
 import express from 'express'
 import { getAllCourse, getCourseId, getTopRatedCourses } from '../controllers/courseController.js'
-import {paymentByAda} from '../controllers/transactionController.js'
+import {paymentByAda,paymentByPaypal, paypalSuccess, paypalCancel,paymentByStripe,stripeSuccess,stripeCancel} from '../controllers/transactionController.js'
+
 
 const courseRouter = express.Router()
+
+courseRouter.post('/payment-by-paypal', paymentByPaypal) 
+courseRouter.get('/paypal-success', paypalSuccess); 
+courseRouter.get('/paypal-cancel', paypalCancel); 
+
+courseRouter.post('/payment-by-stripe', paymentByStripe);
+courseRouter.get('/stripe-success', stripeSuccess);
+courseRouter.get('/stripe-cancel', stripeCancel);
 
 courseRouter.get('/top-rated', getTopRatedCourses)
 courseRouter.get('/all', getAllCourse)
 courseRouter.get('/:id', getCourseId)
 courseRouter.post('/payment', paymentByAda)
+
 
 export default courseRouter;

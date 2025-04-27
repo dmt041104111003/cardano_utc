@@ -80,7 +80,7 @@ export const purchaseCourse = async (req, res) => {
                 product_data: {
                     name: courseData.courseTitle
                 },
-                unit_amount: Math.round(newPurchase.amount * 100) // Convert to cents and round
+                unit_amount: Math.round(newPurchase.amount * 100) 
             },
             quantity: 1
         }]

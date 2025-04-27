@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 import { AppContext } from "../../context/AppContext";
 import StripePayment from "../../components/student/StripePayment";
 import AdaPayment from "../../components/student/AdaPayment";
-import VnpayPayment from "../../components/student/VnPpayment";
+import PaypalPayment from "../../components/student/PaypalPayment";
 
 
 
@@ -42,7 +42,7 @@ export default function PaymentPage() {
     ? [
         { id: "ada", name: "ADA", component: <AdaPayment courseData={courseData} /> },
         { id: "stripe", name: "Stripe", component: <StripePayment courseData={courseData} /> },
-        { id: "vnpay", name: "VNPAY", component: <VnpayPayment courseData={courseData} /> },
+        { id: "paypal", name: "Paypal", component: <PaypalPayment courseData={courseData} /> },
       ]
     : [];
     

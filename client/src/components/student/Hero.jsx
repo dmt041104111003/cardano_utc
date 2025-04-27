@@ -71,7 +71,7 @@ const Hero = () => {
           {/* Status Messages */}
           <div className="mt-6 text-gray-600">
             {currentStep === 0 && (
-              <p className="flex items-center">
+              <p className="flex items-center justify-center">
                 <span className="w-5 h-5 mr-2 bg-green-500 rounded-full flex items-center justify-center text-white">
                   ✓
                 </span>
@@ -79,25 +79,25 @@ const Hero = () => {
               </p>
             )}
             {currentStep === 1 && (
-              <p className="flex items-center">
+              <p className="flex items-center justify-center">
                 <span className="w-5 h-5 mr-2 bg-blue-500 rounded-full animate-spin"></span>
                 Generating unique certificate with student data
               </p>
             )}
             {currentStep === 2 && (
-              <p className="flex items-center">
+              <p className="flex items-center justify-center">
                 <span className="w-5 h-5 mr-2 bg-blue-500 rounded-full animate-spin"></span>
                 Creating NFT metadata with course & achievement details
               </p>
             )}
             {currentStep === 3 && (
-              <p className="flex items-center">
+              <p className="flex items-center justify-center">
                 <span className="w-5 h-5 mr-2 bg-blue-500 rounded-full animate-spin"></span>
                 Minting NFT on Cardano blockchain
               </p>
             )}
             {currentStep === 4 && (
-              <p className="flex items-center">
+              <p className="flex items-center justify-center">
                 <span className="w-5 h-5 mr-2 bg-green-500 rounded-full flex items-center justify-center text-white">
                   ✓
                 </span>
