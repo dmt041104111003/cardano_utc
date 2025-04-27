@@ -267,22 +267,22 @@ const CourseDetails = () => {
                             <div className="flex items-start gap-4 mb-4">
                                 <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
                                 <img 
-                                    src="https://randomuser.me/api/portraits/men/1.jpg" 
-                                    alt="Denis Panjuta"
+                                    src={courseData.educator.imageUrl} 
+                                    alt={courseData.educator.name}  
                                     className="w-full h-full object-cover"
-                                />
+                                    />
+
                                 </div>
                                 <div>
                                 <h3 className="text-xl font-bold underline text-blue-600 cursor-pointer"
-                                
                                 onClick={() => {
                                         
                                     window.scrollTo(0, 0);
                                   
                                     navigate(`/user/${courseData.educator._id}`)
                                 }}
-                                >Denis Panjuta</h3>
-                                <p className="text-gray-600">Teaches over 500,000 students to code</p>
+                                >{courseData.educator.name}</h3>
+                                <p className="text-gray-600">Teaches over 500,000 students</p>
                                 </div>
                             </div>
                         

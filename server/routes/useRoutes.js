@@ -5,6 +5,7 @@ import {
     purchaseCourse, updateUserCourseProgress,
     userEnrolledCourses, getAllCompletedCourses,
     enrollCourses, updateCourseEducator, getSimpleCertificateData
+
 }
     from '../controllers/userController.js'
 
@@ -20,6 +21,8 @@ userRouter.post('/add-rating', addUserRating)
 userRouter.post('/enroll-course', enrollCourses)
 userRouter.post('/update-course-educator', updateCourseEducator)
 userRouter.post('/get-simple-certificate', getSimpleCertificateData)
+
+
 
 userRouter.get('/test-schema', async (req, res) => {
     try {
