@@ -103,12 +103,18 @@ const CallToAction = () => {
                                     </div>
                                     <span className='text-gray-500 text-sm'>({course.totalRatings || 0} ratings)</span>
                                 </div>
-                                <button 
-                                    onClick={() => navigate(`/course/${course._id}`)}
+                                <button
+                                    onClick={() => {
+                                        
+                                        window.scrollTo(0, 0);
+                                      
+                                        navigate(`/course/${course._id}`);
+                                    }}
                                     className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
                                 >
                                     Learn More
                                 </button>
+
                             </div>
                         </div>
                     </div>

@@ -9,8 +9,8 @@ import { AppContext } from "../../context/AppContext";
 import StripePayment from "../../components/student/StripePayment";
 import AdaPayment from "../../components/student/AdaPayment";
 import PaypalPayment from "../../components/student/PaypalPayment";
-
-
+import Footer from "../../components/student/Footer";
+import CourseItem from "../../components/student/CourseCardForPayment";
 
 export default function PaymentPage() {
   const [selectedMethod, setSelectedMethod] = useState("ada");
@@ -47,56 +47,68 @@ export default function PaymentPage() {
     : [];
     
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col lg:flex-row gap-6">
+    <div>
+      <div className="p-4 md:p-6 max-w-7xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-6">
+          
         
-       
-        <div className="w-full lg:w-1/2">
-          {courseData && (
-            
-            <CourseInformationCard 
-              courseData={courseData} 
-              playerData={playerData} 
-              isAlreadyEnrolled={isAlreadyEnrolled} 
-              rating={calculateRating(courseData)} 
-              duration={calculateCourseDuration(courseData)} 
-              lecture={calculateCourseDuration(courseData)} 
-              openPaymentPage={false}
-              courseId={idParams.courseId}
-            />
-          )}
-        </div>
-
-      
-        <div className="w-full lg:w-2/3  p-1 md:p-2 rounded-lg  ">
-          <h2 className="text-xl md:text-2xl font-semibold text-center mb-4 md:mb-6">
-            Chọn phương thức thanh toán
-          </h2>
-
-
-          <div className="flex justify-center gap-3">
-            {paymentMethods.map((method) => (
-              <button
-                key={method.id}
-                className={`px-4 py-2 text-sm font-semibold rounded-full transition-all shadow-md 
-                  ${selectedMethod === method.id 
-                    ? "bg-green-600 text-white border-2 border-green-600 scale-105 shadow-lg"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 hover:shadow-lg"
-                  }`}
-                onClick={() => setSelectedMethod(method.id)}
-              >
-                {method.name}
-              </button>
-            ))}
+          <div className="w-full lg:w-1/2">
+            {courseData && (
+              
+              <CourseInformationCard 
+                courseData={courseData} 
+                playerData={playerData} 
+                isAlreadyEnrolled={isAlreadyEnrolled} 
+                rating={calculateRating(courseData)} 
+                duration={calculateCourseDuration(courseData)} 
+                lecture={calculateCourseDuration(courseData)} 
+                openPaymentPage={false}
+                courseId={idParams.courseId}
+              />
+            )}
           </div>
 
-  
-          <div className="mt-4">
-            {selectedMethod && paymentMethods.find((m) => m.id === selectedMethod)?.component}
-          </div>
+        
+          <div className="w-full lg:w-2/3  p-1 md:p-2 rounded-lg  ">
+            <h2 className="text-xl md:text-2xl font-semibold text-center mb-4 md:mb-6">
+              Chọn phương thức thanh toán
+            </h2>
 
+
+            <div className="flex justify-center gap-3">
+              {paymentMethods.map((method) => (
+                <button
+                  key={method.id}
+                  className={`px-4 py-2 text-sm font-semibold rounded-full transition-all shadow-md 
+                    ${selectedMethod === method.id 
+                      ? "bg-green-600 text-white border-2 border-green-600 scale-105 shadow-lg"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 hover:shadow-lg"
+                    }`}
+                  onClick={() => setSelectedMethod(method.id)}
+                >
+                  {method.name}
+                </button>
+              ))}
+            </div>
+
+    
+            <div className="mt-4">
+              {selectedMethod && paymentMethods.find((m) => m.id === selectedMethod)?.component}
+            </div>
+
+            <div className="course-content mt-16">
+              <h3 className='text-xl font-semibold text-black mb-2'>More Courses by  
+                <span className="text-blue-600 cursor-pointer underline"> Denis Panjuta</span></h3>
+               <CourseItem/>
+               <CourseItem/>
+               <CourseItem/>
+               <CourseItem/>
+            </div>
+
+          </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
