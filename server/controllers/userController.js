@@ -458,7 +458,7 @@ export const getSimpleCertificateData = async (req, res) => {
 export const enrollCourses = async (req, res) => {
     const { origin } = req.headers;
     const userId = req.auth.userId;
-    let { courseId,paymentMethod,currency } = req.body;
+    let { courseId,paymentMethod,currency,receiverAddress } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(courseId)) {
         return res.status(400).json({ success: false, message: 'Invalid course ID' });
@@ -486,6 +486,7 @@ export const enrollCourses = async (req, res) => {
                 status: "completed",
                 currency: currency,
                 paymentMethod: paymentMethod,
+                receiverAddress: receiverAddress,
                 createdAt: new Date(),
                 note: ""
             };

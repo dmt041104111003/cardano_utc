@@ -4,6 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { Purchase } from "../models/Purchase.js";
 import User from "../models/User.js";
 import { bufferToStream } from '../configs/multer.js';
+import Certificate from "../models/Certificate.js";
 
 export const updatetoRoleToEducator = async (req, res) => {
     try {
@@ -81,7 +82,7 @@ export const educatorDashboardData = async (req, res) => {
         const educator = req.auth.userId;
         const courses = await Course.find({ educator });
         const totalCourses = courses.length;
-
+     
         const courseIds = courses.map((course) => course._id);
 
         const purchases = await Purchase.find({
@@ -278,45 +279,62 @@ export const deleteCourse = async (req, res) => {
 
 
 // get edu detail
-export const educatorDetails = async (req, res) => {
+export const educatorDetails  = async (req, res) => {
     try {
-      const educatorId = req.params.id; 
-  
-      const courses = await Course.find({ educator: educatorId });
-      const totalCourses = courses.length;
-  
-      const totalEnrolledStudents = courses.reduce(
-        (sum, course) => sum + (course.enrolledStudents?.length || 0),
-        0
-      );
-  
-      let totalRatings = 0;
-      let totalRatingPoints = 0;
-  
-      courses.forEach(course => {
-        const ratings = course.courseRatings || [];
-        totalRatings += ratings.length;
-        totalRatingPoints += ratings.reduce((sum, r) => sum + r.rating, 0);
-      });
-  
-      const averageRating = totalRatings > 0 
-        ? Number((totalRatingPoints / totalRatings).toFixed(2))
-        : 0;
-  
-      res.json({
-        success: true,
-        dashboardData: {
-          totalCourses,
-          totalEnrolledStudents,
-          averageRating,
-        },
-      });
+        const educatorId = req.params.id.trim();
+
+        console.log(educatorId);
+
+        if (!educatorId) {
+            return res.status(400).json({ success: false, message: 'Educator ID is required' });
+        }
+
+       
+        const courses = await Course.find({ educator: educatorId });
+
+        const totalCourses = courses.length;
+        console.log("educator id", educatorId);
+
+        
+        const totalEnrolledStudents = courses.reduce(
+            (sum, course) => sum + (course.enrolledStudents?.length || 0),
+            0
+        );
+
+        let totalRatings = 0;
+        let totalRatingPoints = 0;
+
+       
+        courses.forEach(course => {
+            const ratings = course.courseRatings || [];
+            totalRatings += ratings.length;
+            totalRatingPoints += ratings.reduce((sum, r) => sum + r.rating, 0);
+        });
+
+        const averageRating = totalRatings > 0 
+            ? Number((totalRatingPoints / totalRatings).toFixed(2))
+            : 0;
+
+        
+        const certificates = await Certificate.find({ issueBy: educatorId });
+        const totalCertificates = certificates.length;
+
+        res.json({
+            success: true,
+            educatorData: {
+                totalCourses,
+                totalEnrolledStudents,
+                averageRating,
+                totalCertificates,  
+                bio: 'No bio available'
+            },
+        });
     } catch (error) {
-      res.json({
-        success: false,
-        message: error.message,
-      });
+        res.json({
+            success: false,
+            message: error.message,
+        });
     }
-  };
-  
-  
+};
+
+
