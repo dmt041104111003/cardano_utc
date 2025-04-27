@@ -142,17 +142,20 @@ export const paypalSuccess = async (req, res) => {
         await user.save();
         await course.save(); 
 
-        res.redirect(`http://localhost:5173/my-enrollments`);
+        const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
+        res.redirect(`${origin}/my-enrollments`);
         
     } catch (error) {
         console.error('Lỗi khi xử lý thanh toán PayPal:', error);
-        res.redirect(`${process.env.FRONTEND_URL}/payment-error?code=paypal_failed`);
+        const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
+        res.redirect(`${origin}/payment-error?code=paypal_failed`);
     }
 };
 
   
   export const paypalCancel = (req, res) => {
-    res.redirect(`${process.env.FRONTEND_URL}/courses/${req.query.courseId}?payment=cancelled`);
+    const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
+    res.redirect(`${origin}/courses/${req.query.courseId}?payment=cancelled`);
   };
 
 
@@ -181,8 +184,8 @@ export const paypalSuccess = async (req, res) => {
         });
 
         const session = await stripe.checkout.sessions.create({
-            success_url: `${process.env.BACKEND_URL}/api/course/stripe-success?purchaseId=${purchase._id}`,
-            cancel_url: `${process.env.BACKEND_URL}/api/course/stripe-cancel?purchaseId=${purchase._id}`,
+            success_url: `${req.protocol}://${req.get('host')}/api/course/stripe-success?purchaseId=${purchase._id}`,
+            cancel_url: `${req.protocol}://${req.get('host')}/api/course/stripe-cancel?purchaseId=${purchase._id}`,
             line_items: [{
                 price_data: {
                     currency: 'usd',
@@ -229,10 +232,12 @@ export const stripeSuccess = async (req, res) => {
             await course.save();
         }
 
-        res.redirect(`${process.env.FRONTEND_URL}/my-enrollments`);
+        const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
+        res.redirect(`${origin}/my-enrollments`);
     } catch (error) {
         console.error('Stripe success error:', error);
-        res.redirect(`${process.env.FRONTEND_URL}/payment-error?code=stripe_failed`);
+        const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
+        res.redirect(`${origin}/payment-error?code=stripe_failed`);
     }
 };
 
@@ -244,5 +249,6 @@ export const stripeCancel = async (req, res) => {
     } catch (error) {
         console.error('Stripe cancel error:', error);
     }
-    res.redirect(`${process.env.FRONTEND_URL}/courses`);
+    const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
+    res.redirect(`${origin}/courses`);
 };
