@@ -2,15 +2,13 @@ import { useParams } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import Loading from '../../components/student/Loading'
+import Loading from '../../components/student/Loading';
 import { assets } from '../../assets/assets';
 import humanizeDuration from 'humanize-duration';
 import Footer from '../../components/student/Footer';
 import CourseInformationCard from '../../components/student/CourseInfomationCard';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-
 
 const CourseDetails = () => {
     const navigate = useNavigate();
@@ -23,13 +21,15 @@ const CourseDetails = () => {
         totalCourses: 0,
         totalEnrolledStudents: 0,
         averageRating: 0,
-        totalCertificates: 0
+        totalCertificates: 0,
+        user:null,
+        courses:null
     });
     const [timeLeft, setTimeLeft] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     
     const { calculateRating, calculateChapterTime, calculateCourseDuration, 
-           calculateNoOfLectures, userData, backendUrl, getToken } = useContext(AppContext);
+           calculateNoOfLectures, userData, backendUrl } = useContext(AppContext);
 
     const calculateTimeLeft = (endTime) => {
         const now = new Date();
@@ -80,8 +80,12 @@ const CourseDetails = () => {
                     totalCourses: data.educatorData.totalCourses || 0,
                     totalEnrolledStudents: data.educatorData.totalEnrolledStudents || 0,
                     averageRating: data.educatorData.averageRating || 0,
-                    totalCertificates: data.educatorData.totalCertificates || 0
+                    totalCertificates: data.educatorData.totalCertificates || 0,
+                    user:data.educatorData.user,
+                    courses: data.educatorData.courses
                 });
+              
+                
             } else {
                 toast.error(data.message);
             }
@@ -93,7 +97,6 @@ const CourseDetails = () => {
     useEffect(() => {
         fetchCourseData();
     }, [id]);
-    
 
     useEffect(() => {
         if (userData && courseData) {
@@ -127,7 +130,7 @@ const CourseDetails = () => {
             <div className='relative min-h-screen'>
                 <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-green-100/70 via-cyan-100/50 to-white'></div>
                 <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 relative z-10'>
-                    <div className='flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-36 px-8 md:pt-30 pt-20 text-left'>
+                    <div className='flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-36 px-8 md:pt-30 pt-4 text-left'>
                         <div className="z-10 w-full mb-6 md:hidden">
                             <nav className="flex" aria-label="Breadcrumb">
                                 <ol className="inline-flex items-center space-x-1 md:space-x-3">
@@ -154,7 +157,7 @@ const CourseDetails = () => {
                             </nav>
                         </div>
 
-                        <div className='z-10 text-gray-500 w-full md:w-2/3 '>
+                        <div className='z-10 text-gray-500 w-full md:w-2/3'>
                             {timeLeft && (
                                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
                                     <p className="font-bold">Discount ending soon!</p>
@@ -164,15 +167,15 @@ const CourseDetails = () => {
 
                             <h1 className="text-2xl font-bold text-black mb-4 md:hidden">{courseData.courseTitle}</h1>
 
-                            <div className='border border-gray-300 overflow-hidden p-6 mb-6 '>
+                            <div className='border border-gray-300 overflow-hidden p-6 mb-6'>
                                 <h2 className='text-xl font-semibold text-black mb-4'>Course Description</h2>
-                                
                                 <div className='text-sm md:text-base text-gray-600 text-justify'
                                     dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}
                                 />
                             </div>
+
                             <div className='border border-gray-300 overflow-hidden'>
-                                <div className=' p-6 '>
+                                <div className='p-6'>
                                     <h2 className='text-xl font-semibold text-black mb-4'>Course Content</h2>
                                     <div className='space-y-3'>
                                         {courseData.courseContent.map((chapter, index) => (
@@ -234,7 +237,7 @@ const CourseDetails = () => {
                                     </div>
                                 </div>
 
-                                <div className=' p-6 '>
+                                <div className='p-6'>
                                     <h2 className='text-xl font-semibold text-black mb-4'>Course Tests</h2>
                                     {courseData.tests && courseData.tests.length > 0 ? (
                                         <div className='space-y-4'>
@@ -255,12 +258,11 @@ const CourseDetails = () => {
                                         <p className='text-gray-500'>No tests available for this course</p>
                                     )}
                                 </div>
-                                <div className=' p-6 '>
+
+                                <div className='p-6'>
                                     <h2 className='text-xl font-semibold text-black mb-4'>Course Information</h2>
                                     <div className='bg-gray-50 p-4 rounded-lg border border-gray-200'>
                                         <div className='flex flex-col gap-4'>
-                                            
-                                            
                                             <div>
                                                 <p className='text-sm text-gray-600 font-medium'>Wallet Address:</p>
                                                 <p className='text-sm break-all bg-gray-100 p-2 rounded mt-1 font-mono'>
@@ -284,63 +286,65 @@ const CourseDetails = () => {
                                         </div>
                                     </div>
                                 </div>
-                                
-
                             </div>
                             
                             <div className="w-full mb-6 mt-8">
                                 <h2 className="text-xl font-semibold text-black mb-6">Instructors</h2>
                                 
-                                <div className="flex-1 mt-3 ">
-                                    <div className="flex items-start gap-4 mb-4">
-                                        <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-                                        <img 
-                                            src={courseData.educator.imageUrl} 
-                                            alt={courseData.educator.name}  
-                                            className="w-full h-full object-cover"
-                                            />
-
+                                {courseData?.educator && (
+                                    <div className="flex-1 mt-3">
+                                        <div className="flex items-start gap-4 mb-4">
+                                            <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
+                                                <img 
+                                                    src={courseData.educator.imageUrl || assets.user_icon} 
+                                                    alt={courseData.educator.name}  
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            <div>
+                                                <h3 
+                                                    className="text-xl font-bold underline text-blue-600 cursor-pointer"
+                                                    onClick={() => {
+                                                        window.scrollTo(0, 0);
+                                                        navigate(`/user/${courseData.educator._id}`,{state: {educatorData: educatorData}});
+                                                    }}
+                                                >
+                                                    {courseData.educator.name}
+                                                </h3>
+                                                {console.log(educatorData)}
+                                                <p className="text-gray-600">
+                                                    Teaches over {educatorData.totalEnrolledStudents.toLocaleString()} students
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                        <h3 className="text-xl font-bold underline text-blue-600 cursor-pointer"
-                                        onClick={() => {
+                                    
+                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                            <div>
+                                                <p className="text-sm text-gray-500">Total Courses</p>
+                                                <p className="font-bold">{educatorData.totalCourses.toLocaleString()}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Students</p>
+                                                <p className="font-bold">{educatorData.totalEnrolledStudents.toLocaleString()}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Average Rating</p>
+                                                <p className="font-bold">{educatorData.averageRating.toFixed(1)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Certificates Issued</p>
+                                                <p className="font-bold">{educatorData.totalCertificates.toLocaleString()}</p>
                                                 
-                                            window.scrollTo(0, 0);
-                                         
-                                            navigate(`/user/${courseData.educator._id}`)
-                                        }}
-                                        >{courseData.educator.name}</h3>
-                                        <p className="text-gray-600">Teaches over 500,000 students</p>
+                                            </div>
+                                        </div>
+                                    
+                                        <div className="text-gray-700 space-y-3 text-justify">
+                                            <p>Hi. I'm {courseData.educator.name}. I have a degree in engineering and discovered my love for programming.</p>
+                                            <p>Currently, over {educatorData.totalEnrolledStudents.toLocaleString()} students learn from my courses.</p>
                                         </div>
                                     </div>
-                                
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                        <p className="text-sm text-gray-500">Instructor Rating</p>
-                                        <p className="font-bold">4.6</p>
-                                        </div>
-                                        <div>
-                                        <p className="text-sm text-gray-500">Reviews</p>
-                                        <p className="font-bold">104,942</p>
-                                        </div>
-                                        <div>
-                                        <p className="text-sm text-gray-500">Students</p>
-                                        <p className="font-bold">531,984</p>
-                                        </div>
-                                        <div>
-                                        <p className="text-sm text-gray-500">Courses</p>
-                                        <p className="font-bold">45</p>
-                                        </div>
-                                    </div>
-                                
-                                    <div className="text-gray-700 space-y-3 text-justify">
-                                        <p>Hi. I'm Denis. I have a degree in engineering from the University for Applied Science Konstanz in Germany and discovered my love for programming there.</p>
-                                        <p>Currently, over 500,000 students learn from my courses. This gives me much energy to create new courses with the highest quality possible. I aim to make learning to code accessible for everyone, as I am convinced, that IT is THE FUTURE!</p>
-                                        <p>So join my courses and learn to create apps, games, websites, or any other type of application. The possibilities are limitless.</p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
-                           
                         </div>
 
                         <div className='z-10 w-full md:w-1/3 md:sticky md:top-20'>
@@ -353,71 +357,10 @@ const CourseDetails = () => {
                                 lecture={calculateNoOfLectures(courseData)} 
                                 openPaymentPage={true}
                                 courseId={id}
+                                coursesOfEducator={educatorData.courses}
                             />
                         </div>
-                       
-                       
                     </div>
-                    
-<<<<<<< Updated upstream
-                    
-=======
-                    <div className="w-full mb-6 mt-8">
-                        <h2 className="text-xl font-semibold text-black mb-6">Instructors</h2>
-                        
-                        <div className="flex-1 mt-3 ">
-                            <div className="flex items-start gap-4 mb-4">
-                                <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-                                <img 
-                                    src={courseData.educator.imageUrl} 
-                                    alt={courseData.educator.name}  
-                                    className="w-full h-full object-cover"
-                                    />
-
-                                </div>
-                                <div>
-                                <h3 className="text-xl font-bold underline text-blue-600 cursor-pointer"
-                                onClick={() => {
-                                        
-                                    window.scrollTo(0, 0);
-                                  
-                                    navigate(`/user/${courseData.educator._id}`)
-                                }}
-                                >{courseData.educator.name}</h3>
-                                
-                                <p className="text-gray-600">Teaches over {educatorData.totalEnrolledStudents} students</p>
-                                </div>
-                            </div>
-                        
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                <p className="text-sm text-gray-500">Total Certificates Issued</p>
-                                <p className="font-bold">{educatorData.totalCertificates}</p>
-                                
-                                </div>
-                                <div>
-                                <p className="text-sm text-gray-500">Students</p>
-                                <p className="font-bold">{educatorData.totalEnrolledStudents}</p>
-                                </div>
-                                <div>
-                                <p className="text-sm text-gray-500">Average Rating </p>
-                                <p className="font-bold">{educatorData.averageRating }</p>
-                                </div>
-                                <div>
-                                <p className="text-sm text-gray-500">Courses</p>
-                                <p className="font-bold">{educatorData.totalCourses}</p>
-                                </div>
-                            </div>
-                        
-                            <div className="text-gray-700 space-y-3 text-justify">
-                                <p>Hi. I'm Denis. I have a degree in engineering from the University for Applied Science Konstanz in Germany and discovered my love for programming there.</p>
-                                <p>Currently, over 500,000 students learn from my courses. This gives me much energy to create new courses with the highest quality possible. I aim to make learning to code accessible for everyone, as I am convinced, that IT is THE FUTURE!</p>
-                                <p>So join my courses and learn to create apps, games, websites, or any other type of application. The possibilities are limitless.</p>
-                            </div>
-                        </div>
-                    </div>
-                   
->>>>>>> Stashed changes
                 </div>
             </div>
             <Footer />

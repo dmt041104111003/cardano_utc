@@ -22,7 +22,7 @@ const shakeAnimation = `
     transform-origin: center;
 }`;
 
-const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,duration,lecture,openPaymentPage,courseId}) => {
+const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,duration,lecture,openPaymentPage,courseId,coursesOfEducator} ) => {
     const { currency, backendUrl, getToken } = useContext(AppContext);
     const [timeLeft, setTimeLeft] = useState('');
     const [policyId, setPolicyId] = useState('');
@@ -111,7 +111,7 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
             return toast.warn('Already Enrolled')
         } 
         scrollTo(0, 0);
-        navigate(`/payment/${courseId}`);
+        navigate(`/payment/${courseId}`, { state: {coursesOfEducator: coursesOfEducator } });
     }        
 
     return (
@@ -198,14 +198,14 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
             ): null }
             
 
-            <div className='pt-6'>
+            <div className='pt-6 '>
                 {
                     !openPaymentPage && <>
                     <p className='md:text-xl text-lg font-medium text-gray-800 mb-3'>
                     Information - course description:
                     </p>
 
-                    <div className='text-sm md:text-default text-gray-600'
+                    <div className='text-sm md:text-default text-gray-600 '
                         dangerouslySetInnerHTML={{ __html: courseData.courseDescription }}
                     />
                     </>
