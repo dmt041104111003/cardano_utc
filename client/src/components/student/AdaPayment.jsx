@@ -4,7 +4,6 @@ import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { convertUsdToAda } from "../../../utils/convertUsdToAda";
 
 export default function AdaPayment({ courseData }) {
     const { currentWallet, userData, getToken, backendUrl, fetchUserData, fetchUserEnrolledCourses } = useContext(AppContext);
@@ -35,9 +34,7 @@ export default function AdaPayment({ courseData }) {
         fetchBalance();
     }, [currentWallet, userData]);
       
-    const coursePrice = ( convertUsdToAda(
-        courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100
-    )).toFixed(2);
+    const coursePrice = (courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100).toFixed(2);
 
     const handlePayment = async () => {
         if (!userData) {
