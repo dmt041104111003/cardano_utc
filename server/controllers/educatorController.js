@@ -32,17 +32,8 @@ export const addCourse = async (req, res) => {
             return res.json({ success: false, message: "Thumbnail Not Attached" });
         }
 
-        console.log('Raw courseData:', courseData);
         const parsedCourseData = await JSON.parse(courseData);
-        console.log('Parsed courseData:', parsedCourseData);
-
-        // Đảm bảo có paymentMethods và là mảng
-        if (!parsedCourseData.paymentMethods || !Array.isArray(parsedCourseData.paymentMethods)) {
-            parsedCourseData.paymentMethods = ['ada']; // Mặc định nếu không có
-        }
-
         parsedCourseData.educator = educatorId;
-        console.log('Final courseData before save:', parsedCourseData);
         const newCourse = await Course.create(parsedCourseData);
 
         // Tạo stream từ buffer và upload lên Cloudinary

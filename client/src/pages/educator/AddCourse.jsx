@@ -723,7 +723,11 @@ const AddCourse = () => {
       setWalletAddress('');
     }
   }, [connected, wallet]);
-
+  const preventMinus = (e) => {
+    if (e.key === '-') {
+      e.preventDefault();
+    }
+  };
   return (
     <div className='h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
       <form onSubmit={handleSubmit} className='flex flex-col gap-4 max-w-md w-full text-gray-500'>
@@ -762,6 +766,7 @@ const AddCourse = () => {
           <div className='flex flex-col gap-1'>
             <p>Course Price</p>
             <input 
+            onKeyDown={preventMinus}
               onChange={e => setCoursePrice(e.target.value)} 
               value={coursePrice} 
               type="number" 
@@ -772,6 +777,7 @@ const AddCourse = () => {
           <div className='flex flex-col gap-1'>
             <p>Discount %</p>
             <input 
+            onKeyDown={preventMinus}
               onChange={e => setDiscount(e.target.value)} 
               value={discount} 
               type="number" 
@@ -783,6 +789,7 @@ const AddCourse = () => {
             <div className='flex flex-col gap-1'>
               <p>Discount End Time</p>
               <input 
+              onKeyDown={preventMinus}
                 onChange={e => setDiscountEndTime(e.target.value)}
                 value={discountEndTime}
                 type="datetime-local"
@@ -842,6 +849,7 @@ const AddCourse = () => {
               <div>
                 <label className='block mb-1'>Duration (minutes)</label>
                 <input
+                onKeyDown={preventMinus}
                   type='number'
                   value={currentTest.duration}
                   onChange={(e) => setCurrentTest({ ...currentTest, duration: e.target.value })}
@@ -853,6 +861,7 @@ const AddCourse = () => {
               <div>
                 <label className='block mb-1'>Passing Score (%)</label>
                 <input
+                onKeyDown={preventMinus}
                   type='number'
                   value={currentTest.passingScore}
                   onChange={(e) => {
@@ -886,10 +895,7 @@ const AddCourse = () => {
               <p>Lecture Title</p>
               <input type="text" className="mt-1 block w-full border rounded py-1 px-2" value={lectureDetails.lectureTitle} onChange={(e) => setLectureDetails({ ...lectureDetails, lectureTitle: e.target.value })} />
             </div>
-            <div className="mb-2">
-              <p>Duration (minutes)</p>
-              <input type="number" className="mt-1 block w-full border rounded py-1 px-2" value={lectureDetails.lectureDuration} onChange={(e) => setLectureDetails({ ...lectureDetails, lectureDuration: e.target.value })} />
-            </div>
+
             <div className="mb-2">
               <p>Lecture URL</p>
               <input type="text" className="mt-1 block w-full border rounded py-1 px-2" value={lectureDetails.lectureUrl} onChange={(e) => setLectureDetails({ ...lectureDetails, lectureUrl: e.target.value })} />
