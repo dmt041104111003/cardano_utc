@@ -31,6 +31,7 @@
     "multer": "^1.4.5-lts.1",
     "nodemon": "^3.1.9",
     "paypal-rest-sdk": "^1.8.1",
+    "socket.io": "^4.8.1",
     "stripe": "^17.6.0",
     "svix": "^1.42.0"
   }
