@@ -26,6 +26,7 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
     const { currency, backendUrl, getToken } = useContext(AppContext);
     const [timeLeft, setTimeLeft] = useState('');
     const [policyId, setPolicyId] = useState('');
+    const [adaToUsd, setAdaToUsd] = useState(0);
     const navigate = useNavigate();
     useEffect(() => {
         const fetchNFTInfo = async () => {
@@ -57,6 +58,22 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
         return () => {
             document.head.removeChild(styleSheet);
         };
+    }, []);
+
+    useEffect(() => {
+        const updateExchangeRate = async () => {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd');
+                const data = await response.json();
+                setAdaToUsd(data.cardano.usd);
+            } catch (error) {
+                console.error('Error fetching exchange rate:', error);
+            }
+        };
+
+        updateExchangeRate();
+        const interval = setInterval(updateExchangeRate, 300000); // Update every 5 minutes
+        return () => clearInterval(interval);
     }, []);
 
     const calculateTimeLeft = (endTime) => {
@@ -160,12 +177,26 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
             )}
 
             <div className='flex gap-3 items-center pt-2'>
-                <p className='text-gray-800 md:text-4xl text-2xl font-semibold'>
-                    {currency}{(courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2)}
-                </p>
-                <p className='md:text-lg text-gray-500 line-through'>
-                    {currency}{courseData.coursePrice}
-                </p>
+                <div>
+                    <p className='text-gray-800 md:text-4xl text-2xl font-semibold'>
+                        {(courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2)} ADA
+                    </p>
+                    {adaToUsd > 0 && (
+                        <p className='text-sm text-gray-500'>
+                            ≈ ${((courseData.coursePrice - courseData.discount * courseData.coursePrice / 100) * adaToUsd).toFixed(2)} USD
+                        </p>
+                    )}
+                </div>
+                <div>
+                    <p className='md:text-lg text-gray-500 line-through'>
+                        {courseData.coursePrice} ADA
+                    </p>
+                    {adaToUsd > 0 && (
+                        <p className='text-sm text-gray-500 line-through'>
+                            ≈ ${(courseData.coursePrice * adaToUsd).toFixed(2)} USD
+                        </p>
+                    )}
+                </div>
                 <p className='md:text-lg text-gray-500'>
                     {courseData.discount}% off
                 </p>
@@ -176,14 +207,13 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
                     <img src={assets.time_clock_icon} alt="clock icon" />
                     <p>{duration}</p>
                 </div>
-                <div className='h-4 w-px bg-gray-500/40'>
-
-                </div>
+                <div className='h-4 w-px bg-gray-500/40'></div>
                 <div className='flex items-center gap-1'>
                     <img src={assets.lesson_icon} alt="clock icon" />
                     <p>{lecture} lessons</p>
                 </div>
             </div>
+
             {openPaymentPage ?(
                 // <NavLink to={`/payment/${courseId}`}>
                 //     <button disabled={isAlreadyEnrolled} onClick={isAlreadyEnrolled ? null : handleEnrollCourse} className='md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>

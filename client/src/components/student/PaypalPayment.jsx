@@ -8,22 +8,40 @@ export default function PaypalPayment({ courseData }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [coursePrice, setCoursePrice] = useState("0.00");
+  const [adaToUsd, setAdaToUsd] = useState(0);
+
+  // Fetch ADA/USD exchange rate
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd');
+        const data = await response.json();
+        setAdaToUsd(data.cardano.usd);
+      } catch (error) {
+        console.error('Error fetching exchange rate:', error);
+      }
+    };
+
+    fetchExchangeRate();
+    const interval = setInterval(fetchExchangeRate, 300000); // Update every 5 minutes
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
-  
-    if (courseData) {
+    if (courseData && adaToUsd > 0) {
       const currentDate = new Date();
       const discountEnd = courseData.discountEndTime ? new Date(courseData.discountEndTime) : null;
-    
       const isDiscountActive = discountEnd && !isNaN(discountEnd.getTime()) && currentDate <= discountEnd;
     
-      const coursePrice = isDiscountActive && courseData.discount > 0
-        ? (courseData.coursePrice * (1 - courseData.discount / 100)).toFixed(2)
-        : courseData.coursePrice.toFixed(2);
+      // Convert ADA price to USD
+      const adaPrice = isDiscountActive && courseData.discount > 0
+        ? courseData.coursePrice * (1 - courseData.discount / 100)
+        : courseData.coursePrice;
 
-      setCoursePrice(coursePrice);
+      const usdPrice = (adaPrice * adaToUsd).toFixed(2);
+      setCoursePrice(usdPrice);
     }
-  }, [courseData]);
+  }, [courseData, adaToUsd]);
 
   const handlePaypalPayment = async () => {
     setIsProcessing(true);
@@ -37,7 +55,8 @@ export default function PaypalPayment({ courseData }) {
           courseName: courseData.courseTitle,
           courseId: courseData._id,
           price: coursePrice,
-          userId: userData._id
+          userId: userData._id,
+          originalAdaPrice: courseData.coursePrice // Send original ADA price for reference
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -68,9 +87,14 @@ export default function PaypalPayment({ courseData }) {
         <h3 className="text-lg font-semibold">Thanh toán qua PayPal</h3>
       </div>
 
-      <p className="text-gray-600 mb-3">
-        Giá khóa học: <span className="font-semibold text-green-600">{coursePrice} USD</span>
-      </p>
+      <div className="text-gray-600 mb-3">
+        <p>
+          Giá khóa học: <span className="font-semibold text-green-600">${coursePrice} USD</span>
+        </p>
+        <p className="text-sm text-gray-500">
+          ≈ {courseData.coursePrice} ADA
+        </p>
+      </div>
 
       <p className="text-gray-600 mb-3">
         Thanh toán an toàn bằng tài khoản PayPal hoặc thẻ tín dụng quốc tế.
