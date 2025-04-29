@@ -2,7 +2,7 @@
 /* eslint-disable react/prop-types */
 import { useState, useContext, useEffect } from "react";
 import CourseInformationCard from "../../components/student/CourseInfomationCard";
-import { useParams } from "react-router-dom";
+import { useParams,useLocation } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AppContext } from "../../context/AppContext";
@@ -15,6 +15,8 @@ import CourseItem from "../../components/student/CourseCardForPayment";
 export default function PaymentPage() {
   const [selectedMethod, setSelectedMethod] = useState("ada");
   const idParams = useParams();
+  const location = useLocation();
+  const coursesOfEducator = location.state.coursesOfEducator;
   const [courseData, setCourseData] = useState(null);
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
   const [playerData, setPlayerData] = useState(null);
@@ -64,6 +66,7 @@ export default function PaymentPage() {
                 lecture={calculateCourseDuration(courseData)} 
                 openPaymentPage={false}
                 courseId={idParams.courseId}
+                coursesOfEducator={null}
               />
             )}
           </div>
@@ -97,13 +100,22 @@ export default function PaymentPage() {
             </div>
 
             <div className="course-content mt-16">
-              <h3 className='text-xl font-semibold text-black mb-2'>More Courses by  
-                <span className="text-blue-600 cursor-pointer underline"> Denis Panjuta</span></h3>
-               <CourseItem/>
-               <CourseItem/>
-               <CourseItem/>
-               <CourseItem/>
-            </div>
+                <h3 className='text-xl font-semibold text-black mb-2'>
+                  More Courses by {courseData?.educator?.name}
+                </h3>
+
+                {coursesOfEducator.filter(course => course._id !== courseData?._id).length > 0 ? (
+                  coursesOfEducator
+                    .filter(course => course._id !== courseData?._id)
+                    .map((course) => (
+                      <CourseItem key={course._id} course={course} />
+                    ))
+                ) : (
+                  <div className=" p-4 text-center">
+                    <p className="text-gray-500">No other courses available from this instructor.</p>
+                  </div>
+                )}
+              </div>
 
           </div>
         </div>
