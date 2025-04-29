@@ -22,7 +22,7 @@ const Hero = () => {
         <h1 className="md:text-6xl text-4xl font-extrabold text-gray-800 leading-tight max-w-4xl mx-auto bg-clip-text text-transparent bg-gradient-to-r from-green-600 via-blue-600 to-cyan-600 animate-fade-in-down">
         Welcome to Lms - Cardano{' '}
           <span className="inline-block relative">
-            decentralized certifications
+            ...........................................
             <span className="absolute -bottom-4 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full opacity-50"></span>
             {/* <FaEthereum className="inline-block ml-2 text-green-500 animate-pulse" size={30} /> */}
           </span>
