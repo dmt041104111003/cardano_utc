@@ -100,7 +100,13 @@ const Sidebar = () => {
     return isEducator && (
         <div className='md:w-64 w-16 border-r min-h-screen text-base border-gray-500 py-2 flex flex-col z-20'>
             {/* Always show the timer at the top */}
-            <SidebarTimer isPremium={isPremium} premiumExpiry={premiumExpiry} cooldownMs={cooldownMs} fetchUserData={fetchUserData} />
+            <SidebarTimer 
+                key={cooldownMs} 
+                isPremium={isPremium} 
+                premiumExpiry={premiumExpiry} 
+                cooldownMs={cooldownMs} 
+                fetchUserData={fetchUserData} 
+            />
             {menuItems.map((item) => (
                 <NavLink
                     className={({ isActive }) => `flex items-center md:flex-row

@@ -794,13 +794,13 @@ const AddCourse = () => {
 
   useEffect(() => {
     let interval;
-    if (!canCreate && cooldownLeft > 0) {
+    if (cooldownLeft > 0) {
       interval = setInterval(() => {
         setCooldownLeft(prev => {
           if (prev <= 1000) {
             clearInterval(interval);
-            // Khi countdown về 0, fetch lại userData để đồng bộ với backend
-            if (typeof fetchUserData === 'function') fetchUserData();
+            setCanCreate(true); // Khi hết cooldown, cho phép tạo course ngay
+            if (typeof fetchUserData === 'function') fetchUserData(); // vẫn sync với server nếu muốn
             return 0;
           }
           return prev - 1000;
@@ -808,7 +808,7 @@ const AddCourse = () => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [canCreate, cooldownLeft, fetchUserData]);
+  }, [cooldownLeft, fetchUserData]);
 
   const preventMinus = (e) => {
     if (e.key === '-') {

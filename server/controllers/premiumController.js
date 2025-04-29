@@ -39,7 +39,11 @@ export const paymentPremiumByAda = async (req, res) => {
         const user = await User.findById(userId);
         if (user) {
             user.premiumPlan = plan;
-            user.premiumExpiry = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+            if (plan === 'yearly') {
+                user.premiumExpiry = new Date(Date.now() + 5 * 60 * 60 * 1000); // 5 hours
+            } else {
+                user.premiumExpiry = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+            }
             await user.save();
         }
         res.json({ success: true, unsignedTx });
@@ -149,8 +153,11 @@ export const paypalSuccess = async (req, res) => {
         const user = await User.findById(userId);
         if (user) {
             user.premiumPlan = plan;
-            // Always reset premium expiry to 2 minutes from now
-            user.premiumExpiry = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+            if (plan === 'yearly') {
+                user.premiumExpiry = new Date(Date.now() + 5 * 60 * 60 * 1000); // 5 hours
+            } else {
+                user.premiumExpiry = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+            }
             await user.save();
         }
 
