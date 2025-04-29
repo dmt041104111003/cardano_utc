@@ -47,7 +47,7 @@ export default function StripePayment({ courseData }) {
 
   const handleStripePayment = async () => {
     if (!userData) {
-      toast.error("Vui lòng đăng nhập để thanh toán");
+      toast.error("Please log in to make a payment");
       return;
     }
 
@@ -73,11 +73,12 @@ export default function StripePayment({ courseData }) {
       if (data.sessionUrl) {
         window.location.href = data.sessionUrl;
       } else {
-        throw new Error("Không nhận được liên kết Stripe.");
+        throw new Error("Could not receive Stripe link.");
       }
     } catch (error) {
-      console.error("Stripe Payment error:", error);
-      setError(error.response?.data?.error || "Thanh toán thất bại. Vui lòng thử lại.");
+      const msg = error.response?.data?.message || error.response?.data?.error || "Payment failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsProcessing(false);
     }
@@ -93,12 +94,12 @@ export default function StripePayment({ courseData }) {
           alt="Stripe"
           className="h-6 mr-2"
         />
-        <h3 className="text-lg font-semibold">Thanh toán qua Stripe</h3>
+        <h3 className="text-lg font-semibold">Pay with Stripe</h3>
       </div>
 
       <div className="text-gray-600 mb-3">
         <p>
-          Giá khóa học: <span className="font-semibold text-green-600">${coursePrice} USD</span>
+          Course price: <span className="font-semibold text-green-600">${coursePrice} USD</span>
         </p>
         <p className="text-sm text-gray-500">
           ≈ {courseData.coursePrice} ADA
@@ -106,7 +107,7 @@ export default function StripePayment({ courseData }) {
       </div>
 
       <p className="text-gray-600 mb-3">
-        Sử dụng thẻ Visa/Mastercard để thanh toán an toàn và nhanh chóng.
+        Use Visa/Mastercard for safe and fast payment.
       </p>
 
       {error && (
@@ -127,13 +128,13 @@ export default function StripePayment({ courseData }) {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Đang chuyển hướng...
+            Redirecting...
           </span>
-        ) : "Thanh toán với Stripe"}
+        ) : "Pay with Stripe"}
       </button>
 
       <p className="text-xs text-gray-500 mt-2">
-        Bằng cách thanh toán, bạn đồng ý với Điều khoản dịch vụ của chúng tôi
+        By making a payment, you agree to our Terms of Service.
       </p>
     </div>
   );

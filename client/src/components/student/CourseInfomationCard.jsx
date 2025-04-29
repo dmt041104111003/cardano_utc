@@ -151,13 +151,47 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
         }
         <div className='p-5'>
             <h2 className='font-semibold text-gray-800 text-3xl mb-3'>{courseData.courseTitle}</h2>
-            <p className='text-sm text-gray-500 mb-3'>Course ID: {courseData._id}</p>
-            {policyId && (
-                <div className='flex flex-col mb-3'>
-                    <span className='text-sm text-gray-500'>Policy ID:</span>
-                    <span className='text-sm text-gray-500 break-all font-mono'>{policyId}</span>
+            <div className='flex flex-col gap-4 mb-4 border-b border-gray-200 pb-4'>
+                <div className='flex items-center gap-2'>
+                    <span className={`text-xs uppercase tracking-wider font-medium px-3 py-1 rounded-full flex items-center ${courseData.creatorAddress ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${courseData.creatorAddress ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+                        {courseData.creatorAddress ? 'On-Chain Course' : 'Off-Chain Course'}
+                    </span>
+                    {courseData.creatorAddress && (
+                        <span className='text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full'>Blockchain Verified</span>
+                    )}
                 </div>
-            )}
+                
+                <div className='space-y-2'>
+                    <div className='flex items-center gap-2'>
+                        <span className='text-sm text-gray-500'>Course ID:</span>
+                        <span className='text-sm font-mono text-gray-700'>{courseData._id}</span>
+                    </div>
+                    
+                    {courseData.creatorAddress && (
+                        <div className='flex items-center gap-2'>
+                            <span className='text-sm text-gray-500'>Creator Address:</span>
+                            <span className='text-sm font-mono text-gray-700'>{`${courseData.creatorAddress.slice(0, 20)}...`}</span>
+                        </div>
+                    )}
+                    
+                    {policyId && (
+                        <div className='flex items-center gap-2'>
+                            <span className='text-sm text-gray-500'>Policy ID:</span>
+                            <span className='text-sm font-mono text-gray-700'>{`${policyId.slice(0, 20)}...`}</span>
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(policyId);
+                                    toast.success('Policy ID copied to clipboard');
+                                }}
+                                className='text-blue-600 hover:text-blue-700 text-xs'
+                            >
+                                Copy
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             <div className='flex items-center space-x-2 mb-3'>
                 <div className='flex items-center gap-1'>

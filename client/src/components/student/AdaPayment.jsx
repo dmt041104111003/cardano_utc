@@ -73,12 +73,12 @@ export default function AdaPayment({ courseData }) {
                 toast.success(`Payment successful! TX Hash: ${txHash}`);
                 return true;
             } else {
-                toast.error("Thanh toán thất bại!");
+                toast.error("Payment failed!");
                 return false;
             }
         } catch (error) {
-            console.error("Lỗi khi thanh toán:", error);
-            toast.error("Lỗi khi thanh toán!");
+            console.error("Payment error:", error);
+            toast.error(error.response?.data?.message || error.message || "Payment failed. Please try again.");
             return false;
         }
     }
@@ -86,7 +86,7 @@ export default function AdaPayment({ courseData }) {
     const enrollCourse = async () => {
         try {
             if (!userData) {
-                return toast.error('Login to Enroll');
+                return toast.error('Please log in to enroll');
             }
 
             const token = await getToken();
@@ -124,13 +124,13 @@ export default function AdaPayment({ courseData }) {
             const course = data.courses.find(c => c._id === courseData._id);
 
             if (!course) {
-                toast.error('Không tìm thấy thông tin khóa học');
+                toast.error('Course information not found');
                 setIsLoading(false);
                 return;
             }
 
             if (userData._id === course.educator._id) {
-                toast.error('Bạn không thể đăng ký khóa học này vì bạn là giảng viên của khóa học này');
+                toast.error('You cannot enroll in this course because you are the instructor');
                 setIsLoading(false);
                 return;
             }
@@ -138,7 +138,7 @@ export default function AdaPayment({ courseData }) {
             const userWallet = await currentWallet.getChangeAddress();
             if (userWallet && course.creatorAddress && 
                 userWallet.toLowerCase() === course.creatorAddress.toLowerCase()) {
-                toast.error('Bạn không thể đăng ký khóa học này vì đây là địa chỉ ví của giảng viên');
+                toast.error('You cannot enroll in this course because this is the instructor\'s wallet address');
                 setIsLoading(false);
                 return;
             }
@@ -149,7 +149,7 @@ export default function AdaPayment({ courseData }) {
                 await fetchUserData();
                 await fetchUserEnrolledCourses();
             } else {
-                toast.error("Thanh toán khóa học thất bại");
+                toast.error("Payment failed!");
             }
         } catch (error) {
             console.error('Error:', error);
@@ -162,24 +162,24 @@ export default function AdaPayment({ courseData }) {
         <div className="p-4 border rounded-lg mt-4 bg-purple-50">
             <div className="flex items-center mb-3">
              
-                <h3 className="text-lg font-semibold">Thanh toán bằng ADA</h3>
+                <h3 className="text-lg font-semibold">Pay with ADA</h3>
             </div>
 
             {!userData ? (
                 <>
-                    <p className="text-gray-600 mb-3">Vui lòng đăng nhập hoặc đăng ký tài khoản để xem thông tin thanh toán</p>
+                    <p className="text-gray-600 mb-3">Please log in or sign up to view payment information</p>
                     <button 
-                        onClick={() => toast.error("Vui lòng đăng nhập hoặc đăng ký tài khoản trước khi thanh toán")}
+                        onClick={() => toast.error("Please log in or sign up before making a payment")}
                         className="w-full py-2 px-4 rounded-md bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors"
                     >
-                        Tiếp tục với ADA
+                        Continue with ADA
                     </button>
                 </>
             ) : (
                 <>
                     <div className="text-gray-700 mb-3">
-                        <p>Giá khóa học: <span className="font-semibold">{coursePrice} ADA</span></p>
-                        <p>Số dư ví: <span className="font-semibold">{balance} ADA</span></p>
+                        <p>Course price: <span className="font-semibold">{coursePrice} ADA</span></p>
+                        <p>Wallet balance: <span className="font-semibold">{balance} ADA</span></p>
                     </div>
 
                     <button
@@ -191,11 +191,11 @@ export default function AdaPayment({ courseData }) {
                         }`}
                         disabled={!currentWallet || balance < coursePrice || isLoading}
                     >
-                        {isLoading ? "Đang xử lý..." : "Thanh toán với ADA"}
+                        {isLoading ? "Processing..." : "Pay with ADA"}
                     </button>
 
                     <p className="text-xs text-gray-500 mt-2">
-                        Bằng cách thanh toán, bạn đồng ý với Điều khoản dịch vụ của chúng tôi
+                        By making a payment, you agree to our Terms of Service.
                     </p>
                 </>
             )}

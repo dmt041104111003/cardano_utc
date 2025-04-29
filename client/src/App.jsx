@@ -22,6 +22,7 @@ import EditCourse from './pages/educator/Editcourse.jsx';
 import PaymentPage from './pages/student/PaymentPage.jsx';
 import CertificateViewer from './pages/student/CertificateViewer';
 import EducatorDetail from './pages/student/EducatorDetail.jsx';
+import Subscription from './pages/educator/Subscription';
 
 const App = () => {
 
@@ -55,6 +56,7 @@ const App = () => {
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
           <Route path='notification' element={<NotificationPage />} />
           <Route path='edit-course' element={<EditCourse />} />
+          <Route path='subscription' element={<Subscription />} />
         </Route>
       </Routes>
     </div>

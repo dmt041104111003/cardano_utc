@@ -413,7 +413,7 @@ const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
 
 const AddCourse = () => {
 
-  const { backendUrl, getToken } = useContext(AppContext)
+  const { backendUrl, getToken, userData, fetchUserData } = useContext(AppContext)
   const { connected, wallet } = useWallet();
 
   const quillRef = useRef(null);
@@ -443,6 +443,9 @@ const AddCourse = () => {
   const [walletAddress, setWalletAddress] = useState('');
   const [showChapterPopup, setShowChapterPopup] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [paypalEmail, setPaypalEmail] = useState("");
+  const [cooldownLeft, setCooldownLeft] = useState(userData?.cooldownMs || 0);
+  const [canCreate, setCanCreate] = useState(userData?.canCreateCourse);
 
   const handleChapter = (action, chapterId) => {
     if (action === 'add') {
@@ -542,6 +545,10 @@ const AddCourse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate || !userData?.canCreateCourse) {
+      // Do not show a hardcoded error, let the backend error message be shown if the request fails
+      return;
+    }
 
     if (!courseTitle) {
       toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
@@ -562,6 +569,24 @@ const AddCourse = () => {
       }
     }
 
+    // Validate tests
+    for (let test of tests) {
+      if (!test.passingScore || test.passingScore < 0 || test.passingScore > 100) {
+        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có passing score từ 0-100%`);
+        return;
+      }
+      if (!test.duration || test.duration <= 0) {
+        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có duration lớn hơn 0`);
+        return;
+      }
+    }
+
+    // Validate wallet or PayPal email
+    if (!connected && !paypalEmail) {
+      toast.error('Bạn phải kết nối ví hoặc nhập email PayPal!');
+      return;
+    }
+
     try {
       if (courseTitle.trim().length < 5) {
         toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
@@ -571,132 +596,170 @@ const AddCourse = () => {
         toast.error('Thumbnail Not Selected');
         return;
       }
-
       if (discount > 0 && !discountEndTime) {
         toast.error('Vui lòng chọn thời gian kết thúc giảm giá');
         return;
       }
 
-      // Validate tests
-      for (let test of tests) {
-        if (!test.passingScore || test.passingScore < 0 || test.passingScore > 100) {
-          toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có passing score từ 0-100%`);
-          return;
-        }
-        if (!test.duration || test.duration <= 0) {
-          toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có duration lớn hơn 0`);
-          return;
-        }
-      }
-
-      if (!connected || !wallet) {
-        toast.error('Please connect your wallet first');
-        return;
-      }
-
       const token = await getToken();
       const courseId = uniqid();
-      
-      // Get wallet data
-      const addresses = await wallet.getUsedAddresses();
-      if (!addresses || addresses.length === 0) {
-        toast.error('No wallet addresses found');
-        return;
-      }
-      const address = addresses[0];
 
-      const utxos = await wallet.getUtxos();
-      if (!utxos || utxos.length === 0) {
-        toast.error('No UTXOs found in wallet. Please add some ADA to your wallet.');
-        return;
-      }
-
-      const collateral = await wallet.getCollateral();
-      if (!collateral || collateral.length === 0) {
-        toast.error('No collateral found in wallet. Please add collateral.');
-        return;
-      }
-
-      // Create course data for blockchain
-      const courseData = {
-        courseId,
-        courseTitle,
-        courseDescription: quillRef.current.root.innerHTML,
-        coursePrice: Number(coursePrice || 0),
-        discount: Number(discount || 0),
-        discountEndTime: discount > 0 ? discountEndTime : null,
-        courseContent: chapters,
-        tests: tests,
-        creatorId: address,
-        createdAt: new Date().toISOString()
-      };
-
-      // Get unsigned transaction
-      console.log('Sending to backend:', { courseData, utxos, collateral, address });
-      
-      const { data: txData } = await axios.post(
-        `${backendUrl}/api/blockchain/create-course-tx`,
-        {
-          courseData,
-          utxos,
-          collateral,
-          address
-        },
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'wallet-address': address
-          } 
+      // Nếu đã connect ví thì sẽ mint, bất kể có PayPal email hay không
+      if (connected && wallet) {
+        // --- MINT + LƯU CSDL ---
+        // Get wallet data
+        const addresses = await wallet.getUsedAddresses();
+        if (!addresses || addresses.length === 0) {
+          toast.error('No wallet addresses found');
+          return;
         }
-      );
+        const address = addresses[0];
 
-      console.log('Backend response:', txData);
-
-      if (!txData || !txData.success) {
-        toast.error(txData?.message || 'Failed to create transaction');
-        return;
-      }
-
-      // Sign transaction with wallet
-      const signedTx = await wallet.signTx(txData.unsignedTx);
-      const txHash = await wallet.submitTx(signedTx);
-
-      if (!txHash) {
-        toast.error('Failed to submit transaction');
-        return;
-      }
-
-      // Create form data for database
-      const formData = new FormData();
-      formData.append('courseData', JSON.stringify({
-        ...courseData,
-        creatorAddress: address,
-        txHash
-      }));
-      formData.append('image', image);
-
-      const { data } = await axios.post(
-        `${backendUrl}/api/educator/add-course`,
-        formData,
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'wallet-address': address
-          } 
+        const utxos = await wallet.getUtxos();
+        if (!utxos || utxos.length === 0) {
+          toast.error('No UTXOs found in wallet. Please add some ADA to your wallet.');
+          return;
         }
-      );
 
-      if (data.success) {
-        toast.success('Course created and minted successfully!');
-        setCourseTitle('');
-        setCoursePrice(0);
-        setDiscount(0);
-        setImage(null);
-        setChapters([]);
-        quillRef.current.root.innerHTML = "";
-      } else {
-        toast.error(data.message);
+        const collateral = await wallet.getCollateral();
+        if (!collateral || collateral.length === 0) {
+          toast.error('No collateral found in wallet. Please add collateral.');
+          return;
+        }
+
+        // Create course data for blockchain
+        const courseData = {
+          courseId,
+          courseTitle,
+          courseDescription: quillRef.current.root.innerHTML,
+          coursePrice: Number(coursePrice || 0),
+          discount: Number(discount || 0),
+          discountEndTime: discount > 0 ? discountEndTime : null,
+          courseContent: chapters,
+          tests: tests,
+          creatorId: address,
+          createdAt: new Date().toISOString(),
+          paypalEmail,
+          paymentMethods: {
+            ada: true, // Luôn true khi có wallet
+            stripe: !!paypalEmail,
+            paypal: !!paypalEmail
+          }
+        };
+
+        // Get unsigned transaction
+        const { data: txData } = await axios.post(
+          `${backendUrl}/api/blockchain/create-course-tx`,
+          {
+            courseData,
+            utxos,
+            collateral,
+            address
+          },
+          { 
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'wallet-address': address
+            } 
+          }
+        );
+
+        if (!txData || !txData.success) {
+          toast.error(txData?.message || 'Failed to create transaction');
+          return;
+        }
+
+        // Sign transaction with wallet
+        const signedTx = await wallet.signTx(txData.unsignedTx);
+        const txHash = await wallet.submitTx(signedTx);
+
+        if (!txHash) {
+          toast.error('Failed to submit transaction');
+          return;
+        }
+
+        // Create form data for database
+        const formData = new FormData();
+        formData.append('courseData', JSON.stringify({
+          ...courseData,
+          creatorAddress: address,
+          txHash,
+          paypalEmail
+        }));
+        formData.append('image', image);
+
+        try {
+          const { data } = await axios.post(
+            `${backendUrl}/api/educator/add-course`,
+            formData,
+            { 
+              headers: { 
+                Authorization: `Bearer ${token}`,
+                'wallet-address': address
+              } 
+            }
+          );
+
+          if (data.success) {
+            toast.success('Course created and minted successfully!');
+            setCourseTitle('');
+            setCoursePrice(0);
+            setDiscount(0);
+            setImage(null);
+            setChapters([]);
+            quillRef.current.root.innerHTML = "";
+            if (fetchUserData) await fetchUserData();
+          } else {
+            toast.error(data.message);
+          }
+        } catch (dbError) {
+          toast.error(dbError.response?.data?.message || dbError.message);
+        }
+        return;
+      }
+
+      // --- CHỈ LƯU CSDL (KHÔNG MINT) ---
+      if (!connected && paypalEmail) {
+        const courseData = {
+          courseId,
+          courseTitle,
+          courseDescription: quillRef.current.root.innerHTML,
+          coursePrice: Number(coursePrice || 0),
+          discount: Number(discount || 0),
+          discountEndTime: discount > 0 ? discountEndTime : null,
+          courseContent: chapters,
+          tests: tests,
+          creatorId: paypalEmail,
+          createdAt: new Date().toISOString(),
+          paypalEmail,
+          paymentMethods: {
+            ada: false,
+            stripe: true,
+            paypal: true
+          }
+        };
+        const formData = new FormData();
+        formData.append('courseData', JSON.stringify(courseData));
+        formData.append('image', image);
+        const { data } = await axios.post(
+          `${backendUrl}/api/educator/add-course`,
+          formData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (data.success) {
+          toast.success('Course created successfully (no mint)!');
+          setCourseTitle('');
+          setCoursePrice(0);
+          setDiscount(0);
+          setImage(null);
+          setChapters([]);
+          quillRef.current.root.innerHTML = "";
+          if (fetchUserData) await fetchUserData();
+        } else {
+          toast.error(data.message);
+        }
+        return;
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -723,6 +786,30 @@ const AddCourse = () => {
       setWalletAddress('');
     }
   }, [connected, wallet]);
+
+  useEffect(() => {
+    setCooldownLeft(userData?.cooldownMs || 0);
+    setCanCreate(userData?.canCreateCourse);
+  }, [userData]);
+
+  useEffect(() => {
+    let interval;
+    if (!canCreate && cooldownLeft > 0) {
+      interval = setInterval(() => {
+        setCooldownLeft(prev => {
+          if (prev <= 1000) {
+            clearInterval(interval);
+            // Khi countdown về 0, fetch lại userData để đồng bộ với backend
+            if (typeof fetchUserData === 'function') fetchUserData();
+            return 0;
+          }
+          return prev - 1000;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [canCreate, cooldownLeft, fetchUserData]);
+
   const preventMinus = (e) => {
     if (e.key === '-') {
       e.preventDefault();
@@ -806,6 +893,48 @@ const AddCourse = () => {
               <img className='max-h-10' src={image ? URL.createObjectURL(image) : null} alt="" />
             </label>
           </div>
+        </div>
+        <div className="mb-6">
+          <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+            <span>PayPal Email</span>
+            <span className="text-sm font-normal text-gray-500">(optional if wallet is connected)</span>
+          </label>
+          <div className="relative">
+            <input
+              type="email"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
+              value={paypalEmail}
+              onChange={e => {
+                setPaypalEmail(e.target.value);
+                // Basic email validation
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (e.target.value && !emailRegex.test(e.target.value)) {
+                  e.target.setCustomValidity('Please enter a valid email address');
+                } else {
+                  e.target.setCustomValidity('');
+                }
+              }}
+              onBlur={e => {
+                if (!connected && !e.target.value) {
+                  e.target.classList.add('border-red-500');
+                } else {
+                  e.target.classList.remove('border-red-500');
+                }
+              }}
+              placeholder="example@paypal.com"
+              required={!connected}
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">
+            {connected 
+              ? "Optional: Add PayPal email to also receive payments via PayPal" 
+              : "Required: Enter PayPal email to receive payments"}
+          </p>
         </div>
         <div>
           {chapters.map((chapter, chapterIndex) => (
@@ -942,7 +1071,16 @@ const AddCourse = () => {
             </button>
           </Popup>
         )}
-        <button type='submit' className='bg-black text-white w-max py-2.5 px-8 rounded my-4'>ADD</button>
+        <button
+          type='submit'
+          className={`bg-black text-white w-max py-2.5 px-8 rounded my-4 ${!canCreate || !userData?.canCreateCourse ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={!canCreate || !userData?.canCreateCourse}
+        >ADD</button>
+        {!canCreate && cooldownLeft > 0 && (
+          <div className="mt-2 text-yellow-700 text-sm font-semibold">
+            Wait {Math.floor(cooldownLeft / 60000)}:{((cooldownLeft % 60000) / 1000).toFixed(0).padStart(2, '0')} to create a new course
+          </div>
+        )}
       </form>
     </div>
   );
