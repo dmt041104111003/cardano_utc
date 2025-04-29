@@ -42,9 +42,9 @@ export default function PaymentPage() {
 
   const paymentMethods = courseData
     ? [
-        { id: "ada", name: "ADA", component: <AdaPayment courseData={courseData} /> },
-        { id: "stripe", name: "Stripe", component: <StripePayment courseData={courseData} /> },
-        { id: "paypal", name: "Paypal", component: <PaypalPayment courseData={courseData} /> },
+        ...(courseData.paymentMethods?.ada ? [{ id: "ada", name: "ADA", component: <AdaPayment courseData={courseData} /> }] : []),
+        ...(courseData.paymentMethods?.stripe ? [{ id: "stripe", name: "Stripe", component: <StripePayment courseData={courseData} /> }] : []),
+        ...(courseData.paymentMethods?.paypal ? [{ id: "paypal", name: "Paypal", component: <PaypalPayment courseData={courseData} /> }] : [])
       ]
     : [];
     

@@ -10,7 +10,7 @@ export const findAddress = async (req, res) => {
         if (!courseId || !educatorId) {
             return res.json({
                 success: false,
-                message: 'Thiếu courseId hoặc educatorId'
+                message: 'Missing courseId or educatorId'
             });
         }
 
@@ -26,7 +26,7 @@ export const findAddress = async (req, res) => {
             address: address
         });
     } catch (error) {
-        console.error('Lỗi khi tìm address:', error);
+        console.error('Error finding address:', error);
         res.json({ success: false, message: error.message });
     }
 };

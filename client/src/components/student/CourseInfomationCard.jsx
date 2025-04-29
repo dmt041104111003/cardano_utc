@@ -26,6 +26,7 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
     const { currency, backendUrl, getToken } = useContext(AppContext);
     const [timeLeft, setTimeLeft] = useState('');
     const [policyId, setPolicyId] = useState('');
+    const [adaToUsd, setAdaToUsd] = useState(0);
     const navigate = useNavigate();
     useEffect(() => {
         const fetchNFTInfo = async () => {
@@ -57,6 +58,22 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
         return () => {
             document.head.removeChild(styleSheet);
         };
+    }, []);
+
+    useEffect(() => {
+        const updateExchangeRate = async () => {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd');
+                const data = await response.json();
+                setAdaToUsd(data.cardano.usd);
+            } catch (error) {
+                console.error('Error fetching exchange rate:', error);
+            }
+        };
+
+        updateExchangeRate();
+        const interval = setInterval(updateExchangeRate, 300000); // Update every 5 minutes
+        return () => clearInterval(interval);
     }, []);
 
     const calculateTimeLeft = (endTime) => {
@@ -134,13 +151,47 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
         }
         <div className='p-5'>
             <h2 className='font-semibold text-gray-800 text-3xl mb-3'>{courseData.courseTitle}</h2>
-            <p className='text-sm text-gray-500 mb-3'>Course ID: {courseData._id}</p>
-            {policyId && (
-                <div className='flex flex-col mb-3'>
-                    <span className='text-sm text-gray-500'>Policy ID:</span>
-                    <span className='text-sm text-gray-500 break-all font-mono'>{policyId}</span>
+            <div className='flex flex-col gap-4 mb-4 border-b border-gray-200 pb-4'>
+                <div className='flex items-center gap-2'>
+                    <span className={`text-xs uppercase tracking-wider font-medium px-3 py-1 rounded-full flex items-center ${courseData.creatorAddress ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${courseData.creatorAddress ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+                        {courseData.creatorAddress ? 'On-Chain Course' : 'Off-Chain Course'}
+                    </span>
+                    {courseData.creatorAddress && (
+                        <span className='text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full'>Blockchain Verified</span>
+                    )}
                 </div>
-            )}
+                
+                <div className='space-y-2'>
+                    <div className='flex items-center gap-2'>
+                        <span className='text-sm text-gray-500'>Course ID:</span>
+                        <span className='text-sm font-mono text-gray-700'>{courseData._id}</span>
+                    </div>
+                    
+                    {courseData.creatorAddress && (
+                        <div className='flex items-center gap-2'>
+                            <span className='text-sm text-gray-500'>Creator Address:</span>
+                            <span className='text-sm font-mono text-gray-700'>{`${courseData.creatorAddress.slice(0, 20)}...`}</span>
+                        </div>
+                    )}
+                    
+                    {policyId && (
+                        <div className='flex items-center gap-2'>
+                            <span className='text-sm text-gray-500'>Policy ID:</span>
+                            <span className='text-sm font-mono text-gray-700'>{`${policyId.slice(0, 20)}...`}</span>
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(policyId);
+                                    toast.success('Policy ID copied to clipboard');
+                                }}
+                                className='text-blue-600 hover:text-blue-700 text-xs'
+                            >
+                                Copy
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             <div className='flex items-center space-x-2 mb-3'>
                 <div className='flex items-center gap-1'>
@@ -160,12 +211,26 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
             )}
 
             <div className='flex gap-3 items-center pt-2'>
-                <p className='text-gray-800 md:text-4xl text-2xl font-semibold'>
-                    {currency}{(courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2)}
-                </p>
-                <p className='md:text-lg text-gray-500 line-through'>
-                    {currency}{courseData.coursePrice}
-                </p>
+                <div>
+                    <p className='text-gray-800 md:text-4xl text-2xl font-semibold'>
+                        {(courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2)} ADA
+                    </p>
+                    {adaToUsd > 0 && (
+                        <p className='text-sm text-gray-500'>
+                            ≈ ${((courseData.coursePrice - courseData.discount * courseData.coursePrice / 100) * adaToUsd).toFixed(2)} USD
+                        </p>
+                    )}
+                </div>
+                <div>
+                    <p className='md:text-lg text-gray-500 line-through'>
+                        {courseData.coursePrice} ADA
+                    </p>
+                    {adaToUsd > 0 && (
+                        <p className='text-sm text-gray-500 line-through'>
+                            ≈ ${(courseData.coursePrice * adaToUsd).toFixed(2)} USD
+                        </p>
+                    )}
+                </div>
                 <p className='md:text-lg text-gray-500'>
                     {courseData.discount}% off
                 </p>
@@ -176,14 +241,13 @@ const CourseInformationCard = ({courseData, playerData,isAlreadyEnrolled,rating,
                     <img src={assets.time_clock_icon} alt="clock icon" />
                     <p>{duration}</p>
                 </div>
-                <div className='h-4 w-px bg-gray-500/40'>
-
-                </div>
+                <div className='h-4 w-px bg-gray-500/40'></div>
                 <div className='flex items-center gap-1'>
                     <img src={assets.lesson_icon} alt="clock icon" />
                     <p>{lecture} lessons</p>
                 </div>
             </div>
+
             {openPaymentPage ?(
                 // <NavLink to={`/payment/${courseId}`}>
                 //     <button disabled={isAlreadyEnrolled} onClick={isAlreadyEnrolled ? null : handleEnrollCourse} className='md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>

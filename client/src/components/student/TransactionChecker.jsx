@@ -13,6 +13,7 @@ const TransactionChecker = () => {
     const { backendUrl, getToken } = useContext(AppContext);
     const [showNFTModal, setShowNFTModal] = useState(false);
     const [selectedNFT, setSelectedNFT] = useState(null);
+    const [activeTab, setActiveTab] = useState('nft');
 
     const handleCheck = async () => {
         if (!policyId.trim() || !txHash.trim()) {
@@ -37,7 +38,8 @@ const TransactionChecker = () => {
                     assetName: nftData.assetName,
                     courseTitle: nftData.courseTitle,
                     metadata: nftData.metadata,
-                    mintTransaction: nftData.mintTransaction
+                    mintTransaction: nftData.mintTransaction,
+                    educator: nftData.educator
                 });
 
                 // Show NFT modal
@@ -140,70 +142,117 @@ const TransactionChecker = () => {
                                 ✕
                             </button>
                         </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="space-y-8">
-                                <div>
-                                    <h3 className="text-xl font-semibold text-gray-800 mb-4">NFT Details</h3>
-                                    <div className="bg-gray-50 p-6 rounded-lg space-y-6">
-                                        <div>
-                                            <h4 className="text-base font-medium text-gray-600 mb-2">Policy ID</h4>
-                                            <p className="text-base break-all bg-white p-4 rounded-lg border border-gray-100">
-                                                {selectedNFT.policyId}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-base font-medium text-gray-600 mb-2">Asset Name</h4>
-                                            <p className="text-base break-all bg-white p-4 rounded-lg border border-gray-100">
-                                                {selectedNFT.assetName}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-base font-medium text-gray-600 mb-2">Course Title</h4>
-                                            <p className="text-base bg-white p-4 rounded-lg border border-gray-100">
-                                                {selectedNFT.courseTitle}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {selectedNFT.mintTransaction && (
+                        {/* Tabs */}
+                        <div className="flex gap-4 mb-8">
+                            <button onClick={() => setActiveTab('nft')} className={`px-4 py-2 rounded ${activeTab === 'nft' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>NFT Details</button>
+                            {selectedNFT.educator && (
+                                <button onClick={() => setActiveTab('edu')} className={`px-4 py-2 rounded ${activeTab === 'edu' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>Educator Info</button>
+                            )}
+                        </div>
+                        {/* Tab content */}
+                        {activeTab === 'nft' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div className="space-y-8">
                                     <div>
-                                        <h3 className="text-xl font-semibold text-gray-800 mb-4">Mint Transaction</h3>
+                                        <h3 className="text-xl font-semibold text-gray-800 mb-4">NFT Details</h3>
                                         <div className="bg-gray-50 p-6 rounded-lg space-y-6">
                                             <div>
-                                                <h4 className="text-base font-medium text-gray-600 mb-2">Transaction Hash</h4>
+                                                <h4 className="text-base font-medium text-gray-600 mb-2">Policy ID</h4>
                                                 <p className="text-base break-all bg-white p-4 rounded-lg border border-gray-100">
-                                                    {selectedNFT.mintTransaction.txHash}
+                                                    {selectedNFT.policyId}
                                                 </p>
                                             </div>
                                             <div>
-                                                <h4 className="text-base font-medium text-gray-600 mb-2">Block</h4>
-                                                <p className="text-base bg-white p-4 rounded-lg border border-gray-100">
-                                                    {selectedNFT.mintTransaction.block}
+                                                <h4 className="text-base font-medium text-gray-600 mb-2">Asset Name</h4>
+                                                <p className="text-base break-all bg-white p-4 rounded-lg border border-gray-100">
+                                                    {selectedNFT.assetName}
                                                 </p>
                                             </div>
                                             <div>
-                                                <h4 className="text-base font-medium text-gray-600 mb-2">Timestamp</h4>
+                                                <h4 className="text-base font-medium text-gray-600 mb-2">Course Title</h4>
                                                 <p className="text-base bg-white p-4 rounded-lg border border-gray-100">
-                                                    {new Date(selectedNFT.mintTransaction.timestamp * 1000).toLocaleString()}
+                                                    {selectedNFT.courseTitle}
                                                 </p>
                                             </div>
+                                            {selectedNFT.educator && (
+                                                <div>
+                                                    <h4 className="text-base font-medium text-gray-600 mb-2">Educator</h4>
+                                                    <p className="text-base bg-white p-4 rounded-lg border border-gray-100">
+                                                        {selectedNFT.educator.name} {selectedNFT.educator.email && `(${selectedNFT.educator.email})`}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                )}
-                            </div>
-
-                            <div>
-                                <h3 className="text-xl font-semibold text-gray-800 mb-4">Metadata (CIP-721)</h3>
-                                <div className="bg-gray-50 p-6 rounded-lg">
-                                    <pre className="font-mono text-base whitespace-pre-wrap overflow-x-auto bg-white p-4 rounded-lg border border-gray-100 text-left">
-                                        {JSON.stringify(selectedNFT.metadata, null, 2)}
-                                    </pre>
+                                    {selectedNFT.mintTransaction && (
+                                        <div>
+                                            <h3 className="text-xl font-semibold text-gray-800 mb-4">Mint Transaction</h3>
+                                            <div className="bg-gray-50 p-6 rounded-lg space-y-6">
+                                                <div>
+                                                    <h4 className="text-base font-medium text-gray-600 mb-2">Transaction Hash</h4>
+                                                    <p className="text-base break-all bg-white p-4 rounded-lg border border-gray-100">
+                                                        {selectedNFT.mintTransaction.txHash}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-base font-medium text-gray-600 mb-2">Block</h4>
+                                                    <p className="text-base bg-white p-4 rounded-lg border border-gray-100">
+                                                        {selectedNFT.mintTransaction.block}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-base font-medium text-gray-600 mb-2">Timestamp</h4>
+                                                    <p className="text-base bg-white p-4 rounded-lg border border-gray-100">
+                                                        {new Date(selectedNFT.mintTransaction.timestamp * 1000).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Metadata (CIP-721)</h3>
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <pre className="font-mono text-base whitespace-pre-wrap overflow-x-auto bg-white p-4 rounded-lg border border-gray-100 text-left">
+                                            {JSON.stringify(selectedNFT.metadata, null, 2)}
+                                        </pre>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
+                        )}
+                        {activeTab === 'edu' && selectedNFT.educator && (
+                            <div className="space-y-6">
+                                <h3 className="text-2xl font-bold text-gray-800 mb-4">Educator Information</h3>
+                                <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                                    <div><span className="font-semibold">Name:</span> {selectedNFT.educator.name}</div>
+                                    <div><span className="font-semibold">Email:</span> {selectedNFT.educator.email}</div>
+                                    <div><span className="font-semibold">Wallet Address:</span> {selectedNFT.educator.walletAddress || 'N/A'}</div>
+                                    <div><span className="font-semibold">Total Students:</span> {selectedNFT.educator.totalStudents}</div>
+                                    <div><span className="font-semibold">Total Courses:</span> {selectedNFT.educator.totalCourses}</div>
+                                </div>
+                                <div className="bg-gray-50 p-6 rounded-lg">
+                                    <h4 className="text-lg font-semibold mb-2">Courses & Ratings</h4>
+                                    <table className="min-w-full text-left border">
+                                        <thead>
+                                            <tr>
+                                                <th className="border px-4 py-2">Course Title</th>
+                                                <th className="border px-4 py-2">Total Votes</th>
+                                                <th className="border px-4 py-2">Average Rate</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedNFT.educator.courseRates.map((c) => (
+                                                <tr key={c.courseId}>
+                                                    <td className="border px-4 py-2">{c.courseTitle}</td>
+                                                    <td className="border px-4 py-2">{c.totalVotes}</td>
+                                                    <td className="border px-4 py-2">{c.avgRate}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                         <div className="mt-8 flex justify-end gap-4">
                             <a 
                                 href={`https://preprod.cardanoscan.io/token/${selectedNFT.policyId}${selectedNFT.assetName}`}

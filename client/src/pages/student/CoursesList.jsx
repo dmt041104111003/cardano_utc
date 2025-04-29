@@ -15,6 +15,7 @@ const CoursesList = () => {
     const [searchQuery, setSearchQuery] = React.useState('');
     const [showPublishedOnly, setShowPublishedOnly] = React.useState(false);
     const [showNewest, setShowNewest] = React.useState(false);
+    const [chainType, setChainType] = React.useState('all'); // 'all', 'onchain', 'offchain'
     const [loading, setLoading] = React.useState(false);
     const itemsPerPage = 8;
 
@@ -38,6 +39,13 @@ const CoursesList = () => {
                         item.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         item.courseDescription?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         item.educator?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                }
+
+                // Filter by chain type
+                if (chainType !== 'all') {
+                    tempCourses = tempCourses.filter(course => 
+                        chainType === 'onchain' ? course.txHash : !course.txHash
                     );
                 }
 
@@ -91,7 +99,7 @@ const CoursesList = () => {
             clearInterval(intervalId);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [searchQuery, showNewest]);
+    }, [searchQuery, showNewest, chainType]);
 
     // Handle show newest toggle
     const toggleShowNewest = () => {
@@ -143,14 +151,15 @@ const CoursesList = () => {
                                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                                 </svg>
                             </div>
-                            {/* <button 
-                                onClick={() => setShowPublishedOnly(!showPublishedOnly)}
-                                className={`px-4 py-2 rounded-md ${
-                                    showPublishedOnly ? 'bg-green-600' : 'bg-gray-600'
-                                } text-white min-w-[150px]`}
+                            <select
+                                value={chainType}
+                                onChange={(e) => setChainType(e.target.value)}
+                                className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                {showPublishedOnly ? 'Published Only' : 'All Courses'}
-                            </button> */}
+                                <option value="all">All Types</option>
+                                <option value="onchain">On-Chain</option>
+                                <option value="offchain">Off-Chain</option>
+                            </select>
                             <button 
                                 onClick={toggleShowNewest}
                                 className={`px-4 py-2 rounded-md ${
@@ -165,11 +174,15 @@ const CoursesList = () => {
                     {/* Course count and current filters */}
                     <div className="mt-6 text-gray-600">
                         <p>Showing {paginatedCourses.length} of {filteredCourses.length} courses</p>
-                        {(searchQuery || newestFromUrl) && (
+                        {(searchQuery || newestFromUrl || chainType !== 'all') && (
                             <p className="text-sm mt-1">
                                 Filters: {' '}
                                 {searchQuery && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">Search: "{searchQuery}"</span>}
-                                {/* {showPublishedOnly && <span className="bg-green-100 text-green-800 px-2 py-1 rounded mr-2">Published Only</span>} */}
+                                {chainType !== 'all' && (
+                                    <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded mr-2">
+                                        {chainType === 'onchain' ? 'On-Chain' : 'Off-Chain'}
+                                    </span>
+                                )}
                                 {newestFromUrl && <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Newest</span>}
                             </p>
                         )}

@@ -30,8 +30,7 @@ const Player = () => {
     const [timer, setTimer] = useState(null)
     const [selectedAnswers, setSelectedAnswers] = useState({})
     const [testResult, setTestResult] = useState(null)
-
-
+    const [completedTests, setCompletedTests] = useState({})
 
     const navigate = useNavigate();
 
@@ -94,22 +93,26 @@ const Player = () => {
     }
 
     const handleTest = async (test) => {
-        
         try {
-            // Fetch test data from the course
-            const token = await getToken()
+            const token = await getToken();
             const { data } = await axios.get(`${backendUrl}/api/course/${courseId}`, {
                 headers: { Authorization: `Bearer ${token}` }
-            })
+            });
 
             if (data.success && data.courseData) {
-                const currentTest = data.courseData.tests.find(t => t.chapterNumber === test.chapterNumber)
+                const currentTest = data.courseData.tests.find(t => t.chapterNumber === test.chapterNumber);
                 if (currentTest) {
-                    // Reset selected answers
-                    setSelectedAnswers({})
-                    
+                    // Check if test is already completed
+                    if (completedTests[currentTest.testId]) {
+                        toast.info('You have already passed this test!');
+                        return;
+                    }
+
+                    // Get saved progress for this test
+                    const savedProgress = progressData?.tests?.find(t => t.testId === currentTest.testId);
+
                     setTestData({
-                        title: `Bài kiểm tra chương ${currentTest.chapterNumber}`,
+                        title: `Chapter ${currentTest.chapterNumber} Test`,
                         testId: currentTest.testId,
                         chapterNumber: currentTest.chapterNumber,
                         duration: currentTest.duration || 3,
@@ -121,31 +124,40 @@ const Player = () => {
                         })) || [],
                         passingScore: currentTest.passingScore || 70,
                         type: currentTest.type || 'multiple_choice'
-                    })
-                    setTimeLeft((currentTest.duration || 3) * 60)
-                    setShowTest(true)
+                    });
+
+                    // Reset or load saved answers
+                    setSelectedAnswers(savedProgress?.answers?.reduce((acc, ans) => {
+                        acc[ans.questionIndex] = ans.selectedAnswers;
+                        return acc;
+                    }, {}) || {});
+
+                    // Set time
+                    const timeSpent = savedProgress?.timeSpent || 0;
+                    const remainingTime = Math.max((currentTest.duration * 60) - timeSpent, 0);
+                    setTimeLeft(remainingTime || (currentTest.duration * 60));
+
+                    setShowTest(true);
 
                     // Start countdown
                     const countdown = setInterval(() => {
                         setTimeLeft(prev => {
                             if (prev <= 1) {
-                                clearInterval(countdown)
-                                handleSubmitTest()
-                                return 0
+                                clearInterval(countdown);
+                                handleSubmitTest();
+                                return 0;
                             }
-                            return prev - 1
-                        })
-                    }, 1000)
-                    setTimer(countdown)
-                } else {
-                    toast.error('Không tìm thấy thông tin bài kiểm tra')
+                            return prev - 1;
+                        });
+                    }, 1000);
+                    setTimer(countdown);
                 }
             }
         } catch (error) {
-            console.error('Error fetching test:', error)
-            toast.error('Lỗi khi tải thông tin bài kiểm tra')
+            console.error('Error fetching test:', error);
+            toast.error('Error loading test information');
         }
-    }
+    };
 
     const handleCloseTest = () => {
         if (timer) clearInterval(timer)
@@ -155,107 +167,128 @@ const Player = () => {
     }
 
     const handleSubmitTest = async () => {
-    if (timer) clearInterval(timer);
-    
-    try {
-        const token = await getToken();
-        const { data } = await axios.get(`${backendUrl}/api/course/${courseId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        if (timer) clearInterval(timer);
+        
+        try {
+            const token = await getToken();
+            const { data } = await axios.get(`${backendUrl}/api/course/${courseId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
 
-        if (data.success && data.courseData) {
-            const currentTest = data.courseData.tests.find(t => t.testId === testData.testId);
-            
-            if (currentTest) {
-                let correctAnswers = 0;
-                currentTest.questions.forEach((question, qIndex) => {
-                    const userAnswers = selectedAnswers[qIndex] || [];
-                    const serverCorrectAnswers = question.correctAnswers;
-                    
-                    const convertedUserAnswers = userAnswers.map(answer => answer.toString());
-                    const isCorrect = convertedUserAnswers.length === serverCorrectAnswers.length &&
-                        convertedUserAnswers.every(answer => serverCorrectAnswers.includes(answer)) &&
-                        serverCorrectAnswers.every(answer => convertedUserAnswers.includes(answer));
-                    
-                    if (isCorrect) correctAnswers++;
-                });
+            if (data.success && data.courseData) {
+                const currentTest = data.courseData.tests.find(t => t.testId === testData.testId);
+                
+                if (currentTest) {
+                    let correctAnswers = 0;
+                    const answers = [];
 
-                const totalQuestions = currentTest.questions.length;
-                const score = (correctAnswers / totalQuestions) * 100;
-                const passed = score >= currentTest.passingScore;
+                    currentTest.questions.forEach((question, qIndex) => {
+                        const userAnswers = selectedAnswers[qIndex] || [];
+                        const serverCorrectAnswers = question.correctAnswers;
+                        
+                        const convertedUserAnswers = userAnswers.map(answer => answer.toString());
+                        const isCorrect = convertedUserAnswers.length === serverCorrectAnswers.length &&
+                            convertedUserAnswers.every(answer => serverCorrectAnswers.includes(answer)) &&
+                            serverCorrectAnswers.every(answer => convertedUserAnswers.includes(answer));
+                        
+                        if (isCorrect) correctAnswers++;
 
-                const result = {
-                    score: Math.round(score),
-                    correctAnswers,
-                    totalQuestions,
-                    passed
-                };
+                        // Save answer details
+                        answers.push({
+                            questionIndex: qIndex,
+                            selectedAnswers: convertedUserAnswers,
+                            isCorrect
+                        });
+                    });
 
-                setTestResult(result);
+                    const totalQuestions = currentTest.questions.length;
+                    const score = (correctAnswers / totalQuestions) * 100;
+                    const passed = score >= currentTest.passingScore;
 
-                Swal.fire({
-                    title: result.passed ? 'Chúc mừng!' : 'Rất tiếc!',
-                    html: `
-                        <div class="text-center">
-                            <p class="text-xl font-bold mb-2">Điểm số: ${result.score}%</p>
-                            <p class="mb-2">Số câu đúng: ${result.correctAnswers}/${result.totalQuestions}</p>
-                            <p class="text-lg ${result.passed ? 'text-green-600' : 'text-red-600'}">
-                                ${result.passed ? 'Bạn đã vượt qua bài kiểm tra!' : 'Bạn chưa vượt qua bài kiểm tra.'}
-                            </p>
-                            <p class="text-sm mt-2">Điểm đạt yêu cầu: ${currentTest.passingScore}%</p>
-                        </div>
-                    `,
-                    icon: result.passed ? 'success' : 'error',
-                    confirmButtonText: 'Đóng',
-                    allowOutsideClick: false
-                }).then(async () => {
-                    setShowTest(false);
-                    setTestData(null);
-                    setTimeLeft(0);
+                    const result = {
+                        score: Math.round(score),
+                        correctAnswers,
+                        totalQuestions,
+                        passed
+                    };
 
-                    // Lưu kết quả bài kiểm tra và cập nhật trạng thái isCompleted
-                    try {
-                        const token = await getToken();
-                        const { data } = await axios.post(
-                            `${backendUrl}/api/user/update-course-progress`,
-                            {
-                                courseId,
-                                testId: testData.testId, // Thêm testId
-                                test: {
-                                    passed: result.passed,
-                                    score: result.score,
-                                    isCompleted: result.passed // Đánh dấu là đã hoàn thành nếu passed
+                    setTestResult(result);
+
+                    // Calculate time spent
+                    const timeSpent = (currentTest.duration * 60) - timeLeft;
+
+                    Swal.fire({
+                        title: result.passed ? 'Congratulations!' : 'Try Again!',
+                        html: `
+                            <div class="text-center">
+                                <p class="text-xl font-bold mb-2">Score: ${result.score}%</p>
+                                <p class="mb-2">Correct answers: ${result.correctAnswers}/${result.totalQuestions}</p>
+                                <p class="text-lg ${result.passed ? 'text-green-600' : 'text-red-600'}">
+                                    ${result.passed ? 'You passed the test!' : 'You have not passed the test.'}
+                                </p>
+                                <p class="text-sm mt-2">Required score: ${currentTest.passingScore}%</p>
+                            </div>
+                        `,
+                        icon: result.passed ? 'success' : 'error',
+                        confirmButtonText: 'Close',
+                        allowOutsideClick: false
+                    }).then(async () => {
+                        setShowTest(false);
+                        setTestData(null);
+                        setTimeLeft(0);
+
+                        try {
+                            const token = await getToken();
+                            const { data } = await axios.post(
+                                `${backendUrl}/api/user/update-course-progress`,
+                                {
+                                    courseId,
+                                    lectureId: testData.testId,
+                                    test: {
+                                        passed: result.passed,
+                                        score: result.score,
+                                        answers: answers,
+                                        timeSpent: timeSpent
+                                    }
+                                },
+                                { headers: { Authorization: `Bearer ${token}` } }
+                            );
+
+                            if (data.success) {
+                                toast.success('Test results saved successfully');
+                                getCourseProgress(); // Refresh progress data
+                                
+                                // Update course data to reflect new status
+                                setCourseData(prev => {
+                                    const updatedCourse = { ...prev };
+                                    const testIndex = updatedCourse.tests.findIndex(t => t.testId === testData.testId);
+                                    if (testIndex !== -1) {
+                                        updatedCourse.tests[testIndex].isCompleted = result.passed;
+                                    }
+                                    return updatedCourse;
+                                });
+
+                                // After successful submission, update completedTests state
+                                if (result.passed) {
+                                    setCompletedTests(prev => ({
+                                        ...prev,
+                                        [testData.testId]: true
+                                    }));
                                 }
-                            },
-                            { headers: { Authorization: `Bearer ${token}` } }
-                        );
-
-                        if (data.success) {
-                            toast.success('Đã lưu kết quả bài kiểm tra');
-                            // Cập nhật courseData để phản ánh trạng thái mới
-                            setCourseData(prev => {
-                                const updatedCourse = { ...prev };
-                                const testIndex = updatedCourse.tests.findIndex(t => t.testId === testData.testId);
-                                if (testIndex !== -1) {
-                                    updatedCourse.tests[testIndex].isCompleted = result.passed;
-                                }
-                                return updatedCourse;
-                            });
+                            }
+                        } catch (error) {
+                            console.error('Error saving test result:', error);
+                            toast.error('Could not save test results');
                         }
-                    } catch (error) {
-                        console.error('Error saving test result:', error);
-                        toast.error('Không thể lưu kết quả bài kiểm tra');
-                    }
-                });
-            } else {
-                toast.error('Không tìm thấy thông tin bài kiểm tra');
+                    });
+                }
             }
+        } catch (error) {
+            console.error('Error submitting test:', error);
+            toast.error('An error occurred while submitting the test');
         }
-    } catch (error) {
-        console.error('Error submitting test:', error);
-        toast.error('Có lỗi xảy ra khi nộp bài kiểm tra');
-    }
-};
+    };
+
     const formatTime = (seconds) => {
         const minutes = Math.floor(seconds / 60)
         const remainingSeconds = seconds % 60
@@ -287,7 +320,13 @@ const Player = () => {
             )
             if (data.success) {
                 toast.success(data.message)
-                fetchUserEnrolledCourses()
+                // Update local rating state
+                setInitialRating(data.userRating)
+                // Update course data with new ratings
+                setCourseData(prevCourse => ({
+                    ...prevCourse,
+                    courseRatings: data.courseRatings
+                }))
             } else {
                 toast.error(data.message)
             }
@@ -325,6 +364,19 @@ const Player = () => {
             if (timer) clearInterval(timer)
         }
     }, [timer])
+
+    // Add this useEffect to update completed tests when progressData changes
+    useEffect(() => {
+        if (progressData && progressData.tests) {
+            const completed = {};
+            progressData.tests.forEach(test => {
+                if (test.passed) {
+                    completed[test.testId] = true;
+                }
+            });
+            setCompletedTests(completed);
+        }
+    }, [progressData]);
 
     if (!courseData) return <Loading />
 
@@ -384,35 +436,50 @@ const Player = () => {
                                             src={assets.down_arrow_icon}
                                             alt="arrow icon"
                                         />
-                                        <p className='font-medium md:text-base text-sm'>Test</p>
+                                        <p className='font-medium md:text-base text-sm'>Tests</p>
                                     </div>
                                     <p className='text-sm md:text-default'>{courseData.tests.length} test(s)</p>
                                 </div>
 
                                 <div className={`overflow-hidden transition-all duration-300 ${openSections['test'] ? 'max-h-96' : 'max-h-0'}`}>
                                     <ul className='list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300'>
-                                        {courseData.tests.map((test, i) => (
-                                            <li className='flex items-start gap-2 py-1' key={i}>
-                                                <img src={assets.exam_icon} alt="play icon" className='w-4 h-4 mt-1' />
-                                                <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default'>
-                                                    <p>{test.testTitle}</p>
-
-                                                    <div className='flex gap-2'>
-                                                        {test.isCompleted ? (
-                                                            <p className='text-green-500'>Completed</p>
-                                                        ) : (
-                                                            <p className='text-blue-500 cursor-pointer'
-                                                                onClick={() => handleTest(test)}
-                                                            >
-                                                                Start Test
-                                                            </p>
-                                                        )}
-                                                        <p className='text-sm md:text-default'>{test.testDuration} min</p>
+                                        {courseData.tests.map((test, i) => {
+                                            const isCompleted = completedTests[test.testId];
+                                            const savedTest = progressData?.tests?.find(t => t.testId === test.testId);
+                                            return (
+                                                <li className='flex items-start gap-2 py-1' key={i}>
+                                                    <img 
+                                                        src={isCompleted ? assets.check_circle : assets.exam_icon} 
+                                                        alt="test icon" 
+                                                        className='w-4 h-4 mt-1' 
+                                                    />
+                                                    <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default'>
+                                                        <div>
+                                                            <p>{test.testTitle || `Chapter ${test.chapterNumber} Test`}</p>
+                                                            {savedTest && !savedTest.passed && (
+                                                                <p className='text-sm text-gray-500'>Previous score: {savedTest.score}%</p>
+                                                            )}
+                                                        </div>
+                                                        <div className='flex gap-2'>
+                                                            {isCompleted ? (
+                                                                <span className='text-green-500 flex items-center gap-1'>
+                                                                    <img src={assets.check_circle} alt="completed" className='w-4 h-4' />
+                                                                    Passed
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    className='text-blue-500 hover:text-blue-700'
+                                                                    onClick={() => handleTest(test)}
+                                                                >
+                                                                    {savedTest ? 'Retry Test' : 'Start Test'}
+                                                                </button>
+                                                            )}
+                                                            <p>{test.duration || 3} min</p>
+                                                        </div>
                                                     </div>
-
-                                                </div>
-                                            </li>
-                                        ))}
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
                             </div>
@@ -476,7 +543,7 @@ const Player = () => {
                             onClick={handleCloseTest}
                             className="absolute top-4 left-4 bg-gray-500 hover:bg-gray-700 text-white py-2 px-4 rounded"
                         >
-                            Quay lại
+                            Back
                         </button>
 
                         <div className="text-center mb-8 pt-4">
@@ -486,10 +553,10 @@ const Player = () => {
                                 <p>Chương: {testData?.chapterNumber}</p>
                             </div>
                             <div className="text-xl font-semibold text-red-600">
-                                Thời gian còn lại: {formatTime(timeLeft)}
+                                Time remaining: {formatTime(timeLeft)}
                             </div>
                             <div className="text-gray-600 mt-2">
-                                <p>Loại bài kiểm tra: {testData?.type === 'multiple_choice' ? 'Trắc nghiệm' : 'Tự luận'}</p>
+                                <p>Test type: {testData?.type === 'multiple_choice' ? 'Multiple Choice' : 'Essay'}</p>
                                 <p>Điểm đạt yêu cầu: {testData?.passingScore}%</p>
                             </div>
                         </div>

@@ -50,10 +50,10 @@ const ProfilePage = () => {
     try {
       const lovelace = await currentWallet.getLovelace();
       const _assets = parseFloat(lovelace) / 1000000;
-      if (_assets === 0) setError("Không có tài sản nào trong ví.");
+      if (_assets === 0) setError("No assets in wallet.");
       setAssets(_assets);
     } catch (err) {
-      setError("Lỗi khi tải tài sản từ ví.");
+      setError("Error loading assets from wallet.");
     }
     setLoading(false);
   }
@@ -125,9 +125,9 @@ const ProfilePage = () => {
                   className="w-20 h-20 rounded-full"
                 />
                 <div>
-                  <h2 className="text-2xl font-semibold">{user?.fullName || "Người dùng"}</h2>
+                  <h2 className="text-2xl font-semibold">{user?.fullName || "User"}</h2>
                   <p className="text-gray-600">
-                    {user?.primaryEmailAddress?.emailAddress || "Email không có"}
+                    {user?.primaryEmailAddress?.emailAddress || "Email not available"}
                   </p>
                 </div>
               </div>
@@ -135,14 +135,12 @@ const ProfilePage = () => {
             </div>
 
             <div className=" p-4 ">
-                {/* <h3 className="text-xl font-semibold mb-2">Khóa học chờ xét duyệt</h3>
-                <p className="text-gray-600">Hiện tại không có khóa học nào đang chờ xét duyệt.</p> */}
+                <p className="text-gray-600">Currently no courses pending approval.</p>
               </div>
 
             <div className="mt-6 space-y-6">
               <div className=" p-4 ">
-                {/* <h3 className="text-xl font-semibold mb-2">Khóa học gần đây</h3>
-                <p className="text-gray-600">Chưa có khóa học gần đây.</p> */}
+                <p className="text-gray-600">No recent courses.</p>
               </div>
 
               <div className="mt-6 space-y-6">

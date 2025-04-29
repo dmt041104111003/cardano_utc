@@ -14,7 +14,13 @@ const courseProgressSchema = new mongoose.Schema({
         testId: { type: String },
         passed: { type: Boolean, default: false },
         score: { type: Number },
-        completedAt: { type: Date }
+        completedAt: { type: Date },
+        answers: [{
+            questionIndex: Number,
+            selectedAnswers: [String],
+            isCorrect: Boolean
+        }],
+        timeSpent: Number
     }],
     courseInfo: {
         title: { type: String },

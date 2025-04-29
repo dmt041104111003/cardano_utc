@@ -13,6 +13,7 @@ import notificationRouter from './routes/notificationRoutes.js'
 import blockchainRouter from './routes/blockchainRoute.js'
 import nftRouter from './routes/nftRoute.js'
 import addressRouter from './routes/addressRoute.js'
+import premiumRoute from './routes/premiumRoute.js'
 
 const app = express()
 
@@ -43,6 +44,8 @@ app.use('/api/blockchain', express.json(), blockchainRouter)
 app.use('/api/nft', express.json(), nftRouter)
 
 app.use('/api/address', express.json(), addressRouter)
+
+app.use('/api/premium', express.json(), premiumRoute)
 
 app.post('/stripe', express.raw({ type: 'application/json' }), stripeWebhooks)
 

@@ -32,8 +32,18 @@ export const addCourse = async (req, res) => {
             return res.json({ success: false, message: "Thumbnail Not Attached" });
         }
 
+        // Check if user is premium
+        const user = await User.findById(educatorId);
+        if (!user) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
         const parsedCourseData = await JSON.parse(courseData);
         parsedCourseData.educator = educatorId;
+        // Nếu có paypalEmail, cập nhật vào User
+        if (parsedCourseData.paypalEmail) {
+            await User.findByIdAndUpdate(educatorId, { paypalEmail: parsedCourseData.paypalEmail });
+        }
         const newCourse = await Course.create(parsedCourseData);
 
         // Tạo stream từ buffer và upload lên Cloudinary
