@@ -17,10 +17,10 @@ const PLANS = [
   },
   {
     id: 'yearly',
-    label: 'Yearly',
+    label: '5 hours',
     ada: 300,
     usd: 600,
-    period: 'year'
+    period: '5 hours'
   }
 ];
 

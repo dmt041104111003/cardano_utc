@@ -4,7 +4,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 export default function AdaPremiumPayment({ plan, adaAmount, receiverAddress }) {
-  const { currentWallet, userData, getToken, backendUrl } = useContext(AppContext);
+  const { currentWallet, userData, getToken, backendUrl, fetchUserData } = useContext(AppContext);
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePremiumAdaPayment = async () => {
@@ -30,6 +30,7 @@ export default function AdaPremiumPayment({ plan, adaAmount, receiverAddress }) 
         const signedTx = await currentWallet.signTx(unsignedTx);
         const txHash = await currentWallet.submitTx(signedTx);
         toast.success(`Premium payment successful! TX Hash: ${txHash}`);
+        if (fetchUserData) await fetchUserData();
       } else {
         toast.error("Payment failed!");
       }
