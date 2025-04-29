@@ -2,6 +2,7 @@
 import axios from "axios";
 import { useContext, useState, useEffect } from "react";
 import { AppContext } from "../../context/AppContext";
+import { toast } from "react-toastify";
 
 export default function PaypalPayment({ courseData }) {
   const { userData, backendUrl, getToken } = useContext(AppContext);
@@ -66,11 +67,12 @@ export default function PaypalPayment({ courseData }) {
       if (data.forwardLink) {
         window.location.href = data.forwardLink;
       } else {
-        throw new Error("Không nhận được liên kết PayPal.");
+        throw new Error("PayPal link not received.");
       }
     } catch (error) {
-      console.error("PayPal Payment error:", error);
-      setError(error.response?.data?.error || "Thanh toán thất bại. Vui lòng thử lại.");
+      const msg = error.response?.data?.message || error.response?.data?.error || "Payment failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsProcessing(false);
     }
@@ -84,12 +86,12 @@ export default function PaypalPayment({ courseData }) {
           alt="PayPal"
           className="h-6 mr-2"
         />
-        <h3 className="text-lg font-semibold">Thanh toán qua PayPal</h3>
+        <h3 className="text-lg font-semibold">Pay with PayPal</h3>
       </div>
 
       <div className="text-gray-600 mb-3">
         <p>
-          Giá khóa học: <span className="font-semibold text-green-600">${coursePrice} USD</span>
+          Course price: <span className="font-semibold text-green-600">${coursePrice} USD</span>
         </p>
         <p className="text-sm text-gray-500">
           ≈ {courseData.coursePrice} ADA
@@ -97,7 +99,7 @@ export default function PaypalPayment({ courseData }) {
       </div>
 
       <p className="text-gray-600 mb-3">
-        Thanh toán an toàn bằng tài khoản PayPal hoặc thẻ tín dụng quốc tế.
+        Pay securely with your PayPal account or international credit card.
       </p>
 
       {error && (
@@ -118,13 +120,13 @@ export default function PaypalPayment({ courseData }) {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Đang chuyển hướng...
+            Redirecting...
           </span>
-        ) : "Thanh toán với PayPal"}
+        ) : "Pay with PayPal"}
       </button>
 
       <p className="text-xs text-gray-500 mt-2">
-        Bằng cách thanh toán, bạn đồng ý với Điều khoản dịch vụ của chúng tôi
+        By making a payment, you agree to our Terms of Service.
       </p>
     </div>
   );

@@ -13,9 +13,22 @@ const userSchema = new mongoose.Schema(
             }
         ],
         walletAddress: { type: String, required: false  },
-
+        paypalEmail: { type: String, required: false },
+        premiumPlan: { type: String, required: false },
+        premiumExpiry: { type: Date, required: false },
+        isPremium: { 
+            type: Boolean, 
+            default: false,
+            get: function() {
+                return this.premiumExpiry && this.premiumExpiry > new Date();
+            }
+        },
+        lastCourseCreatedAt: { type: Date },
     },
-    { timestamps: true }
+    { 
+        timestamps: true,
+        toJSON: { getters: true }
+    }
 );
 
 const User = mongoose.model('User', userSchema);

@@ -4,7 +4,7 @@ import { AppContext } from '../../context/AppContext'
 import { Line } from 'rc-progress';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -23,6 +23,7 @@ const MyEnrollments = () => {
         connected
     } = useContext(AppContext);
     const location = useLocation();
+    const [searchParams] = useSearchParams();
 
     const [progressArray, setProgressArray] = useState([])
     const [showNFTModal, setShowNFTModal] = useState(false)
@@ -43,6 +44,10 @@ const MyEnrollments = () => {
     const [showCompleted, setShowCompleted] = useState(false);
     const [showCertified, setShowCertified] = useState(false);
     const itemsPerPage = 7;
+    const [purchaseHistory, setPurchaseHistory] = useState([]);
+    const [loadingPurchase, setLoadingPurchase] = useState(false);
+    const [showPurchaseHistory, setShowPurchaseHistory] = useState(false);
+    const [sentToEducator, setSentToEducator] = useState({});
 
     const getCourseProgress = async () => {
         try {
@@ -149,6 +154,7 @@ const MyEnrollments = () => {
             );
 
             toast.success('Address saved and notification sent to educator!');
+            setSentToEducator(prev => ({ ...prev, [courseId]: true }));
         } catch (error) {
             console.error('Error saving address:', error);
             toast.error(error.message);
@@ -173,18 +179,18 @@ const MyEnrollments = () => {
             if (data.success) {
                 const notification = data.notification;
                 if (!notification) {
-                    toast.info('Bạn chưa yêu cầu cấp certificate cho khóa học này');
+                    toast.info('You have not requested a certificate for this course');
                 } else {
                     const walletAddress = notification.walletAddress;
                     const shortAddress = walletAddress ? 
                         `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : 
-                        'chưa có';
+                        'not available';
 
                     if (notification.status === 'pending') {
-                        toast.info(`Yêu cầu certificate đang chờ xét duyệt.`);
+                        toast.info(`Certificate request is pending approval.`);
                     } 
                     else if (notification.status === 'completed') {
-                        toast.success(`Certificate đã được cấp thành công vào ví ${shortAddress}!`);
+                        toast.success(`Certificate has been successfully issued to wallet ${shortAddress}!`);
                         setCertificateStatus(prev => ({ ...prev, [courseId]: 'completed' }));
                     }
                 }
@@ -193,7 +199,7 @@ const MyEnrollments = () => {
             }
         } catch (error) {
             console.error("Error checking certificate status:", error);
-            toast.error('Có lỗi khi kiểm tra trạng thái');
+            toast.error('Error checking status');
         } finally {
             setMinting(prev => ({...prev, [courseId]: false}));
         }
@@ -443,41 +449,40 @@ const MyEnrollments = () => {
     }
 
     useEffect(() => {
-        if (enrolledCourses) {
+        if (showPurchaseHistory) {
+            // Lọc purchaseHistory khi ở tab Purchase History
+            let filtered = purchaseHistory;
+            if (searchQuery) {
+                filtered = filtered.filter(item => {
+                    // Nếu courseId là object, tìm theo courseTitle hoặc _id
+                    if (item.courseId && typeof item.courseId === 'object') {
+                        return (
+                            (item.courseId.courseTitle && item.courseId.courseTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                            (item.courseId._id && item.courseId._id.toLowerCase().includes(searchQuery.toLowerCase()))
+                        );
+                    }
+                    // Nếu courseId là string
+                    return item.courseId && item.courseId.toLowerCase().includes(searchQuery.toLowerCase());
+                });
+            }
+            setFilteredCourses(filtered);
+        } else if (enrolledCourses) {
+            // Lọc enrolledCourses như cũ
             let filtered = enrolledCourses;
-
-            // Filter by search query (title or ID)
             if (searchQuery) {
                 filtered = filtered.filter(course =>
                     course.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     course._id.toLowerCase().includes(searchQuery.toLowerCase())
                 );
-                // Reset to page 1 when search query changes
-                // setCurrentPage(1);
             }
-
-            // // Filter by completion status
-            // if (showCompleted) {
-            //     filtered = filtered.filter(course => progressArray.find(p => p.courseId === course._id)?.lectureCompleted === progressArray.find(p => p.courseId === course._id)?.totalLectures);
-            //     // Reset trang 1 khi toggle filter
-            //     setCurrentPage(1);
-            // }
-
-            // // Filter by certification status (Status Send Educator is Successful)
-            // if (showCertified) {
-            //     filtered = filtered.filter(course => sentToEducator[course._id] === true);
-            //     // Reset trang 1 khi toggle filter
-            //     setCurrentPage(1);
-            // }
-
             setFilteredCourses(filtered);
         }
-    }, [searchQuery, enrolledCourses, showCompleted, showCertified, progressArray, certificateStatus]);
+    }, [searchQuery, enrolledCourses, showCompleted, showCertified, progressArray, certificateStatus, showPurchaseHistory, purchaseHistory]);
 
     // Calculate pagination
     const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedCourses = filteredCourses.slice(startIndex, startIndex + itemsPerPage);
+    const paginatedFilteredCourses = filteredCourses.slice(startIndex, startIndex + itemsPerPage);
 
     const handleViewCertificate = async (courseId) => {
         try {
@@ -573,6 +578,49 @@ const MyEnrollments = () => {
         pdf.save(`${certData.courseInfo.title}-certificate.pdf`);
     };
 
+    // Hàm fetch lịch sử mua khoá học
+    const fetchPurchaseHistory = async () => {
+        setLoadingPurchase(true);
+        try {
+            const token = await getToken();
+            // Sửa endpoint đúng với backend
+            const { data } = await axios.get(`${backendUrl}/api/user/purchase/history`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (data.success && data.purchases) {
+                setPurchaseHistory(data.purchases);
+            } else {
+                setPurchaseHistory([]);
+            }
+        } catch (error) {
+            setPurchaseHistory([]);
+        } finally {
+            setLoadingPurchase(false);
+        }
+    };
+
+    // Gọi fetch khi mở tab lịch sử
+    useEffect(() => {
+        if (showPurchaseHistory && purchaseHistory.length === 0) {
+            fetchPurchaseHistory();
+        }
+    }, [showPurchaseHistory]);
+
+    useEffect(() => {
+        const status = searchParams.get('status');
+        const message = searchParams.get('message');
+
+        if (status && message) {
+            if (status === 'success') {
+                toast.success(message);
+            } else if (status === 'error') {
+                toast.error(message);
+            } else if (status === 'cancelled') {
+                toast.info(message);
+            }
+        }
+    }, [searchParams]);
+
     return enrolledCourses ? (
         <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-green-100/70 via-cyan-100/50 to-white'>
             <div className='w-full'>
@@ -590,150 +638,307 @@ const MyEnrollments = () => {
                     />
                 </div>
 
-                <table className='md:table-auto table-fixed w-full overflow-hidden border mt-10'>
-                    <thead className='text-gray-900 border-b border-gray-500/20 text-sm text-left max-sm:hidden'>
-                        <tr>
-                            <th className='px-4 py-3 font-semibold truncate w-16'>STT</th>
-                            <th className='px-4 py-3 font-semibold truncate'>Course ID</th>
-                            <th className='px-4 py-3 font-semibold truncate'>Course</th>
-                           
-                            {/* <th className='px-4 py-3 font-semibold truncate'>Duration</th>
-                            <th className='px-4 py-3 font-semibold truncate'>Completed</th> */}
-                            <th className='px-4 py-3 font-semibold truncate'>Status</th>
-                            <th className='px-4 py-3 font-semibold truncate'>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {paginatedCourses.map((course, index) => (
-                            <tr key={course._id} className='border-b border-gray-500/20'>
-                                <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm text-center'>
-                                    {startIndex + index + 1}
-                                </td>
-                                <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm'>
-                                    <div className="break-all max-w-[200px]">{course._id}</div>
-                                </td>
-                                <td className='md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3'>
-                                    <img src={course.courseThumbnail} alt=""
-                                        className='w-14 sm:w-24 md:x-28' />
-                                    <div className='flex-1'>
-                                        <p className='mb-1 max-sm:text-sm'>{course.courseTitle}</p>
-                                        <Line strokeWidth={2} percent={progressArray[index]?.progressPercentage || 0} className='bg-gray-300 rounded-full' />
-                                        <div className='text-xs text-gray-500 mt-1'>
-                                            Lectures: {progressArray[index]?.lectureCompleted || 0}/{progressArray[index]?.totalLectures || 0},
-                                            Tests: {progressArray[index]?.testsCompleted || 0}/{progressArray[index]?.totalTests || 0}
-                                        </div>
+                <div className="flex gap-4 mt-6">
+                    <button
+                        className={`px-4 py-2 rounded ${!showPurchaseHistory ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        onClick={() => setShowPurchaseHistory(false)}
+                    >
+                        My Enrollments
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded ${showPurchaseHistory ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        onClick={() => setShowPurchaseHistory(true)}
+                    >
+                        Purchase History
+                    </button>
+                </div>
+
+                {/* Nếu là purchase history thì chỉ hiển thị bảng giao dịch, ẩn phần enrollments */}
+                {showPurchaseHistory ? (
+                    <div className="mt-8">
+                        <h2 className="text-xl font-bold mb-4">Purchase History</h2>
+                        {loadingPurchase ? (
+                            <div>Loading...</div>
+                        ) : purchaseHistory.length === 0 ? (
+                            <div>No purchase history found.</div>
+                        ) : (
+                            <>
+                                <table className="w-full border rounded-lg overflow-hidden">
+                                    <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left">Course ID</th>
+                                            <th className="px-4 py-2 text-left">Amount</th>
+                                            <th className="px-4 py-2 text-left">Status</th>
+                                            <th className="px-4 py-2 text-left">Currency</th>
+                                            <th className="px-4 py-2 text-left">Payment Method</th>
+                                            <th className="px-4 py-2 text-left">Note</th>
+                                            <th className="px-4 py-2 text-left">Created At</th>
+                                            <th className="px-4 py-2 text-left">Updated At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedFilteredCourses.map((item) => (
+                                            <tr key={item._id} className="border-b">
+                                                <td className="px-4 py-2">
+                                                    {item.courseId && typeof item.courseId === 'object'
+                                                        ? `${item.courseId.courseTitle || ''} (${item.courseId._id})`
+                                                        : item.courseId}
+                                                </td>
+                                                <td className="px-4 py-2">{item.amount}</td>
+                                                <td className="px-4 py-2 capitalize">{item.status}</td>
+                                                <td className="px-4 py-2">{item.currency}</td>
+                                                <td className="px-4 py-2">{item.paymentMethod}</td>
+                                                <td className="px-4 py-2">{item.note}</td>
+                                                <td className="px-4 py-2">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</td>
+                                                <td className="px-4 py-2">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : ''}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                {totalPages > 1 && (
+                                    <div className="flex justify-center gap-2 my-4 w-full border-t border-gray-500/20 pt-4">
+                                        <button
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                            className={`px-3 py-1 rounded-md text-sm ${
+                                                currentPage === 1
+                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                    : 'bg-gray-200 hover:bg-gray-300'
+                                            }`}
+                                        >
+                                            Previous
+                                        </button>
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                            .filter(page => {
+                                                if (page === 1 || page === totalPages) return true;
+                                                return Math.abs(page - currentPage) <= 2;
+                                            })
+                                            .map((page, index, array) => {
+                                                if (index > 0 && page - array[index - 1] > 1) {
+                                                    return (
+                                                        <React.Fragment key={`ellipsis-${page}`}>
+                                                            <span className="px-2 py-1">...</span>
+                                                            <button
+                                                                onClick={() => handlePageChange(page)}
+                                                                className={`px-3 py-1 rounded-md text-sm ${
+                                                                    currentPage === page
+                                                                        ? 'bg-blue-600 text-white'
+                                                                        : 'bg-gray-200 hover:bg-gray-300'
+                                                                }`}
+                                                            >
+                                                                {page}
+                                                            </button>
+                                                        </React.Fragment>
+                                                    );
+                                                }
+                                                return (
+                                                    <button
+                                                        key={page}
+                                                        onClick={() => handlePageChange(page)}
+                                                        className={`px-3 py-1 rounded-md text-sm ${
+                                                            currentPage === page
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-gray-200 hover:bg-gray-300'
+                                                        }`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                );
+                                            })}
+                                        <button
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                            className={`px-3 py-1 rounded-md text-sm ${
+                                                currentPage === totalPages
+                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                    : 'bg-gray-200 hover:bg-gray-300'
+                                            }`}
+                                        >
+                                            Next
+                                        </button>
                                     </div>
-                                </td>
-                                
-                                {/* <td className='px-4 py-3 max-sm:hidden'>
-                                    {calculateCourseDuration(course)}
-                                </td>
-                                <td className='px-4 py-3 max-sm:hidden'>
-                                    {course.progress && `${course.progress.lectureCompleted} / ${course.progress.totalLectures}`}  <span>Lectures</span>
-                                </td> */}
-                                <td className='px-4 py-3 max-sm:text-right'>
-                                    <button 
-                                        className={`px-3 sm:px-5 py-1.5 ${isCompleted(index) ? 'bg-green-600' : 'bg-blue-600'} max-sm:text-xs text-white rounded`} 
-                                        onClick={() => navigate('/player/' + course._id)}
-                                    >
-                                        {isCompleted(index) ? 'Completed' : 'On Going'}
-                                    </button>
-                                </td>
-                                <td className='px-4 py-3'>
-                                    {isCompleted(index) && (
-                                        <div className="flex gap-2 mt-2">
-                                            <button
-                                                onClick={() => handleGetSimpleCertificate(course._id)}
-                                                disabled={loadingSimpleCert[course._id]}
-                                                className="px-3 py-1 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500"
-                                            >
-                                                {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
-                                            </button>
-                                            {certificateData[course._id] && (
-                                                <div className="mt-4 p-4 bg-gray-50 rounded shadow">
-                                                    <h3 className="text-lg font-semibold mb-2">Certificate Information</h3>
-                                                    <div className="space-y-2">
-                                                        <p><span className="font-medium">Course:</span> {certificateData[course._id].courseInfo.title}</p>
-                                                        <p><span className="font-medium">Student:</span> {certificateData[course._id].studentInfo.name}</p>
-                                                        <p><span className="font-medium">Completed:</span> {new Date(certificateData[course._id].completedAt).toLocaleDateString()}</p>
-                                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <table className='md:table-auto table-fixed w-full overflow-hidden border mt-10'>
+                            <thead className='text-gray-900 border-b border-gray-500/20 text-sm text-left max-sm:hidden'>
+                                <tr>
+                                    <th className='px-4 py-3 font-semibold truncate w-16'>STT</th>
+                                    <th className='px-4 py-3 font-semibold truncate'>Course ID</th>
+                                    <th className='px-4 py-3 font-semibold truncate'>Course</th>
+                                   
+                                    {/* <th className='px-4 py-3 font-semibold truncate'>Duration</th>
+                                    <th className='px-4 py-3 font-semibold truncate'>Completed</th> */}
+                                    <th className='px-4 py-3 font-semibold truncate'>Status</th>
+                                    <th className='px-4 py-3 font-semibold truncate'>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginatedFilteredCourses.map((course, index) => (
+                                    <tr key={course._id} className='border-b border-gray-500/20'>
+                                        <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm text-center'>
+                                            {startIndex + index + 1}
+                                        </td>
+                                        <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm'>
+                                            <div className="break-all max-w-[200px]">{course._id}</div>
+                                        </td>
+                                        <td className='md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3'>
+                                            <img src={course.courseThumbnail} alt=""
+                                                className='w-14 sm:w-24 md:x-28' />
+                                            <div className='flex-1'>
+                                                <p className='mb-1 max-sm:text-sm'>{course.courseTitle}</p>
+                                                <Line strokeWidth={2} percent={progressArray[index]?.progressPercentage || 0} className='bg-gray-300 rounded-full' />
+                                                <div className='text-xs text-gray-500 mt-1'>
+                                                    Lectures: {progressArray[index]?.lectureCompleted || 0}/{progressArray[index]?.totalLectures || 0},
+                                                    Tests: {progressArray[index]?.testsCompleted || 0}/{progressArray[index]?.totalTests || 0}
                                                 </div>
-                                            )}
-                                            {connected && (
-                                                <>
-                                                    <button 
+                                            </div>
+                                        </td>
+                                        
+                                        {/* <td className='px-4 py-3 max-sm:hidden'>
+                                            {calculateCourseDuration(course)}
+                                        </td>
+                                        <td className='px-4 py-3 max-sm:hidden'>
+                                            {course.progress && `${course.progress.lectureCompleted} / ${course.progress.totalLectures}`}  <span>Lectures</span>
+                                        </td> */}
+                                        <td className='px-4 py-3 max-sm:text-right'>
+                                            <button 
+                                                className={`px-3 sm:px-5 py-1.5 ${isCompleted(index) ? 'bg-green-600' : 'bg-blue-600'} max-sm:text-xs text-white rounded`} 
+                                                onClick={() => navigate('/player/' + course._id)}
+                                            >
+                                                {isCompleted(index) ? 'Completed' : 'On Going'}
+                                            </button>
+                                        </td>
+                                        <td className='px-4 py-3'>
+                                            {/* NFT chỉ hiển thị nếu là khóa onchain (course.txHash tồn tại) và đã kết nối ví. Các nút khác giữ nguyên. */}
+                                            <div className="flex gap-2 mt-2">
+                                                {connected && course.txHash && (
+                                                    <button
                                                         onClick={() => handleNFT(course._id)}
-                                                        disabled={minting[course._id]}
+                                                        disabled={loadingNFT[course._id]}
                                                         className="px-3 py-1 text-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded hover:from-purple-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500"
                                                     >
-                                                        {minting[course._id] ? 'Minting...' : 'NFT'}
+                                                        {loadingNFT[course._id] ? 'Loading...' : 'NFT'}
                                                     </button>
+                                                )}
+                                                {/* Send Educator chỉ hiển thị khi onchain, completed, chưa mint */}
+                                                {course.txHash && isCompleted(index) && certificateStatus[course._id] !== 'completed' && (
                                                     <button
                                                         onClick={() => handleSaveAddress(course._id)}
-                                                        disabled={savingAddress[course._id]}
+                                                        disabled={savingAddress[course._id] || sentToEducator[course._id]}
                                                         className="px-3 py-1 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded hover:from-orange-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-500"
                                                     >
-                                                        {savingAddress[course._id]
-                                                            ? 'Saving...'
-                                                            : certificateStatus[course._id]?.addressSaved
-                                                                ? 'Educator Notified'
-                                                                : 'Send Educator'
-                                                        }
+                                                        {sentToEducator[course._id]
+                                                            ? 'Sent, waiting for mint...'
+                                                            : savingAddress[course._id]
+                                                                ? 'Saving...'
+                                                                : 'Send Educator'}
                                                     </button>
-                                                    <button 
-                                                        onClick={() => handleCertificate(course._id)}
-                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded hover:from-amber-600 hover:to-amber-700"
-                                                    >
-                                                        {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
-                                                    </button>
+                                                )}
+                                                {/* Khi đã mint thì hiển thị Minted (disabled) */}
+                                                {course.txHash && isCompleted(index) && certificateStatus[course._id] === 'completed' && (
                                                     <button
-                                                        onClick={() => handleViewCertificate2(course._id)}
-                                                        disabled={loadingCertificate[course._id]}
-                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white rounded hover:from-orange-700 hover:to-red-700"
+                                                        disabled
+                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded opacity-60 cursor-not-allowed"
                                                     >
-                                                        {loadingCertificate[course._id] ? 'Loading...' : 'Info Download Certificate NFT'}
+                                                        Minted
                                                     </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                                )}
+                                                {/* View Certificate và Info Download Certificate NFT chỉ hiển thị khi đã mint */}
+                                                {certificateStatus[course._id] === 'completed' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleCertificate(course._id)}
+                                                            className="px-3 py-1 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded hover:from-amber-600 hover:to-amber-700"
+                                                        >
+                                                            {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleViewCertificate2(course._id)}
+                                                            disabled={loadingCertificate[course._id]}
+                                                            className="px-3 py-1 text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white rounded hover:from-orange-700 hover:to-red-700"
+                                                        >
+                                                            {loadingCertificate[course._id] ? 'Loading...' : 'Info Download Certificate NFT'}
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {/* Onchain completed: luôn hiển thị View Course Progress */}
+                                                {course.txHash && isCompleted(index) && (
+                                                    <button
+                                                        onClick={() => handleGetSimpleCertificate(course._id)}
+                                                        disabled={loadingSimpleCert[course._id]}
+                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500"
+                                                    >
+                                                        {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
+                                                    </button>
+                                                )}
+                                                {/* Offchain đã hoàn thành: chỉ hiển thị View Course Progress */}
+                                                {!course.txHash && isCompleted(index) && (
+                                                    <button
+                                                        onClick={() => handleGetSimpleCertificate(course._id)}
+                                                        disabled={loadingSimpleCert[course._id]}
+                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500"
+                                                    >
+                                                        {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex justify-center gap-2 my-4 w-full border-t border-gray-500/20 pt-4">
-                        {/* Previous button */}
-                        <button
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 rounded-md text-sm ${
-                                currentPage === 1
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : 'bg-gray-200 hover:bg-gray-300'
-                            }`}
-                        >
-                            Previous
-                        </button>
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center gap-2 my-4 w-full border-t border-gray-500/20 pt-4">
+                                {/* Previous button */}
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded-md text-sm ${
+                                        currentPage === 1
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            : 'bg-gray-200 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    Previous
+                                </button>
 
-                        {/* Page numbers */}
-                        {Array.from({ length: totalPages }, (_, i) => i + 1)
-                            .filter(page => {
-                                // Always show first and last page
-                                if (page === 1 || page === totalPages) return true;
-                                // Show pages around current page
-                                return Math.abs(page - currentPage) <= 2;
-                            })
-                            .map((page, index, array) => {
-                                // Add ellipsis if there's a gap
-                                if (index > 0 && page - array[index - 1] > 1) {
-                                    return (
-                                        <React.Fragment key={`ellipsis-${page}`}>
-                                            <span className="px-2 py-1">...</span>
+                                {/* Page numbers */}
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(page => {
+                                        // Always show first and last page
+                                        if (page === 1 || page === totalPages) return true;
+                                        // Show pages around current page
+                                        return Math.abs(page - currentPage) <= 2;
+                                    })
+                                    .map((page, index, array) => {
+                                        // Add ellipsis if there's a gap
+                                        if (index > 0 && page - array[index - 1] > 1) {
+                                            return (
+                                                <React.Fragment key={`ellipsis-${page}`}>
+                                                    <span className="px-2 py-1">...</span>
+                                                    <button
+                                                        onClick={() => handlePageChange(page)}
+                                                        className={`px-3 py-1 rounded-md text-sm ${
+                                                            currentPage === page
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-gray-200 hover:bg-gray-300'
+                                                        }`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                </React.Fragment>
+                                            );
+                                        }
+                                        return (
                                             <button
+                                                key={page}
                                                 onClick={() => handlePageChange(page)}
                                                 className={`px-3 py-1 rounded-md text-sm ${
                                                     currentPage === page
@@ -743,37 +948,24 @@ const MyEnrollments = () => {
                                             >
                                                 {page}
                                             </button>
-                                        </React.Fragment>
-                                    );
-                                }
-                                return (
-                                    <button
-                                        key={page}
-                                        onClick={() => handlePageChange(page)}
-                                        className={`px-3 py-1 rounded-md text-sm ${
-                                            currentPage === page
-                                                ? 'bg-blue-600 text-white'
-                                                : 'bg-gray-200 hover:bg-gray-300'
-                                        }`}
-                                    >
-                                        {page}
-                                    </button>
-                                );
-                            })}
+                                        );
+                                    })}
 
-                        {/* Next button */}
-                        <button
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className={`px-3 py-1 rounded-md text-sm ${
-                                currentPage === totalPages
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : 'bg-gray-200 hover:bg-gray-300'
-                            }`}
-                        >
-                            Next
-                        </button>
-                    </div>
+                                {/* Next button */}
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 rounded-md text-sm ${
+                                        currentPage === totalPages
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            : 'bg-gray-200 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

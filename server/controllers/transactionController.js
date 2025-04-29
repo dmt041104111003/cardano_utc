@@ -8,10 +8,15 @@ import { Purchase } from "../models/Purchase.js";
 
 
 export const paymentByAda = async (req, res) => {
-    const { utxos, changeAddress, getAddress,value} = req.body;
+    const { utxos, changeAddress, getAddress, value, courseId, userId } = req.body;
 
     try {
-        const unsignedTx = await sendAda(utxos, changeAddress, getAddress,value);
+        // Check if user already owns the course
+        const user = await User.findById(userId);
+        if (user && user.enrolledCourses.includes(courseId)) {
+            return res.status(400).json({ success: false, message: 'You already own this course.' });
+        }
+        const unsignedTx = await sendAda(utxos, changeAddress, getAddress, value);
         if (!unsignedTx) {
             return res.status(500).json({ success: false, message: "Loi thanh toan" });
         }
@@ -29,6 +34,13 @@ paypal.configure({
     client_secret: process.env.PAYPAL_CLIENT_SECRET
   });
   
+  // Debug log for PayPal environment variables
+  console.log('PAYPAL ENV:', {
+    client_id: process.env.PAYPAL_CLIENT_ID,
+    client_secret: process.env.PAYPAL_CLIENT_SECRET,
+    business_email: process.env.PAYPAL_BUSINESS_EMAIL
+  });
+  
   export const paymentByPaypal = async (req, res) => {
     const { courseName, courseId, price, userId } = req.body;
   
@@ -36,30 +48,47 @@ paypal.configure({
     try {
     
       const course = await Course.findById(courseId);
+      const user = await User.findById(userId);
       if (!course) {
         return res.status(404).json({ error: 'Course not found' });
       }
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      if (user.enrolledCourses.includes(courseId)) {
+        return res.status(400).json({ success: false, message: 'You already own this course.' });
+      }
+      // Lấy educator và paypalEmail
+      const educator = await User.findById(course.educator);
+      if (!educator || !educator.paypalEmail) {
+        return res.status(400).json({ success: false, message: 'Educator PayPal email is missing.' });
+      }
+      const receiverPaypalEmail = educator.paypalEmail;
+  
+      // Ensure price is a string
+      const priceStr = price.toString();
   
       const create_payment_json = {
         intent: 'sale',
         payer: { payment_method: 'paypal' },
         redirect_urls: {
-          return_url: `http://localhost:5000/api/course/paypal-success?courseId=${courseId}&userId=${userId}`,
-          cancel_url: `http://localhost:5000/api/course/paypal-cancel`
+          return_url: `${req.protocol}://${req.get('host')}/api/course/paypal-success?courseId=${courseId}&userId=${userId}`,
+          cancel_url: `${req.protocol}://${req.get('host')}/api/course/paypal-cancel`
         },
         transactions: [{
+          payee: { email: receiverPaypalEmail },
           item_list: {
             items: [{
               name: courseName,
               sku: courseId,
-              price: price,
+              price: priceStr,
               currency: 'USD',
               quantity: 1
             }]
           },
           amount: {
             currency: 'USD',
-            total: price
+            total: priceStr
           },
           description: `Payment for course: ${courseName}`,
           invoice_number: `INV-${Date.now()}` 
@@ -67,10 +96,18 @@ paypal.configure({
       };
   
    
+      // Debug log for payment body
+      console.log('PayPal payment body:', create_payment_json);
+  
       const payment = await new Promise((resolve, reject) => {
         paypal.payment.create(create_payment_json, (error, payment) => {
-          if (error) reject(error);
-          else resolve(payment);
+          if (error) {
+            console.error('PayPal payment creation error:', error);
+            reject(error);
+          } else {
+            console.log('PayPal payment created successfully:', payment.id);
+            resolve(payment);
+          }
         });
       });
   
@@ -80,6 +117,7 @@ paypal.configure({
       }
   
       res.json({ 
+        success: true,
         forwardLink: approvalUrl.href,
         paymentId: payment.id 
       });
@@ -87,7 +125,8 @@ paypal.configure({
     } catch (error) {
       console.error('PayPal payment creation error:', error);
       res.status(500).json({ 
-        error: error.response?.message || 'Failed to create PayPal payment',
+        success: false,
+        error: error.response?.message || error.message || 'Failed to create PayPal payment',
         details: process.env.NODE_ENV === 'development' ? error.response : undefined
       });
     }
@@ -97,9 +136,8 @@ paypal.configure({
 export const paypalSuccess = async (req, res) => {
     const { PayerID: payerId, paymentId, courseId, userId } = req.query;
 
-    console.log("Thanh toán thanh cong: ", req.query);
     try {
-       
+        // Execute the payment
         const payment = await new Promise((resolve, reject) => {
             paypal.payment.execute(paymentId, { payer_id: payerId }, (error, payment) => {
                 if (error) reject(error);
@@ -108,55 +146,49 @@ export const paypalSuccess = async (req, res) => {
         });
 
         if (payment.state !== 'approved') {
-            throw new Error('Thanh toán không thành công');
+            throw new Error('Payment not approved');
         }
 
+        // Lấy course trước khi dùng
+        const course = await Course.findById(courseId);
+        const educator = course ? await User.findById(course.educator) : null;
 
-        const paymentRecord = new Purchase({
+        // Create purchase record
+        const purchase = await Purchase.create({
             courseId,
             userId,
             amount: payment.transactions[0].amount.total,
-            status: 'completed', 
             currency: 'USD',
-            paymentMethod: 'Paypal payment',
-            receiverAddress: process.env.PAYPAL_BUSINESS_EMAIL,
-            note:"Thanh toán thanh cong",
-            createdAt: new Date(),
-            
+            status: 'completed',
+            paymentMethod: 'PayPal',
+            receiverAddress: educator && educator.paypalEmail ? educator.paypalEmail : '',
+            note: 'Payment successful',
+            createdAt: new Date()
         });
 
-        await paymentRecord.save();
-
-        const course = await Course.findById(courseId);
-        if (!course) {
-            throw new Error('Không tìm thấy khóa học');
-        }
+        // Update user's enrolled courses
         const user = await User.findById(userId);
-        if (!user) {
-            throw new Error('Không tìm thấy người dùng');
+
+        if (user && course) {
+            user.enrolledCourses.push(courseId);
+            course.enrolledStudents.push(userId);
+            await user.save();
+            await course.save();
         }
 
-        user.enrolledCourses.push(courseId);
-        course.enrolledStudents.push(userId); 
-
-        await user.save();
-        await course.save(); 
-
-        const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
-        res.redirect(`${origin}/my-enrollments`);
-        
+        const origin = req.get('origin') || 'http://localhost:5173';
+        res.redirect(`${origin}/my-enrollments?status=success&message=Payment successful! You are now enrolled in the course.`);
     } catch (error) {
-        console.error('Lỗi khi xử lý thanh toán PayPal:', error);
-        const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
-        res.redirect(`${origin}/payment-error?code=paypal_failed`);
+        console.error('PayPal success error:', error);
+        const origin = req.get('origin') || 'http://localhost:5173';
+        res.redirect(`${origin}/my-enrollments?status=error&message=${encodeURIComponent(error.message)}`);
     }
 };
 
-  
-  export const paypalCancel = (req, res) => {
-    const origin = req.get('origin') || req.get('referer')?.replace(/\/[^/]*$/, '') || 'http://localhost:5173';
-    res.redirect(`${origin}/courses/${req.query.courseId}?payment=cancelled`);
-  };
+export const paypalCancel = async (req, res) => {
+    const origin = req.get('origin') || 'http://localhost:5173';
+    res.redirect(`${origin}/my-enrollments?status=cancelled&message=Payment was cancelled.`);
+};
 
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -169,6 +201,9 @@ export const paypalSuccess = async (req, res) => {
         const user = await User.findById(userId);
         if (!course || !user) {
             return res.status(404).json({ success: false, message: 'Course or User not found' });
+        }
+        if (user.enrolledCourses.includes(courseId)) {
+            return res.status(400).json({ success: false, message: 'You already own this course.' });
         }
 
         const purchase = await Purchase.create({
@@ -184,8 +219,8 @@ export const paypalSuccess = async (req, res) => {
         });
 
         const session = await stripe.checkout.sessions.create({
-            success_url: `${req.protocol}://${req.get('host')}/api/course/stripe-success?purchaseId=${purchase._id}`,
-            cancel_url: `${req.protocol}://${req.get('host')}/api/course/stripe-cancel?purchaseId=${purchase._id}`,
+            success_url: `${req.get('origin') || 'http://localhost:5173'}/my-enrollments?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${req.get('origin') || 'http://localhost:5173'}/courses`,
             line_items: [{
                 price_data: {
                     currency: 'usd',

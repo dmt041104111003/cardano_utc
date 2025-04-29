@@ -15,7 +15,45 @@ export const getUserData = async (req, res) => {
             return res.json({ success: false, message: 'User not Found' })
         }
 
-        res.json({ success: true, user })
+        // Calculate premium and cooldown logic
+        let isPremium = false;
+        let premiumExpiry = null;
+        let canCreateCourse = true;
+        let cooldownMs = 0;
+        const now = new Date();
+        if (user.premiumExpiry && user.premiumExpiry > now) {
+            isPremium = true;
+            premiumExpiry = user.premiumExpiry;
+            canCreateCourse = true;
+            cooldownMs = 0;
+        } else {
+            isPremium = false;
+            premiumExpiry = user.premiumExpiry;
+            if (user.lastCourseCreatedAt) {
+                const diff = 10 * 60 * 1000 - (now - user.lastCourseCreatedAt);
+                if (diff > 0) {
+                    canCreateCourse = false;
+                    cooldownMs = diff;
+                } else {
+                    canCreateCourse = true;
+                    cooldownMs = 0;
+                }
+            } else {
+                canCreateCourse = true;
+                cooldownMs = 0;
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            user: {
+                ...user.toObject(),
+                isPremium,
+                premiumExpiry,
+                canCreateCourse,
+                cooldownMs
+            }
+        })
     } catch (error) {
         res.json({ success: false, message: error.message })
     }
@@ -156,7 +194,7 @@ export const getAllCompletedCourses = async (req, res) => {
                         courseId: course._id,
                         courseTitle: course.courseTitle || "Unnamed Course",
                         userId: progress.userId._id,
-                        name: progress.userId.name || "Người dùng",
+                        name: progress.userId.name || "User",
                         completionDate: progress.updatedAt || new Date(),
                     };
                 }
@@ -275,7 +313,9 @@ export const updateUserCourseProgress = async (req, res) => {
                 testId: lectureId,
                 passed: test.passed,
                 score: test.score,
-                completedAt: new Date()
+                completedAt: new Date(),
+                answers: test.answers || [],
+                timeSpent: test.timeSpent || 0
             };
             
             if (testIndex >= 0) {
@@ -369,17 +409,16 @@ export const addUserRating = async (req, res) => {
     const userId = req.auth.userId;
     const { courseId, rating } = req.body;
     if (!courseId || !userId || !rating || rating < 1 || rating > 5) {
-        return res.json({ success: false, message: 'InValid Datails' });
+        return res.json({ success: false, message: 'Invalid Details' });
     }
 
     try {
         const course = await Course.findById(courseId);
         if (!course) {
             return res.json({ success: false, message: 'Course not found' });
-
         }
+        
         const user = await User.findById(userId);
-
         if (!user || !user.enrolledCourses.includes(courseId)) {
             return res.json({ success: false, message: 'User has not purchased this course.' });
         }
@@ -390,8 +429,16 @@ export const addUserRating = async (req, res) => {
         } else {
             course.courseRatings.push({ userId, rating });
         }
+        
         await course.save();
-        return res.json({ success: true, message: 'Rating added' });
+        
+        // Return the updated course ratings along with success message
+        return res.json({ 
+            success: true, 
+            message: 'Rating saved successfully',
+            courseRatings: course.courseRatings,
+            userRating: rating
+        });
     } catch (error) {
         res.json({ success: false, message: error.message })
     }
@@ -501,6 +548,18 @@ export const enrollCourses = async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Lấy lịch sử mua hàng của user
+export const getUserPurchaseHistory = async (req, res) => {
+    try {
+        const userId = req.auth.userId;
+        // Lấy tất cả purchase của user, có thể populate courseId để lấy tên khóa học
+        const purchases = await Purchase.find({ userId }).populate('courseId', 'courseTitle');
+        res.json({ success: true, purchases });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
 };
 

@@ -48,7 +48,7 @@ export const createNewCertificate = async (req, res) => {
             issueAt: issueAt, 
         });
         await certificate.save();
-        res.json({ success: true, message: "Chứng chỉ đã được tạo và lưu thành công" });
+        res.json({ success: true, message: "Certificate has been created and saved successfully" });
 
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
