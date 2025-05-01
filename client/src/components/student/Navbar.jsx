@@ -79,6 +79,12 @@ const Navbar = () => {
                             >
                                 My Profile
                             </Link>
+                            {/* <Link 
+                                to='/premium-subscription' 
+                                className='text-sm font-medium hover:text-yellow-600 transition-colors'
+                            >
+                                Premium
+                            </Link> */}
                         </>
                     )}
                 </div>
@@ -128,6 +134,12 @@ const Navbar = () => {
                                 className='text-xs font-medium hover:text-blue-600 transition-colors'
                             >
                                 Profile
+                            </Link>
+                            <Link 
+                                to='/premium-subscription' 
+                                className='text-xs font-medium hover:text-yellow-600 transition-colors'
+                            >
+                                Premium
                             </Link>
                         </>
                     )}

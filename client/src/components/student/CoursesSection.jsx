@@ -66,8 +66,8 @@ const CoursesSection = () => {
                     Join thousands of satisfied students in our highest-rated courses
                 </p>
             </div>
-            <div className='grid grid-cols-auto px-4 md:px-0 md:my-16 my-10 gap-4'>
-                {allCourses.slice(0, 7).map((course, index) => <CourseCard key={course._id || index} course={course} />)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-stretch px-4 md:px-0 md:my-16 my-10 gap-8">
+            {allCourses.slice(0, 7).map((course, index) => <CourseCard key={course._id || index} course={course} />)}
             </div>
 
             <Link

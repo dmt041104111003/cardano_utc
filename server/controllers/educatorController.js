@@ -340,8 +340,13 @@ export const educatorDetails  = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Educator ID is required' });
         }
 
+        const user = await User.findOne({ _id: educatorId }).select('-enrolledCourses');
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Educator not found' });
+        }
+
        
-        const courses = await Course.find({ educator: educatorId });
+        const courses = await Course.find({ educator: educatorId })
 
         const totalCourses = courses.length;
         console.log("educator id", educatorId);
@@ -377,7 +382,9 @@ export const educatorDetails  = async (req, res) => {
                 totalEnrolledStudents,
                 averageRating,
                 totalCertificates,  
-                bio: 'No bio available'
+                bio: 'No bio available',
+                user: user,
+                courses: courses
             },
         });
     } catch (error) {
