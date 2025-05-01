@@ -479,15 +479,15 @@ const AddCourse = () => {
 
   const handleAddTest = () => {
     if (!currentTest.duration) {
-      toast.error('Vui lòng nhập duration');
+      toast.error('Please enter test duration');
       return;
     }
     if (currentTest.passingScore === undefined ) {
-      toast.error('Vui lòng nhập passing score');
+      toast.error('Please enter passing score');
       return;
     }
     if (parseInt(currentTest.passingScore) > 100) {
-      toast.error('Vui lòng chọn bé hơn 100%');
+      toast.error('Passing score cannot exceed 100%');
       return;
     }
 
@@ -557,14 +557,14 @@ const AddCourse = () => {
 
     // Validate chapters
     if (chapters.length === 0) {
-      toast.error('Vui lòng tạo ít nhất 1 chapter');
+      toast.error('Please create at least 1 chapter');
       return;
     }
 
     // Validate lectures in each chapter
     for (let i = 0; i < chapters.length; i++) {
       if (chapters[i].chapterContent.length === 0) {
-        toast.error(`Chapter ${i + 1} cần có ít nhất 1 lecture`);
+        toast.error(`Chapter ${i + 1} need at least 1 lecture`);
         return;
       }
     }
@@ -572,24 +572,24 @@ const AddCourse = () => {
     // Validate tests
     for (let test of tests) {
       if (!test.passingScore || test.passingScore < 0 || test.passingScore > 100) {
-        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có passing score từ 0-100%`);
+        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} need passing score from 0-100%`);
         return;
       }
       if (!test.duration || test.duration <= 0) {
-        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có duration lớn hơn 0`);
+        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} need longer duration 0`);
         return;
       }
     }
 
     // Validate wallet or PayPal email
     if (!connected && !paypalEmail) {
-      toast.error('Bạn phải kết nối ví hoặc nhập email PayPal!');
+      toast.error('You must connect your wallet or enter your PayPal email!');
       return;
     }
 
     try {
       if (courseTitle.trim().length < 5) {
-        toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
+        toast.error('Please enter course title at least 5 characters');
         return;
       }
       if (!image) {
@@ -597,7 +597,7 @@ const AddCourse = () => {
         return;
       }
       if (discount > 0 && !discountEndTime) {
-        toast.error('Vui lòng chọn thời gian kết thúc giảm giá');
+        toast.error('Please select discount end time');
         return;
       }
 
@@ -840,10 +840,13 @@ const AddCourse = () => {
             onChange={e => setCourseTitle(e.target.value)}
             value={courseTitle} 
             type="text" 
-            placeholder='Type here' 
+            placeholder='Enter course title' 
             className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500' 
             required 
+            onInvalid={e => e.target.setCustomValidity('Please enter a course title')}
+            onInput={e => e.target.setCustomValidity('')}
           />
+          {courseTitle === '' && <p className="text-red-500 text-xs mt-1">Course title is required</p>}
         </div>
         <div className='flex flex-col gap-1'>
           <p>Course Description</p>
@@ -851,47 +854,68 @@ const AddCourse = () => {
         </div>
         <div className='flex items-center justify-between flex-wrap'>
           <div className='flex flex-col gap-1'>
-            <p>Course Price</p>
+            <p>Course Price (ADA)</p>
             <input 
-            onKeyDown={preventMinus}
+              onKeyDown={preventMinus}
               onChange={e => setCoursePrice(e.target.value)} 
               value={coursePrice} 
               type="number" 
+              min="0"
+              step="0.01"
               placeholder='0' 
               className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+              onInvalid={e => e.target.setCustomValidity('Please enter a valid price (0 or greater)')}
+              onInput={e => e.target.setCustomValidity('')}
             />
+            {coursePrice < 0 && <p className="text-red-500 text-xs mt-1">Price cannot be negative</p>}
           </div>
           <div className='flex flex-col gap-1'>
-            <p>Discount %</p>
+            <p>Discount (%)</p>
             <input 
-            onKeyDown={preventMinus}
+              onKeyDown={preventMinus}
               onChange={e => setDiscount(e.target.value)} 
               value={discount} 
               type="number" 
+              min="0"
+              max="100"
               placeholder='0' 
               className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+              onInvalid={e => e.target.setCustomValidity('Please enter a valid discount (0-100%)')}
+              onInput={e => e.target.setCustomValidity('')}
             />
+            {discount < 0 && <p className="text-red-500 text-xs mt-1">Discount cannot be negative</p>}
+            {discount > 100 && <p className="text-red-500 text-xs mt-1">Discount cannot exceed 100%</p>}
           </div>
           {discount > 0 && (
             <div className='flex flex-col gap-1'>
               <p>Discount End Time</p>
               <input 
-              onKeyDown={preventMinus}
                 onChange={e => setDiscountEndTime(e.target.value)}
                 value={discountEndTime}
                 type="datetime-local"
                 className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500'
                 required
+                onInvalid={e => e.target.setCustomValidity('Please select when the discount ends')}
+                onInput={e => e.target.setCustomValidity('')}
               />
+              {!discountEndTime && discount > 0 && <p className="text-red-500 text-xs mt-1">Required when discount is applied</p>}
             </div>
           )}
           <div className='flex md:flex-row flex-col items-center gap-3'>
             <p>Course Thumbnail</p>
             <label htmlFor='thumbnailImage' className='flex items-center gap-3'>
               <img src={assets.file_upload_icon} alt="" className='p-3 bg-blue-500 rounded' />
-              <input type="file" id='thumbnailImage' onChange={e => setImage(e.target.files[0])} accept="image/*" hidden />
+              <input 
+                type="file" 
+                id='thumbnailImage' 
+                onChange={e => setImage(e.target.files[0])} 
+                accept="image/*" 
+                hidden 
+                required
+              />
               <img className='max-h-10' src={image ? URL.createObjectURL(image) : null} alt="" />
             </label>
+            {!image && <p className="text-red-500 text-xs">Course thumbnail is required</p>}
           </div>
         </div>
         <div className="mb-6">
@@ -996,7 +1020,7 @@ const AddCourse = () => {
                   onChange={(e) => {
                     const value = parseInt(e.target.value);
                     if (value > 100) {
-                      toast.error('Vui lòng chọn bé hơn 100%');
+                      toast.error('Passing score cannot exceed 100%');
                       return;
                     }
                     setCurrentTest({ ...currentTest, passingScore: value || 0 });

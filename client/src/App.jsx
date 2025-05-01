@@ -24,6 +24,7 @@ import CertificateViewer from './pages/student/CertificateViewer';
 import EducatorDetail from './pages/student/EducatorDetail.jsx';
 import Subscription from './pages/educator/Subscription';
 
+
 const App = () => {
 
   const isEducatorRoute = useMatch('/educator/*');

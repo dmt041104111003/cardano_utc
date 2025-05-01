@@ -14,6 +14,7 @@ const TransactionChecker = () => {
     const [showNFTModal, setShowNFTModal] = useState(false);
     const [selectedNFT, setSelectedNFT] = useState(null);
     const [activeTab, setActiveTab] = useState('nft');
+    const [showRawMetadata, setShowRawMetadata] = useState(false);
 
     const handleCheck = async () => {
         if (!policyId.trim() || !txHash.trim()) {
@@ -163,7 +164,7 @@ const TransactionChecker = () => {
                                                 </p>
                                             </div>
                                             <div>
-                                                <h4 className="text-base font-medium text-gray-600 mb-2">Asset Name</h4>
+                                                <h4 className="text-base font-medium text-gray-600 mb-2">Hex Name</h4>
                                                 <p className="text-base break-all bg-white p-4 rounded-lg border border-gray-100">
                                                     {selectedNFT.assetName}
                                                 </p>
@@ -212,10 +213,54 @@ const TransactionChecker = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-semibold text-gray-800 mb-4">Metadata (CIP-721)</h3>
-                                    <div className="bg-gray-50 p-6 rounded-lg">
-                                        <pre className="font-mono text-base whitespace-pre-wrap overflow-x-auto bg-white p-4 rounded-lg border border-gray-100 text-left">
-                                            {JSON.stringify(selectedNFT.metadata, null, 2)}
-                                        </pre>
+                                    <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                                        {selectedNFT.metadata && selectedNFT.metadata['721'] && (
+                                            <>
+                                                {/* Lấy policy ID */}
+                                                {Object.keys(selectedNFT.metadata['721']).filter(key => key !== 'version').map(policyId => {
+                                                    const assetData = selectedNFT.metadata['721'][policyId];
+                                                    const assetKeys = Object.keys(assetData);
+                                                    
+                                                    return assetKeys.map(assetKey => {
+                                                        const assetInfo = assetData[assetKey];
+                                                        
+                                                        return (
+                                                            <div key={assetKey} className="space-y-3">
+                                                                {Object.entries(assetInfo).map(([key, value]) => {
+                                                                    // Bỏ qua các trường là object phức tạp hoặc các trường cần ẩn
+                                                                    if (typeof value === 'object' && value !== null || 
+                                                                        key === 'image' || 
+                                                                        key === 'student_id' || 
+                                                                        key === 'educator_id') {
+                                                                        return null;
+                                                                    }
+                                                                    
+                                                                    return (
+                                                                        <div key={key} className="bg-white p-4 rounded-lg border border-gray-100">
+                                                                            <div className="font-medium text-gray-700">{key}</div>
+                                                                            <div className="mt-1 break-all">{value.toString()}</div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    });
+                                                })}
+                                            </>
+                                        )}
+                                        <div className="mt-4">
+                                            <button 
+                                                onClick={() => setShowRawMetadata(!showRawMetadata)}
+                                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                            >
+                                                {showRawMetadata ? 'Hide metadata' : 'View metadata'}
+                                            </button>
+                                            {showRawMetadata && (
+                                                <pre className="mt-2 font-mono text-sm whitespace-pre-wrap overflow-x-auto bg-gray-100 p-4 rounded-lg border border-gray-200 text-left">
+                                                    {JSON.stringify(selectedNFT.metadata, null, 2)}
+                                                </pre>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -223,33 +268,92 @@ const TransactionChecker = () => {
                         {activeTab === 'edu' && selectedNFT.educator && (
                             <div className="space-y-6">
                                 <h3 className="text-2xl font-bold text-gray-800 mb-4">Educator Information</h3>
-                                <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-                                    <div><span className="font-semibold">Name:</span> {selectedNFT.educator.name}</div>
-                                    <div><span className="font-semibold">Email:</span> {selectedNFT.educator.email}</div>
-                                    <div><span className="font-semibold">Wallet Address:</span> {selectedNFT.educator.walletAddress || 'N/A'}</div>
-                                    <div><span className="font-semibold">Total Students:</span> {selectedNFT.educator.totalStudents}</div>
-                                    <div><span className="font-semibold">Total Courses:</span> {selectedNFT.educator.totalCourses}</div>
+                                
+                                {/* Thông tin cơ bản */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                                        <h4 className="text-lg font-semibold text-gray-700 border-b pb-2">Basic Information</h4>
+                                        <div><span className="font-semibold">Name:</span> {selectedNFT.educator.name}</div>
+                                        <div><span className="font-semibold">Email:</span> {selectedNFT.educator.email}</div>
+                                        {selectedNFT.educator.bio && (
+                                            <div>
+                                                <span className="font-semibold">Bio:</span> 
+                                                <p className="mt-1 text-gray-600">{selectedNFT.educator.bio}</p>
+                                            </div>
+                                        )}
+                                        {selectedNFT.educator.walletAddress && (
+                                            <div>
+                                                <span className="font-semibold">Wallet Address:</span>
+                                                <p className="mt-1 text-sm text-gray-500 break-all">{selectedNFT.educator.walletAddress}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Thống kê */}
+                                    <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                                        <h4 className="text-lg font-semibold text-gray-700 border-b pb-2">Statistics</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                                <div className="text-sm text-gray-500">Total Students</div>
+                                                <div className="text-2xl font-bold text-blue-600">{selectedNFT.educator.totalStudents}</div>
+                                            </div>
+                                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                                <div className="text-sm text-gray-500">Total Courses</div>
+                                                <div className="text-2xl font-bold text-green-600">{selectedNFT.educator.totalCourses}</div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2">
+                                            <div><span className="font-semibold">Joined:</span> {selectedNFT.educator.joinDate ? new Date(selectedNFT.educator.joinDate).toLocaleDateString() : 'N/A'}</div>
+                                            <div><span className="font-semibold">Last Active:</span> {selectedNFT.educator.lastActive ? new Date(selectedNFT.educator.lastActive).toLocaleDateString() : 'N/A'}</div>
+                                        </div>
+                                    </div>
                                 </div>
+                                
+                                {/* Danh sách khóa học */}
                                 <div className="bg-gray-50 p-6 rounded-lg">
-                                    <h4 className="text-lg font-semibold mb-2">Courses & Ratings</h4>
-                                    <table className="min-w-full text-left border">
-                                        <thead>
-                                            <tr>
-                                                <th className="border px-4 py-2">Course Title</th>
-                                                <th className="border px-4 py-2">Total Votes</th>
-                                                <th className="border px-4 py-2">Average Rate</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedNFT.educator.courseRates.map((c) => (
-                                                <tr key={c.courseId}>
-                                                    <td className="border px-4 py-2">{c.courseTitle}</td>
-                                                    <td className="border px-4 py-2">{c.totalVotes}</td>
-                                                    <td className="border px-4 py-2">{c.avgRate}</td>
+                                    <h4 className="text-lg font-semibold mb-4 text-gray-700 border-b pb-2">Courses & Ratings</h4>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full text-left border">
+                                            <thead>
+                                                <tr className="bg-gray-100">
+                                                    <th className="border px-4 py-2">Course Title</th>
+                                                    <th className="border px-4 py-2">Students</th>
+                                                    <th className="border px-4 py-2">Price</th>
+                                                    <th className="border px-4 py-2">Rating</th>
+                                                    <th className="border px-4 py-2">Created</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {selectedNFT.educator.courseRates.map((c) => (
+                                                    <tr key={c.courseId} className="hover:bg-gray-50">
+                                                        <td className="border px-4 py-2 font-medium">{c.courseTitle}</td>
+                                                        <td className="border px-4 py-2">{c.enrolledCount || 0}</td>
+                                                        <td className="border px-4 py-2">
+                                                            {c.discount > 0 ? (
+                                                                <div>
+                                                                    <span className="line-through text-gray-400">ADA{c.price}</span>
+                                                                    <span className="ml-2 text-green-600">ADA{(c.price - (c.price * c.discount / 100)).toFixed(2)}</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span>ADA{c.price}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="border px-4 py-2">
+                                                            <div className="flex items-center">
+                                                                <span className="text-amber-500 mr-1">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                                    </svg>
+                                                                </span>
+                                                                <span>{c.avgRate} ({c.totalVotes})</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border px-4 py-2">{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'N/A'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         )}

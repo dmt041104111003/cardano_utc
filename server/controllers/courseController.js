@@ -84,3 +84,16 @@ export const getCourseId = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 }
+
+export const getCoursesByEducator = async (req, res) => {
+  try {
+    const { educatorId } = req.params;
+    const excludeId = req.query.excludeId;
+    const query = { educator: educatorId };
+    if (excludeId) query._id = { $ne: excludeId };
+    const courses = await Course.find(query).populate('educator');
+    res.json({ success: true, courses });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};

@@ -1,6 +1,8 @@
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import Course from '../models/Course.js';
 import User from '../models/User.js';
+import Certificate from '../models/Certificate.js';
+import { Purchase } from '../models/Purchase.js';
 
 // Initialize Blockfrost API client
 const blockfrost = new BlockFrostAPI({
@@ -245,8 +247,14 @@ export const getNFTInfoByPolicy = async (req, res) => {
                         courseId: c._id,
                         courseTitle: c.courseTitle,
                         totalVotes: c.courseRatings.length,
-                        avgRate: c.courseRatings.length > 0 ? (c.courseRatings.reduce((a, b) => a + b.rating, 0) / c.courseRatings.length).toFixed(2) : 0
+                        avgRate: c.courseRatings.length > 0 ? (c.courseRatings.reduce((a, b) => a + b.rating, 0) / c.courseRatings.length).toFixed(2) : 0,
+                        enrolledCount: c.enrolledStudents.length,
+                        price: c.coursePrice,
+                        discount: c.discount || 0,
+                        createdAt: c.createdAt
                     }));
+                    
+                    // Không cần lấy số lượng chứng chỉ nữa
 
                     educator = {
                         name: course.educator.name,
@@ -254,6 +262,9 @@ export const getNFTInfoByPolicy = async (req, res) => {
                         walletAddress,
                         totalStudents: allStudentIds.size,
                         totalCourses,
+                        bio: course.educator.bio || '',
+                        joinDate: course.educator.createdAt,
+                        lastActive: course.educator.updatedAt,
                         courseRates
                     };
                 }

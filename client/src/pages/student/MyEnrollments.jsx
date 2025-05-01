@@ -216,23 +216,36 @@ const MyEnrollments = () => {
                         `${backendUrl}/api/notification/certificate-status?studentId=${userData._id}&courseId=${course._id}`,
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
-                    if (data.success && data.notification?.status === 'completed') {
-                        setCertificateStatus(prev => ({ ...prev, [course._id]: 'completed' }));
+                    
+                    if (data.success) {
+                        // Nếu đã mint xong
+                        if (data.notification?.status === 'completed') {
+                            setCertificateStatus(prev => ({ ...prev, [course._id]: 'completed' }));
+                            // Nếu đã mint xong thì cũng đã gửi yêu cầu rồi
+                            setSentToEducator(prev => ({ ...prev, [course._id]: true }));
+                        }
+                        // Nếu có thông báo nhưng chưa mint xong, vẫn đánh dấu là đã gửi yêu cầu
+                        else if (data.notification) {
+                            setSentToEducator(prev => ({ ...prev, [course._id]: true }));
+                        }
                     }
                 } catch (error) {
                     console.error(`Error checking certificate status for course ${course._id}:`, error);
                 }
             });
 
-            // Check sent to educator statuses
+            // Check sent to educator statuses thông qua bảng Address
             const addressPromises = enrolledCourses.map(async (course) => {
                 try {
+                    // Sử dụng API mới để kiểm tra xem học viên đã gửi yêu cầu chưa
                     const { data } = await axios.get(
-                        `${backendUrl}/api/address/find?courseId=${course._id}&userId=${userData._id}`,
+                        `${backendUrl}/api/address/check?courseId=${course._id}&userId=${userData._id}`,
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
                     if (data.success && data.exists) {
-                        // updateSentToEducator(course._id);
+                        console.log(`Address exists for course ${course._id}`);
+                        // Nếu đã lưu địa chỉ, đánh dấu là đã gửi yêu cầu
+                        setSentToEducator(prev => ({ ...prev, [course._id]: true }));
                     }
                 } catch (error) {
                     console.error(`Error checking address status for course ${course._id}:`, error);
@@ -382,6 +395,7 @@ const MyEnrollments = () => {
 
     const [showQRModal, setShowQRModal] = useState(false);
     const [selectedNFTForQR, setSelectedNFTForQR] = useState(null);
+    const [showRawMetadata, setShowRawMetadata] = useState(false);
 
     useEffect(() => {
         if (enrolledCourses) {
@@ -540,40 +554,120 @@ const MyEnrollments = () => {
     }
 
     const handleDownloadCertPDF = (certData) => {
+        // Tạo PDF với cấu hình hỗ trợ Unicode
         const pdf = new jsPDF({
             orientation: 'landscape',
             unit: 'mm',
             format: 'a4'
         });
-
-        // Set up the PDF
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(30);
-        pdf.setTextColor(44, 62, 80);
-
-        // Add title
-        pdf.text("Course Certificate", pdf.internal.pageSize.width/2, 40, { align: "center" });
-
-        // Set font for content
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(16);
-        pdf.setTextColor(52, 73, 94);
-
-        // Add content
-        const startY = 70;
-        const lineHeight = 12;
         
-        pdf.text(`Course: ${certData.courseInfo.title}`, 40, startY);
-        pdf.text(`Course ID: ${certData.courseId}`, 40, startY + lineHeight);
-        pdf.text(`Educator: ${certData.courseInfo.educatorName}`, 40, startY + lineHeight * 2);
-        pdf.text(`Student Name: ${certData.studentInfo.name}`, 40, startY + lineHeight * 4);
-        pdf.text(`Completion Date: ${new Date(certData.completedAt).toLocaleDateString()}`, 40, startY + lineHeight * 5);
-
-        // Add decorative border
+        // Lấy kích thước trang
+        const width = pdf.internal.pageSize.width;
+        const height = pdf.internal.pageSize.height;
+        const centerX = width / 2;
+        
+        // Thêm background màu gradient
+        const gradient = function(x, y, w, h, color1, color2) {
+            for (let i = 0; i <= h; i += 1) {
+                const ratio = i / h;
+                const r = color1.r * (1 - ratio) + color2.r * ratio;
+                const g = color1.g * (1 - ratio) + color2.g * ratio;
+                const b = color1.b * (1 - ratio) + color2.b * ratio;
+                pdf.setFillColor(r, g, b);
+                pdf.rect(x, y + i, w, 1, 'F');
+            }
+        };
+        
+        // Màu gradient nhẹ cho background
+        gradient(0, 0, width, height, 
+            {r: 255, g: 255, b: 255}, // Trắng ở trên
+            {r: 240, g: 248, b: 255}  // Xanh nhạt ở dưới
+        );
+        
+        // Vẽ viền trang trí
+        pdf.setDrawColor(41, 128, 185); // Màu xanh
+        pdf.setLineWidth(2);
+        pdf.roundedRect(15, 15, width - 30, height - 30, 5, 5, 'S');
+        
+        // Vẽ họa tiết trang trí góc
+        pdf.setDrawColor(41, 128, 185);
+        pdf.setLineWidth(1.5);
+        // Góc trên bên trái
+        pdf.line(15, 25, 35, 25);
+        pdf.line(25, 15, 25, 35);
+        // Góc trên bên phải
+        pdf.line(width - 15, 25, width - 35, 25);
+        pdf.line(width - 25, 15, width - 25, 35);
+        // Góc dưới bên trái
+        pdf.line(15, height - 25, 35, height - 25);
+        pdf.line(25, height - 15, 25, height - 35);
+        // Góc dưới bên phải
+        pdf.line(width - 15, height - 25, width - 35, height - 25);
+        pdf.line(width - 25, height - 15, width - 25, height - 35);
+        
+        // Tiêu đề chính
+        pdf.setFont(undefined, "bold");
+        pdf.setFontSize(36);
+        pdf.setTextColor(41, 128, 185); // Màu xanh
+        pdf.text("CERTIFICATE", centerX, 50, { align: "center" });
+        
+        pdf.setFontSize(22);
+        pdf.setTextColor(70, 70, 70); // Màu xám đậm
+        pdf.text("OF ACHIEVEMENT", centerX, 65, { align: "center" });
+        
+        // Đường kẻ ngang dưới tiêu đề
         pdf.setDrawColor(41, 128, 185);
         pdf.setLineWidth(1);
-        pdf.rect(20, 20, pdf.internal.pageSize.width - 40, pdf.internal.pageSize.height - 40);
-
+        pdf.line(centerX - 50, 70, centerX + 50, 70);
+        
+        // Thông tin chứng chỉ
+        pdf.setFont(undefined, "normal");
+        pdf.setFontSize(14);
+        pdf.setTextColor(70, 70, 70);
+        
+        pdf.text("This is to certify that", centerX, 90, { align: "center" });
+        
+        // Tên học viên
+        pdf.setFont(undefined, "bold");
+        pdf.setFontSize(24);
+        pdf.setTextColor(41, 128, 185);
+        pdf.text(certData.studentInfo.name, centerX, 105, { align: "center" });
+        
+        // Thông tin khóa học
+        pdf.setFont(undefined, "normal");
+        pdf.setFontSize(14);
+        pdf.setTextColor(70, 70, 70);
+        pdf.text("has successfully completed the course", centerX, 120, { align: "center" });
+        
+        // Tên khóa học
+        pdf.setFont(undefined, "bold");
+        pdf.setFontSize(20);
+        pdf.setTextColor(41, 128, 185);
+        pdf.text(certData.courseInfo.title, centerX, 135, { align: "center" });
+        
+        // Thông tin giáo viên
+        pdf.setFont(undefined, "normal");
+        pdf.setFontSize(14);
+        pdf.setTextColor(70, 70, 70);
+        pdf.text(`Instructor: ${certData.courseInfo.educatorName}`, centerX, 150, { align: "center" });
+        
+        // Ngày hoàn thành
+        pdf.text(`Completion Date: ${new Date(certData.completedAt).toLocaleDateString()}`, centerX, 165, { align: "center" });
+        
+        // Thông tin blockchain
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Course ID: ${certData.courseId}`, centerX, 180, { align: "center" });
+        pdf.text("Verified on Cardano Blockchain", centerX, 185, { align: "center" });
+        
+        // Thêm chữ ký và con dấu
+        pdf.setDrawColor(41, 128, 185);
+        pdf.setLineWidth(0.5);
+        pdf.line(centerX - 50, height - 50, centerX + 50, height - 50);
+        pdf.setFont(undefined, "normal");
+        pdf.setFontSize(12);
+        pdf.text("Authorized Signature", centerX, height - 40, { align: "center" });
+        
         // Save the PDF
         pdf.save(`${certData.courseInfo.title}-certificate.pdf`);
     };
@@ -988,7 +1082,7 @@ const MyEnrollments = () => {
                                 <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.policyId}</p>
                             </div>
                             <div>
-                                <label className="text-sm text-gray-600">Asset Name (Hex)</label>
+                                <label className="text-sm text-gray-600">Hex Name</label>
                                 <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.hexName}</p>
                             </div>
                             <div>
@@ -999,6 +1093,53 @@ const MyEnrollments = () => {
                                 <label className="text-sm text-gray-600">Course Title</label>
                                 <p className="text-sm bg-gray-50 p-2 rounded">{selectedNFT.courseTitle}</p>
                             </div>
+                            
+                            {selectedNFT.metadata && selectedNFT.metadata['721'] && (
+                                <div className="mt-4">
+                                    <label className="text-sm text-gray-600 font-medium">Metadata Fields</label>
+                                    <div className="space-y-3 mt-2">
+                                        {Object.keys(selectedNFT.metadata['721']).filter(key => key !== 'version').map(policyId => {
+                                            const assetData = selectedNFT.metadata['721'][policyId];
+                                            const assetKeys = Object.keys(assetData);
+                                            
+                                            return assetKeys.map(assetKey => {
+                                                const assetInfo = assetData[assetKey];
+                                                
+                                                return Object.entries(assetInfo).map(([key, value]) => {
+                                                    // Bỏ qua các trường là object phức tạp hoặc các trường cần ẩn
+                                                    if (typeof value === 'object' && value !== null || 
+                                                        key === 'image' || 
+                                                        key === 'student_id' || 
+                                                        key === 'educator_id') {
+                                                        return null;
+                                                    }
+                                                    
+                                                    return (
+                                                        <div key={key} className="bg-gray-50 p-2 rounded">
+                                                            <div className="text-sm font-medium text-gray-700">{key}</div>
+                                                            <div className="text-sm break-all">{value.toString()}</div>
+                                                        </div>
+                                                    );
+                                                });
+                                            });
+                                        })}
+                                    </div>
+                                    
+                                    <div className="mt-3">
+                                        <button 
+                                            onClick={() => setShowRawMetadata(!showRawMetadata)}
+                                            className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                        >
+                                            {showRawMetadata ? 'Hide metadata' : 'View metadata'}
+                                        </button>
+                                        {showRawMetadata && (
+                                            <pre className="mt-2 font-mono text-xs whitespace-pre-wrap overflow-x-auto bg-gray-100 p-2 rounded text-left max-h-40 overflow-y-auto">
+                                                {JSON.stringify(selectedNFT.metadata, null, 2)}
+                                            </pre>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             {selectedNFT.mintTransaction && (
                                 <div>
                                     <label className="text-sm text-gray-600">Mint Transaction</label>
@@ -1018,12 +1159,7 @@ const MyEnrollments = () => {
                                     </div>
                                 </div>
                             )}
-                            <div>
-                                <label className="text-sm text-gray-600">Metadata (CIP-721)</label>
-                                <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto max-h-40 font-mono">
-                                    {JSON.stringify(selectedNFT.metadata, null, 2)}
-                                </pre>
-                            </div>
+
                         </div>
                         <div className="mt-6 flex justify-end gap-2 pt-4 border-t">
                             <a 
@@ -1070,7 +1206,7 @@ const MyEnrollments = () => {
                             </div>
 
                             <div>
-                                <h3 className="text-gray-600 mb-2">Asset Name (Hex)</h3>
+                                <h3 className="text-gray-600 mb-2">Hex Name</h3>
                                 <div className="bg-gray-50 p-4 rounded">
                                     {selectedNFTForQR.hexName}
                                 </div>
@@ -1079,9 +1215,42 @@ const MyEnrollments = () => {
                             <div>
                                 <h3 className="text-gray-600 mb-2">Asset Name (Readable)</h3>
                                 <div className="bg-gray-50 p-4 rounded">
-                                    {selectedNFTForQR.assetName || 'Loading...'}
+                                    {selectedNFTForQR.assetName}
                                 </div>
                             </div>
+
+                            {selectedNFTForQR.metadata && selectedNFTForQR.metadata['721'] && (
+                                <div className="mt-4">
+                                    <h3 className="text-gray-600 mb-2">Metadata Fields</h3>
+                                    <div className="space-y-3">
+                                        {Object.keys(selectedNFTForQR.metadata['721']).filter(key => key !== 'version').map(policyId => {
+                                            const assetData = selectedNFTForQR.metadata['721'][policyId];
+                                            const assetKeys = Object.keys(assetData);
+                                            
+                                            return assetKeys.map(assetKey => {
+                                                const assetInfo = assetData[assetKey];
+                                                
+                                                return Object.entries(assetInfo).map(([key, value]) => {
+                                                    // Bỏ qua các trường là object phức tạp hoặc các trường cần ẩn
+                                                    if (typeof value === 'object' && value !== null || 
+                                                        key === 'image' || 
+                                                        key === 'student_id' || 
+                                                        key === 'educator_id') {
+                                                        return null;
+                                                    }
+                                                    
+                                                    return (
+                                                        <div key={key} className="bg-gray-50 p-3 rounded mb-2">
+                                                            <div className="font-medium text-gray-700">{key}</div>
+                                                            <div className="text-sm break-all">{value.toString()}</div>
+                                                        </div>
+                                                    );
+                                                });
+                                            });
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <h3 className="text-gray-600 mb-2">Course Title</h3>
@@ -1148,42 +1317,197 @@ const MyEnrollments = () => {
                                                 metadata: selectedNFTForQR.metadata
                                             };
 
-                                            const pdf = new jsPDF('p', 'mm', 'a4');
+                                            // Tạo PDF với cấu hình hỗ trợ Unicode
+                                            const pdf = new jsPDF({
+                                                orientation: 'p',
+                                                unit: 'mm',
+                                                format: 'a4'
+                                            });
                                             
-                                            // Add title
-                                            pdf.setFontSize(20);
-                                            pdf.text('Certificate Information', pdf.internal.pageSize.width/2, 20, { align: 'center' });
+                                            // Lấy kích thước trang
+                                            const width = pdf.internal.pageSize.width;
+                                            const height = pdf.internal.pageSize.height;
+                                            const centerX = width / 2;
                                             
-                                            // Add content
+                                            // Thêm background màu gradient
+                                            const gradient = function(x, y, w, h, color1, color2) {
+                                                for (let i = 0; i <= h; i += 1) {
+                                                    const ratio = i / h;
+                                                    const r = color1.r * (1 - ratio) + color2.r * ratio;
+                                                    const g = color1.g * (1 - ratio) + color2.g * ratio;
+                                                    const b = color1.b * (1 - ratio) + color2.b * ratio;
+                                                    pdf.setFillColor(r, g, b);
+                                                    pdf.rect(x, y + i, w, 1, 'F');
+                                                }
+                                            };
+                                            
+                                            // Màu gradient nhẹ cho background
+                                            gradient(0, 0, width, height, 
+                                                {r: 255, g: 255, b: 255}, // Trắng ở trên
+                                                {r: 240, g: 248, b: 255}  // Xanh nhạt ở dưới
+                                            );
+                                            
+                                            // Vẽ viền trang trí
+                                            pdf.setDrawColor(41, 128, 185); // Màu xanh
+                                            pdf.setLineWidth(1.5);
+                                            pdf.roundedRect(15, 15, width - 30, height - 30, 5, 5, 'S');
+                                            
+                                            // Vẽ họa tiết trang trí góc
+                                            pdf.setDrawColor(41, 128, 185);
+                                            pdf.setLineWidth(1);
+                                            // Góc trên bên trái
+                                            pdf.line(15, 25, 35, 25);
+                                            pdf.line(25, 15, 25, 35);
+                                            // Góc trên bên phải
+                                            pdf.line(width - 15, 25, width - 35, 25);
+                                            pdf.line(width - 25, 15, width - 25, 35);
+                                            // Góc dưới bên trái
+                                            pdf.line(15, height - 25, 35, height - 25);
+                                            pdf.line(25, height - 15, 25, height - 35);
+                                            // Góc dưới bên phải
+                                            pdf.line(width - 15, height - 25, width - 35, height - 25);
+                                            pdf.line(width - 25, height - 15, width - 25, height - 35);
+                                            
+                                            // Tiêu đề chính
+                                            pdf.setFont(undefined, "bold");
+                                            pdf.setFontSize(24);
+                                            pdf.setTextColor(41, 128, 185); // Màu xanh
+                                            pdf.text("BLOCKCHAIN CERTIFICATE", centerX, 35, { align: "center" });
+                                            
+                                            // Đường kẻ ngang dưới tiêu đề
+                                            pdf.setDrawColor(41, 128, 185);
+                                            pdf.setLineWidth(0.5);
+                                            pdf.line(centerX - 60, 40, centerX + 60, 40);
+                                            
+                                            // Tên khóa học
+                                            pdf.setFont(undefined, "bold");
+                                            pdf.setFontSize(18);
+                                            pdf.setTextColor(70, 70, 70);
+                                            pdf.text(certificateData.courseTitle, centerX, 50, { align: "center" });
+                                            
+                                            // Thông tin chính
+                                            pdf.setFont(undefined, "bold");
                                             pdf.setFontSize(12);
-                                            pdf.text(`Course Title: ${certificateData.courseTitle}`, 20, 40);
+                                            pdf.setTextColor(41, 128, 185);
+                                            pdf.text('Policy ID:', 25, 65);
+                                            pdf.text('Transaction Hash:', 25, 75);
+                                            
+                                            // Giá trị
+                                            pdf.setFont(undefined, "normal");
+                                            pdf.setFontSize(10);
+                                            pdf.setTextColor(70, 70, 70);
                                             
                                             // Split long text into multiple lines
-                                            const policyIdText = `Policy ID: ${certificateData.policyId}`;
-                                            const txHashText = `Transaction Hash: ${certificateData.txHash}`;
-                                            const splitPolicyId = pdf.splitTextToSize(policyIdText, 170);
-                                            const splitTxHash = pdf.splitTextToSize(txHashText, 170);
+                                            const policyIdValue = pdf.splitTextToSize(certificateData.policyId, 140);
+                                            const txHashValue = pdf.splitTextToSize(certificateData.txHash, 140);
+                                            pdf.text(policyIdValue, 65, 65);
+                                            pdf.text(txHashValue, 65, 75);
                                             
-                                            pdf.text(splitPolicyId, 20, 50);
-                                            pdf.text(`Asset Name (Hex): ${certificateData.hexName}`, 20, 60);
-                                            pdf.text(`Asset Name (Readable): ${certificateData.assetName}`, 20, 70);
-                                            pdf.text(splitTxHash, 20, 80);
-                                            pdf.text(`Block Height: ${certificateData.block}`, 20, 90);
-                                            pdf.text(`Timestamp: ${new Date(certificateData.timestamp).toLocaleString()}`, 20, 100);
+                                            // Tiêu đề phần metadata
+                                            let yPos = 90;
+                                            pdf.setDrawColor(41, 128, 185);
+                                            pdf.setLineWidth(0.5);
+                                            pdf.line(25, yPos, width - 25, yPos);
                                             
-                                            // Add metadata
-                                            pdf.text('NFT Metadata:', 20, 120);
-                                            const metadataText = JSON.stringify(certificateData.metadata, null, 2);
-                                            const splitMetadata = pdf.splitTextToSize(metadataText, 170);
+                                            pdf.setFont(undefined, "bold");
+                                            pdf.setFontSize(16);
+                                            pdf.setTextColor(41, 128, 185);
+                                            pdf.text('CERTIFICATE METADATA', centerX, yPos + 7, { align: 'center' });
+                                            yPos += 15;
+                                            
+                                            // Extract and display metadata fields
+                                            if (certificateData.metadata && certificateData.metadata['721']) {
+                                                const metadataFields = [];
+                                                
+                                                Object.keys(certificateData.metadata['721']).filter(key => key !== 'version').forEach(policyId => {
+                                                    const assetData = certificateData.metadata['721'][policyId];
+                                                    Object.keys(assetData).forEach(assetKey => {
+                                                        const assetInfo = assetData[assetKey];
+                                                        
+                                                        Object.entries(assetInfo).forEach(([key, value]) => {
+                                                            // Skip complex objects and hidden fields
+                                                            if (typeof value === 'object' && value !== null || 
+                                                                key === 'image' || 
+                                                                key === 'student_id' || 
+                                                                key === 'educator_id') {
+                                                                return;
+                                                            }
+                                                            
+                                                            metadataFields.push({ key, value: value.toString() });
+                                                        });
+                                                    });
+                                                });
+                                                
+                                                // Vẽ background cho metadata
+                                                pdf.setFillColor(248, 250, 252); // Màu xám nhạt
+                                                pdf.roundedRect(25, yPos, width - 50, Math.min(metadataFields.length * 12 + 10, 100), 3, 3, 'F');
+                                                
+                                                // Hiển thị các trường metadata
+                                                yPos += 8;
+                                                pdf.setFontSize(11);
+                                                
+                                                // Tạo bảng 2 cột nếu có nhiều trường
+                                                const useColumns = metadataFields.length > 4;
+                                                const colWidth = useColumns ? (width - 60) / 2 : width - 60;
+                                                let col2YPos = yPos;
+                                                
+                                                metadataFields.forEach((field, index) => {
+                                                    // Xác định vị trí hiển thị (cột 1 hoặc cột 2)
+                                                    let currentX = 30;
+                                                    let currentYPos = yPos;
+                                                    
+                                                    if (useColumns && index >= Math.ceil(metadataFields.length / 2)) {
+                                                        currentX = 30 + colWidth + 10;
+                                                        currentYPos = col2YPos;
+                                                        col2YPos += 12;
+                                                    } else {
+                                                        yPos += 12;
+                                                    }
+                                                    
+                                                    // Tên trường
+                                                    pdf.setFont(undefined, "bold");
+                                                    pdf.setTextColor(70, 70, 70);
+                                                    pdf.text(`${field.key}:`, currentX, currentYPos);
+                                                    
+                                                    // Giá trị
+                                                    pdf.setFont(undefined, "normal");
+                                                    pdf.setTextColor(100, 100, 100);
+                                                    
+                                                    const valueLines = pdf.splitTextToSize(field.value, colWidth - 40);
+                                                    pdf.text(valueLines, currentX + 35, currentYPos);
+                                                    
+                                                    // Tăng vị trí y nếu có nhiều dòng
+                                                    if (valueLines.length > 1 && !useColumns) {
+                                                        yPos += (valueLines.length - 1) * 5;
+                                                    }
+                                                });
+                                                
+                                                // Cập nhật vị trí y cho phần tiếp theo
+                                                yPos = Math.max(yPos, col2YPos) + 10;
+                                            }
+                                            
+                                            // Tiêu đề phần QR code
+                                            pdf.setDrawColor(41, 128, 185);
+                                            pdf.setLineWidth(0.5);
+                                            pdf.line(25, yPos, width - 25, yPos);
+                                            
+                                            pdf.setFont(undefined, "bold");
+                                            pdf.setFontSize(16);
+                                            pdf.setTextColor(41, 128, 185);
+                                            pdf.text('BLOCKCHAIN VERIFICATION', centerX, yPos + 7, { align: 'center' });
+                                            
+                                            // Thêm hướng dẫn quét QR
+                                            pdf.setFont(undefined, "normal");
                                             pdf.setFontSize(10);
-                                            pdf.text(splitMetadata, 20, 130);
+                                            pdf.setTextColor(70, 70, 70);
+                                            pdf.text('Scan these QR codes to verify the authenticity of this certificate on the Cardano blockchain', 
+                                                   centerX, yPos + 15, { align: 'center' });
                                             
-                                            // Calculate metadata height and ensure enough space for QR codes
-                                            const metadataHeight = splitMetadata.length * 5; // 5mm per line
-                                            const qrCodeSize = 50; // Smaller QR codes
-                                            const qrStartY = 220; // Move QR codes further down
+                                            // Kích thước và vị trí QR code
+                                            const qrCodeSize = 40; // Kích thước QR code
+                                            const qrStartY = yPos + 25; // Vị trí bắt đầu sau metadata
                                             
-                                            // Add both QR Codes side by side
+                                            // Thêm cả hai QR Code cạnh nhau
                                             Promise.all([
                                                 html2canvas(document.querySelector('.border.border-gray-200.p-2')),
                                                 html2canvas(document.querySelectorAll('.border.border-gray-200.p-2')[1])
@@ -1191,22 +1515,86 @@ const MyEnrollments = () => {
                                                 const imgData1 = canvas1.toDataURL('image/png');
                                                 const imgData2 = canvas2.toDataURL('image/png');
                                                 
-                                                // Add a page break if needed
-                                                if (qrStartY + qrCodeSize + 10 > pdf.internal.pageSize.height) {
+                                                // Thêm trang mới nếu cần
+                                                if (qrStartY + qrCodeSize + 20 > pdf.internal.pageSize.height) {
                                                     pdf.addPage();
-                                                    qrStartY = 20; // Start at top of new page
+                                                    // Thêm background gradient cho trang mới
+                                                    gradient(0, 0, width, height, 
+                                                        {r: 255, g: 255, b: 255}, // Trắng ở trên
+                                                        {r: 240, g: 248, b: 255}  // Xanh nhạt ở dưới
+                                                    );
+                                                    // Thêm viền trang trí
+                                                    pdf.setDrawColor(41, 128, 185);
+                                                    pdf.setLineWidth(1.5);
+                                                    pdf.roundedRect(15, 15, width - 30, height - 30, 5, 5, 'S');
                                                 }
                                                 
-                                                // First QR code on the left
-                                                pdf.addImage(imgData1, 'PNG', 40, qrStartY, qrCodeSize, qrCodeSize);
+                                                // Tạo background cho QR code
+                                                const leftQRX = width / 2 - qrCodeSize - 20;
+                                                const rightQRX = width / 2 + 20;
+                                                
+                                                // Background cho QR code bên trái
+                                                pdf.setFillColor(248, 250, 252);
+                                                pdf.roundedRect(leftQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'F');
+                                                
+                                                // Background cho QR code bên phải
+                                                pdf.setFillColor(248, 250, 252);
+                                                pdf.roundedRect(rightQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'F');
+                                                
+                                                // Viền cho QR code bên trái
+                                                pdf.setDrawColor(41, 128, 185);
+                                                pdf.setLineWidth(0.5);
+                                                pdf.roundedRect(leftQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'S');
+                                                
+                                                // Viền cho QR code bên phải
+                                                pdf.roundedRect(rightQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'S');
+                                                
+                                                // QR code bên trái
+                                                pdf.addImage(imgData1, 'PNG', leftQRX, qrStartY, qrCodeSize, qrCodeSize);
+                                                pdf.setFont(undefined, "bold");
                                                 pdf.setFontSize(10);
-                                                pdf.text('Verification QR Code', 65, qrStartY + qrCodeSize + 5, { align: 'center' });
+                                                pdf.setTextColor(41, 128, 185);
+                                                pdf.text('VERIFICATION', leftQRX + qrCodeSize/2, qrStartY + qrCodeSize + 8, { align: 'center' });
+                                                pdf.setFont(undefined, "normal");
+                                                pdf.setFontSize(8);
+                                                pdf.setTextColor(100, 100, 100);
+                                                pdf.text('Scan to verify certificate', leftQRX + qrCodeSize/2, qrStartY + qrCodeSize + 15, { align: 'center' });
                                                 
-                                                // Second QR code on the right
-                                                pdf.addImage(imgData2, 'PNG', 120, qrStartY, qrCodeSize, qrCodeSize);
-                                                pdf.text('Blockchain Info QR Code', 145, qrStartY + qrCodeSize + 5, { align: 'center' });
+                                                // QR code bên phải
+                                                pdf.addImage(imgData2, 'PNG', rightQRX, qrStartY, qrCodeSize, qrCodeSize);
+                                                pdf.setFont(undefined, "bold");
+                                                pdf.setFontSize(10);
+                                                pdf.setTextColor(41, 128, 185);
+                                                pdf.text('BLOCKCHAIN INFO', rightQRX + qrCodeSize/2, qrStartY + qrCodeSize + 8, { align: 'center' });
+                                                pdf.setFont(undefined, "normal");
+                                                pdf.setFontSize(8);
+                                                pdf.setTextColor(100, 100, 100);
+                                                pdf.text('Scan for transaction details', rightQRX + qrCodeSize/2, qrStartY + qrCodeSize + 15, { align: 'center' });
                                                 
-                                                // Save the PDF
+                                                // Thêm chữ ký và ngày cấp
+                                                const signatureY = qrStartY + qrCodeSize + 35;
+                                                if (signatureY + 30 < height - 20) { // Kiểm tra còn đủ chỗ
+                                                    pdf.setDrawColor(41, 128, 185);
+                                                    pdf.setLineWidth(0.5);
+                                                    pdf.line(centerX - 40, signatureY, centerX + 40, signatureY);
+                                                    pdf.setFont(undefined, "normal");
+                                                    pdf.setFontSize(10);
+                                                    pdf.setTextColor(70, 70, 70);
+                                                    pdf.text('Authorized Signature', centerX, signatureY + 5, { align: 'center' });
+                                                    
+                                                    // Ngày cấp chứng chỉ
+                                                    const issueDate = new Date(certificateData.timestamp).toLocaleDateString();
+                                                    pdf.text(`Issue Date: ${issueDate}`, centerX, signatureY + 15, { align: 'center' });
+                                                }
+                                                
+                                                // Thêm footer
+                                                pdf.setFont(undefined, "italic");
+                                                pdf.setFontSize(8);
+                                                pdf.setTextColor(150, 150, 150);
+                                                pdf.text('This certificate is stored on the Cardano blockchain and cannot be altered or falsified.', 
+                                                       centerX, height - 20, { align: 'center' });
+                                                
+                                                // Lưu PDF
                                                 pdf.save(`${certificateData.courseTitle}-certificate.pdf`);
                                             });
                                         }}
@@ -1220,14 +1608,7 @@ const MyEnrollments = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <h3 className="text-gray-600 mb-2">Metadata (CIP-721)</h3>
-                                <div className="bg-gray-50 p-4 rounded">
-                                    <pre className="font-mono text-sm whitespace-pre">
-{JSON.stringify(selectedNFTForQR.metadata, null, 2)}
-                                    </pre>
-                                </div>
-                            </div>
+
                         </div>
 
                         <div className="mt-6 flex justify-end gap-2">

@@ -2,7 +2,7 @@
 /* eslint-disable react/prop-types */
 import { useState, useContext, useEffect } from "react";
 import CourseInformationCard from "../../components/student/CourseInfomationCard";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AppContext } from "../../context/AppContext";
@@ -18,6 +18,10 @@ export default function PaymentPage() {
   const [courseData, setCourseData] = useState(null);
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
   const [playerData, setPlayerData] = useState(null);
+  const [educatorCourses, setEducatorCourses] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
+  const navigate = useNavigate();
 
   const { calculateRating, calculateCourseDuration, backendUrl } = useContext(AppContext);
 
@@ -38,6 +42,15 @@ export default function PaymentPage() {
     fetchCourseData();
   }, [idParams.courseId]);
 
+  useEffect(() => {
+    if (courseData?.educator?._id) {
+      axios.get(`${backendUrl}/api/course/by-educator/${courseData.educator._id}?excludeId=${courseData._id}`)
+        .then(({ data }) => {
+          if (data.success) setEducatorCourses(data.courses);
+        });
+    }
+  }, [courseData]);
+
   const paymentMethods = courseData
     ? [
         ...(courseData.paymentMethods?.ada ? [{ id: "ada", name: "ADA", component: <AdaPayment courseData={courseData} /> }] : []),
@@ -46,6 +59,10 @@ export default function PaymentPage() {
       ]
     : [];
     
+  // Pagination logic
+  const totalPages = Math.ceil(educatorCourses.length / itemsPerPage);
+  const paginatedCourses = educatorCourses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div>
       <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -98,11 +115,46 @@ export default function PaymentPage() {
 
             <div className="course-content mt-16">
               <h3 className='text-xl font-semibold text-black mb-2'>More Courses by  
-                <span className="text-blue-600 cursor-pointer underline"> Denis Panjuta</span></h3>
-               <CourseItem/>
-               <CourseItem/>
-               <CourseItem/>
-               <CourseItem/>
+                {courseData?.educator && (
+                  <span
+                    className="text-blue-600 cursor-pointer underline"
+                    onClick={() => navigate(`/user/${courseData.educator._id}`)}
+                  >
+                    {courseData.educator.name}
+                  </span>
+                )}
+              </h3>
+              {educatorCourses.length === 0 && <p className="text-gray-500">No more courses from this educator.</p>}
+              {paginatedCourses.map((course) => (
+                <CourseItem key={course._id} course={course} />
+              ))}
+              {totalPages > 1 && (
+                <div className="flex gap-2 justify-center mt-4">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded-md text-sm ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'}`}
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`px-3 py-1 rounded-md text-sm ${currentPage === i + 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded-md text-sm ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>

@@ -21,12 +21,14 @@
     "@pinata/sdk": "^2.1.0",
     "axios": "^1.8.3",
     "canvas": "^3.1.0",
+    "cbor-x": "^1.6.0",
     "cloudinary": "^2.5.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "fs-extra": "^11.3.0",
     "jsonwebtoken": "^9.0.2",
+    "lucid-cardano": "^0.10.11",
     "moment": "^2.30.1",
     "mongoose": "^8.10.0",
     "multer": "^1.4.5-lts.1",
@@ -35,6 +37,7 @@
     "paypal-rest-sdk": "^1.8.1",
     "socket.io": "^4.8.1",
     "stripe": "^17.6.0",
-    "svix": "^1.42.0"
+    "svix": "^1.42.0",
+    "uniqid": "^5.4.0"
   }
 }

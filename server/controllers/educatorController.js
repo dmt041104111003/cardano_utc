@@ -287,6 +287,47 @@ export const deleteCourse = async (req, res) => {
     }
 };
 
+// Xóa tất cả khóa học của educator
+export const deleteAllCourses = async (req, res) => {
+    try {
+        const educatorId = req.auth.userId;
+        
+        // Tìm tất cả khóa học của educator
+        const courses = await Course.find({ educator: educatorId });
+        
+        if (courses.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No courses found for this educator",
+            });
+        }
+        
+        // Xóa tất cả khóa học
+        await Course.deleteMany({ educator: educatorId });
+        
+        // Xóa tất cả ảnh thumbnail trên Cloudinary
+        const deletePromises = courses
+            .filter(course => course.courseThumbnail)
+            .map(course => {
+                const publicId = course.courseThumbnail.split("/").pop().split(".")[0];
+                return cloudinary.uploader.destroy(publicId);
+            });
+        
+        await Promise.all(deletePromises);
+        
+        return res.status(200).json({
+            success: true,
+            message: `${courses.length} courses deleted successfully`,
+        });
+    } catch (error) {
+        console.error("Error in deleteAllCourses:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error: " + error.message,
+        });
+    }
+};
+
 
 // get edu detail
 export const educatorDetails  = async (req, res) => {

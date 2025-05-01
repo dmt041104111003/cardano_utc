@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import AdaPayment from './AdaPayment';
-import { convertUsdToAda } from '../../../utils/convertUsdToAda';
 
 export default function PaymentMethod({ courseData }) {
     const [selectedMethod, setSelectedMethod] = useState('ada');
     const [adaToUsd, setAdaToUsd] = useState(0);
+    const [usdToAda, setUsdToAda] = useState(0);
 
     // Fetch ADA/USD exchange rate
     useEffect(() => {
@@ -12,7 +12,7 @@ export default function PaymentMethod({ courseData }) {
             try {
                 const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd');
                 const data = await response.json();
-                setAdaToUsd(data.cardano.usd);
+                setUsdToAda(1 / data.cardano.usd);
             } catch (error) {
                 console.error('Error fetching exchange rate:', error);
             }
@@ -27,8 +27,8 @@ export default function PaymentMethod({ courseData }) {
         const discountedPrice = courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100;
         
         if (selectedMethod === 'ada') {
-            // Convert USD to ADA for display
-            const adaPrice = convertUsdToAda(discountedPrice);
+            // Convert USD to ADA for display using real-time rate
+            const adaPrice = usdToAda > 0 ? discountedPrice * usdToAda : 0;
             return `${adaPrice.toFixed(2)} ADA`;
         } else {
             // For Stripe/PayPal, show in USD directly
@@ -38,7 +38,7 @@ export default function PaymentMethod({ courseData }) {
 
     return (
         <div className="max-w-2xl mx-auto p-4">
-            <h2 className="text-2xl font-bold mb-6 text-center">Chọn phương thức thanh toán</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">Select payment method</h2>
             
             <div className="flex justify-center gap-4 mb-8">
                 <button
@@ -88,7 +88,7 @@ export default function PaymentMethod({ courseData }) {
                 {selectedMethod === 'ada' ? (
                     <AdaPayment courseData={{
                         ...courseData,
-                        coursePrice: convertUsdToAda(courseData.coursePrice)
+                        coursePrice: usdToAda > 0 ? courseData.coursePrice * usdToAda : 0
                     }} />
                 ) : selectedMethod === 'stripe' ? (
                     <div>

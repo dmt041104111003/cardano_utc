@@ -1,5 +1,5 @@
 import express from 'express'
-import { getAllCourse, getCourseId, getTopRatedCourses } from '../controllers/courseController.js'
+import { getAllCourse, getCourseId, getTopRatedCourses, getCoursesByEducator } from '../controllers/courseController.js'
 import {paymentByAda,paymentByPaypal, paypalSuccess, paypalCancel,paymentByStripe,stripeSuccess,stripeCancel} from '../controllers/transactionController.js'
 
 
@@ -17,6 +17,7 @@ courseRouter.get('/top-rated', getTopRatedCourses)
 courseRouter.get('/all', getAllCourse)
 courseRouter.get('/:id', getCourseId)
 courseRouter.post('/payment', paymentByAda)
+courseRouter.get('/by-educator/:educatorId', getCoursesByEducator)
 
 
 export default courseRouter;

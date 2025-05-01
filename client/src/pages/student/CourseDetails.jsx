@@ -334,11 +334,7 @@ const CourseDetails = () => {
                                         </div>
                                     </div>
                                 
-                                    <div className="text-gray-700 space-y-3 text-justify">
-                                        <p>Hi. I'm Denis. I have a degree in engineering from the University for Applied Science Konstanz in Germany and discovered my love for programming there.</p>
-                                        <p>Currently, over 500,000 students learn from my courses. This gives me much energy to create new courses with the highest quality possible. I aim to make learning to code accessible for everyone, as I am convinced, that IT is THE FUTURE!</p>
-                                        <p>So join my courses and learn to create apps, games, websites, or any other type of application. The possibilities are limitless.</p>
-                                    </div>
+                                   
                                 </div>
                             </div>
                            

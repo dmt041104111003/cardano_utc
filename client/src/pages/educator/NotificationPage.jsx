@@ -9,6 +9,7 @@ const NotificationPage = () => {
     const { backendUrl, getToken, isEducator, userData, wallet, connected } = useContext(AppContext);
     const [notifications, setNotifications] = useState(null);
     const [minting, setMinting] = useState({});
+    const [mintingAll, setMintingAll] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredNotifications, setFilteredNotifications] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -240,6 +241,208 @@ const NotificationPage = () => {
         }
     };
 
+    const handleMintAllCertificates = async () => {
+        if (!connected || !wallet) {
+            toast.error("Please connect your wallet first!");
+            return;
+        }
+
+        // Get all pending certificate requests
+        const pendingRequests = filteredNotifications.filter(
+            notification => notification.type === 'certificate_request' && notification.status !== 'completed'
+        );
+
+        if (pendingRequests.length === 0) {
+            toast.info("No pending certificate requests to mint");
+            return;
+        }
+
+        setMintingAll(true);
+        // Mark all pending notifications as minting
+        pendingRequests.forEach(notification => {
+            setMinting(prev => ({...prev, [notification._id]: true}));
+        });
+
+        try {
+            const token = await getToken();
+            
+            // Get UTXOs and collateral for the batch transaction
+            console.log('Getting UTXOs and collateral...');
+            const utxos = await wallet.getUtxos();
+            const collateral = await wallet.getCollateral();
+            if (!utxos || !collateral) {
+                throw new Error("Failed to get UTXOs or collateral");
+            }
+
+            // Get educator wallet address
+            const educatorAddress = await wallet.getUsedAddresses();
+            const currentWallet = educatorAddress[0];
+
+            // Prepare certificate requests data
+            const certificateRequests = [];
+            
+            // Collect all necessary data for each certificate
+            for (const notification of pendingRequests) {
+                try {
+                    if (!notification.data?.walletAddress) {
+                        console.error(`Student wallet address not found for ${notification.studentId?.name}`);
+                        continue;
+                    }
+
+                    // Get course info and NFT info
+                    console.log('Getting course info for:', notification.courseId?._id);
+                    const [courseResponse, nftResponse, addressResponse] = await Promise.all([
+                        axios.get(`${backendUrl}/api/course/${notification.courseId?._id}`, 
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        ),
+                        axios.get(`${backendUrl}/api/nft/info/${notification.courseId?._id}`,
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        ),
+                        axios.get(
+                            `${backendUrl}/api/address/find?courseId=${notification.courseId?._id}&educatorId=${userData?._id}`,
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        )
+                    ]);
+
+                    if (!courseResponse.data.success || !nftResponse.data.success) {
+                        console.error(`Failed to get course or NFT info for ${notification.courseId?._id}`);
+                        continue;
+                    }
+
+                    // Verify educator is authorized for this course
+                    if (userData?._id !== addressResponse.data?.address?.educatorId) {
+                        console.error(`You are not the educator for course ${notification.courseId?._id}`);
+                        continue;
+                    }
+
+                    // Verify wallet matches
+                    if (currentWallet !== addressResponse.data?.address?.educatorWallet) {
+                        console.error(`Connected wallet doesn't match registered wallet for course ${notification.courseId?._id}`);
+                        continue;
+                    }
+
+                    const courseData = courseResponse.data.courseData;
+                    
+                    // Add to certificate requests
+                    certificateRequests.push({
+                        courseData: {
+                            courseId: notification.courseId?._id,
+                            courseTitle: courseData.courseTitle,
+                            courseDescription: courseData.courseDescription || '',
+                            txHash: courseData.txHash,
+                            creatorAddress: courseData.creatorAddress,
+                            createdAt: courseData.createdAt,
+                            educator: userData?.name || 'Edu Platform',
+                            certificateImage: courseData.courseThumbnail,
+                            studentName: notification.studentId?.name || notification.data?.userName || "Student",
+                            studentId: notification.studentId?._id,
+                            policyId: nftResponse.data.policyId,
+                            assetName: nftResponse.data.assetName
+                        },
+                        userAddress: notification.data.walletAddress,
+                        notificationId: notification._id
+                    });
+                } catch (error) {
+                    console.error(`Error preparing certificate for ${notification.studentId?.name}:`, error);
+                }
+            }
+
+            if (certificateRequests.length === 0) {
+                throw new Error("No valid certificate requests could be prepared");
+            }
+
+            // Call the batch mint endpoint
+            console.log(`Creating batch mint transaction for ${certificateRequests.length} certificates...`);
+            
+            // Convert UTXOs and collateral to string to avoid potential serialization issues
+            const utxosString = JSON.stringify(utxos);
+            const collateralString = JSON.stringify(collateral);
+            
+            // Split the request into smaller chunks if needed
+            const { data: batchMintData } = await axios.post(
+                `${backendUrl}/api/batch/batch-mint`,
+                {
+                    utxos: utxosString,
+                    collateral: collateralString,
+                    educatorAddress: currentWallet,
+                    certificateRequests
+                },
+                { 
+                    headers: { 
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity
+                }
+            );
+
+            if (!batchMintData.success) {
+                throw new Error(batchMintData.message || "Failed to create batch mint transaction");
+            }
+
+            // Sign and submit the single transaction for all certificates
+            console.log('Signing batch transaction...');
+            const signedTx = await wallet.signTx(batchMintData.unsignedTx);
+            console.log('Submitting batch transaction...');
+            const txHash = await wallet.submitTx(signedTx);
+            console.log('Batch transaction submitted with hash:', txHash);
+
+            // Process the results and update notifications
+            const processedCertificates = batchMintData.processedCertificates;
+            const updatePromises = [];
+            const savePromises = [];
+
+            // Update each notification and save certificates
+            for (let i = 0; i < certificateRequests.length; i++) {
+                const request = certificateRequests[i];
+                const processedCert = processedCertificates[i];
+                
+                // Update notification status
+                updatePromises.push(
+                    axios.put(
+                        `${backendUrl}/api/notification/${request.notificationId}/read`,
+                        { status: 'completed' },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    )
+                );
+
+                // Save certificate
+                savePromises.push(
+                    axios.post(
+                        `${backendUrl}/api/certificate/save`,
+                        {
+                            userId: request.courseData.studentId,
+                            courseId: request.courseData.courseId,
+                            mintUserId: userData?._id,
+                            ipfsHash: processedCert.ipfsHash,
+                            policyId: processedCert.policyId,
+                            transactionHash: txHash
+                        },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    )
+                );
+            }
+
+            // Wait for all updates to complete
+            await Promise.allSettled([...updatePromises, ...savePromises]);
+
+            toast.success(`Successfully minted ${processedCertificates.length} certificates in a single transaction!`);
+            
+            // Refresh the notifications list
+            fetchNotifications();
+        } catch (error) {
+            console.error("Batch mint error:", error);
+            toast.error(error.response?.data?.message || error.message || "Failed to mint certificates");
+        } finally {
+            // Clear all minting states
+            pendingRequests.forEach(notification => {
+                setMinting(prev => ({...prev, [notification._id]: false}));
+            });
+            setMintingAll(false);
+        }
+    };
+
     const handleViewCertificateRequest = async (notification) => {
         // Show modal with certificate request details
         toast.info(`Student ${notification.studentId?.name} submitted wallet address: ${notification.data?.walletAddress} for course: ${notification.data?.courseTitle}`);
@@ -312,6 +515,19 @@ const NotificationPage = () => {
                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                         >
                             {showCompleted ? 'Show All' : 'Show Completed'}
+                        </button>
+                        <button
+                            onClick={handleMintAllCertificates}
+                            disabled={mintingAll || !connected || !wallet}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                mintingAll
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : !connected || !wallet
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-orange-500 text-white hover:bg-orange-600'
+                            }`}
+                        >
+                            {mintingAll ? 'Minting All...' : 'Mint All'}
                         </button>
                     </div>
                     <input

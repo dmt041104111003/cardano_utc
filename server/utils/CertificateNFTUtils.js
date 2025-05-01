@@ -50,8 +50,9 @@ async function createCertificateNFT({
         const shortCreatorAddress = courseData.creatorAddress ? 
             courseData.creatorAddress.slice(0, 10) + '...' + courseData.creatorAddress.slice(-10) : '';
 
-        // Prepare metadata with shortened IPFS URI
-        const ipfsHash = "bafkreib2xqvtrkgzsivinihbasxl5qghmswa3x7pjy4kzllkgs7pra6mde";
+        // Use provided IPFS hash from certificate image if available
+        const ipfsHash = courseData.ipfsHash;
+        console.log('Using certificate IPFS hash:', ipfsHash);
         
         const metadata = {
             name: `${courseData.courseTitle} Certificate`,

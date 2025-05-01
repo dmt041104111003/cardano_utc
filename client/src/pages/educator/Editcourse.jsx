@@ -129,14 +129,14 @@ const Test = ({ test, index, handleTest, handleChapter }) => (
 );
 
 // Component ConfirmModal
-const ConfirmModal = ({ isOpen, onClose, onConfirm }) => {
+const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, isDeleteAll = false }) => {
     if (!isOpen) return null;
     
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-                <h3 className="text-lg font-semibold mb-4">Delete Course</h3>
-                <p className="text-gray-600 mb-6">Are you sure you want to delete this course?</p>
+                <h3 className="text-lg font-semibold mb-4">{title || "Delete Course"}</h3>
+                <p className="text-gray-600 mb-6">{message || "Are you sure you want to delete this course?"}</p>
                 <div className="flex justify-end gap-4">
                     <button 
                         onClick={onClose}
@@ -146,9 +146,9 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm }) => {
                     </button>
                     <button 
                         onClick={onConfirm}
-                        className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded"
+                        className={`px-4 py-2 ${isDeleteAll ? 'bg-red-600' : 'bg-red-500'} text-white hover:bg-red-600 rounded`}
                     >
-                        Delete
+                        {isDeleteAll ? "Delete All" : "Delete"}
                     </button>
                 </div>
             </div>
@@ -187,6 +187,7 @@ const EditCourse = () => {
         testQuestions: [],
     });
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
 
     // Fetch courses
     const fetchCourses = async () => {
@@ -463,6 +464,42 @@ const EditCourse = () => {
         }
         setShowDeleteConfirm(false);
     };
+    
+    const handleDeleteAll = () => {
+        if (courses.length === 0) {
+            return toast.error("No courses to delete");
+        }
+        setShowDeleteAllConfirm(true);
+    };
+    
+    const confirmDeleteAll = async () => {
+        try {
+            const token = await getToken();
+            const { data } = await axios.delete(`${backendUrl}/api/educator/delete-all-courses`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (data.success) {
+                toast.success(data.message || "All courses deleted successfully");
+                setSelectedCourseId(null);
+                setCourseTitle("");
+                setCoursePrice(0);
+                setDiscount(0);
+                setImage(null);
+                setChapters([]);
+                if (quillRef.current && isQuillReady) {
+                    quillRef.current.root.innerHTML = "";
+                }
+                fetchCourses();
+            } else {
+                toast.error(data.message || "Failed to delete all courses");
+            }
+        } catch (error) {
+            console.error("Error in handleDeleteAll:", error);
+            toast.error(error.message || "An error occurred while deleting all courses");
+        }
+        setShowDeleteAllConfirm(false);
+    };
 
     useEffect(() => {
         fetchCourses();
@@ -489,20 +526,30 @@ const EditCourse = () => {
         <div className="h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0">
             <div className="w-full">
                 <h1 className="text-2xl font-semibold mb-4">Delete Course</h1>
-                <select
-                    className="w-full md:w-1/2 p-2 border rounded mb-4"
-                    onChange={(e) => {
-                        const selectedCourse = courses.find((c) => c._id === e.target.value);
-                        if (selectedCourse) loadCourseData(selectedCourse);
-                    }}
-                >
-                    <option value="">Select a course to delete</option>
-                    {courses.map((course) => (
-                        <option key={course._id} value={course._id}>
-                            {course.courseTitle}
-                        </option>
-                    ))}
-                </select>
+                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+                    <select
+                        className="w-full md:w-1/2 p-2 border rounded"
+                        onChange={(e) => {
+                            const selectedCourse = courses.find((c) => c._id === e.target.value);
+                            if (selectedCourse) loadCourseData(selectedCourse);
+                        }}
+                    >
+                        <option value="">Select a course to delete</option>
+                        {courses.map((course) => (
+                            <option key={course._id} value={course._id}>
+                                {course.courseTitle}
+                            </option>
+                        ))}
+                    </select>
+                    
+                    <button
+                        type="button"
+                        onClick={handleDeleteAll}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                    >
+                        Delete All Courses
+                    </button>
+                </div>
 
                 {selectedCourseId && (
                     <form onSubmit={handleUpdate} className="flex flex-col gap-4 max-w-md w-full text-gray-500">
@@ -700,6 +747,14 @@ const EditCourse = () => {
                 isOpen={showDeleteConfirm}
                 onClose={() => setShowDeleteConfirm(false)}
                 onConfirm={confirmDelete}
+            />
+            <ConfirmModal
+                isOpen={showDeleteAllConfirm}
+                onClose={() => setShowDeleteAllConfirm(false)}
+                onConfirm={confirmDeleteAll}
+                title="Delete All Courses"
+                message="Are you sure you want to delete ALL courses? This action cannot be undone."
+                isDeleteAll={true}
             />
         </div>
     );
