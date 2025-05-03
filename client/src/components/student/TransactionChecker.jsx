@@ -59,67 +59,79 @@ const TransactionChecker = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-6">
-            <div className="mb-8 bg-[#f0faf5] p-8 rounded-xl shadow-sm">
-            <h2 className='text-3xl md:text-4xl font-bold text-gray-800 mb-4'>
-                    Cardano NFT Explorer
-                </h2>
-                <p className="text-gray-600 text-lg">
-                    Enter a Policy ID and Transaction Hash to view NFT details
-                </p>
+            <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 -mt-12 -mr-12 opacity-20">
+                    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="#4F46E5" d="M45.3,-51.2C58.4,-42.9,68.9,-28.8,72.8,-12.7C76.7,3.4,74.1,21.5,64.4,34.1C54.7,46.7,37.9,53.8,20.4,59.4C2.9,65,-15.3,69.1,-32.4,64.5C-49.5,59.9,-65.5,46.6,-73.2,29.2C-80.9,11.8,-80.4,-9.7,-72.1,-27.2C-63.8,-44.7,-47.8,-58.2,-31.3,-65.2C-14.9,-72.1,2,-72.5,16.7,-67.2C31.4,-61.9,32.1,-59.5,45.3,-51.2Z" transform="translate(100 100)" />
+                    </svg>
+                </div>
+                <div className="relative z-10">
+                    <div className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium mb-4">
+                        Certificate Verification
+                    </div>
+                    <h2 className='text-3xl md:text-4xl font-bold text-gray-800 mb-4'>
+                        Cardano NFT Explorer
+                    </h2>
+                    <p className="text-gray-600 text-lg max-w-2xl">
+                        Enter a Policy ID and Transaction Hash to verify and view your certificate NFT details
+                    </p>
+                </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-12 mb-8">
-                <div className="space-y-6">
+                <div className="space-y-6 bg-white p-8 rounded-xl shadow-sm">
                     <div>
-                        <label className="block text-lg font-medium text-gray-700 mb-2">Policy ID</label>
+                        <label className="text-lg font-medium text-gray-700 mb-2 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                            Policy ID
+                        </label>
                         <input
                             type="text"
                             value={policyId}
                             onChange={(e) => setPolicyId(e.target.value)}
                             placeholder="Enter Policy ID"
-                            className="w-full p-4 text-lg border-2 rounded-lg bg-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full p-4 text-lg border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         />
                     </div>
                     <div>
-                        <label className="block text-lg font-medium text-gray-700 mb-2">Transaction Hash</label>
+                        <label className="text-lg font-medium text-gray-700 mb-2 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            Transaction Hash
+                        </label>
                         <input
                             type="text"
                             value={txHash}
                             onChange={(e) => setTxHash(e.target.value)}
                             placeholder="Enter Transaction Hash"
-                            className="w-full p-4 text-lg border-2 rounded-lg bg-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full p-4 text-lg border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         />
                     </div>
                     <div className="flex flex-col gap-4 pt-4">
                         <button
                             onClick={handleCheck}
                             disabled={loading}
-                            className="w-full py-4 text-lg bg-gradient-to-r from-[#00b894] to-[#0984e3] text-white rounded-lg hover:opacity-90 disabled:bg-gray-400 disabled:hover:opacity-100 transition-all font-medium flex items-center justify-center shadow-md"
+                            className="w-full py-4 text-lg bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all font-medium flex items-center justify-center shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
                             <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
-                            {loading ? 'Checking...' : 'Search'}
+                            {loading ? 'Checking...' : 'Verify Certificate'}
                         </button>
-                        <a
-                            href="https://transaction-sand.vercel.app/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full py-4 text-lg bg-gradient-to-r from-[#00b894] to-[#0984e3] text-white rounded-lg hover:opacity-90 transition-all font-medium flex items-center justify-center shadow-md"
-                        >
-                            <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M10 6H6C4.89543 6 4 6.89543 4 8V18C4 19.1046 4.89543 20 6 20H16C17.1046 20 18 19.1046 18 18V14M14 4H20M20 4V10M20 4L10 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                            Visit Explorer
-                        </a>
+                        
                     </div>
                 </div>
-                <div className="flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg">
-                    <div className="mb-6">
+                <div className="flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-sm">
+                    <div className="mb-6 bg-indigo-50 p-4 rounded-lg">
                         <QRCodeSVG
-                            value="https://transaction-sand.vercel.app/"
+                            value="https://client-react-brown.vercel.app/"
                             size={250}
                             level="H"
+                            bgColor="#EEF2FF"
+                            fgColor="#4F46E5"
                             includeMargin={true}
                             className="rounded-xl"
                         />

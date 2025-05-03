@@ -1,8 +1,9 @@
 import Course from "../models/Course.js";
+import User from "../models/User.js"; // Add this line to import the User model
 
 export const getTopRatedCourses = async (req, res) => {
     try {
-        const courses = await Course.find({ isPublished: true })
+        const courses = await Course.find({ isPublished: true, isDeleted: { $ne: true } })
             .select(['courseTitle', 'courseDescription', 'courseThumbnail', 'coursePrice', 'courseRatings', 'discount', 'discountEndTime', 'educator'])
             .populate('educator', 'name email')
             .lean();
@@ -46,7 +47,7 @@ export const getTopRatedCourses = async (req, res) => {
 export const getAllCourse = async (req, res) => {
     
     try {
-        const courses = await Course.find({ isPublished: true }).select(['-courseContent',
+        const courses = await Course.find({ isPublished: true, isDeleted: { $ne: true } }).select(['-courseContent',
             '-enrolledStudents'
         ]).populate({ path: 'educator' })
 
@@ -63,6 +64,24 @@ export const getCourseId = async (req, res) => {
         
         if (!courseData) {
             return res.status(404).json({ success: false, message: "Course not found" });
+        }
+
+        // Kiểm tra xem khóa học có bị dừng không và người dùng có đăng ký khóa học này không
+        if (courseData.isDeleted) {
+            // Nếu người dùng đã đăng nhập, kiểm tra xem họ đã đăng ký khóa học này chưa
+            if (req.auth && req.auth.userId) {
+                const user = await User.findById(req.auth.userId);
+                const isEnrolled = user.enrolledCourses.includes(id);
+                
+                // Nếu không phải học viên đã đăng ký, trả về thông báo lỗi
+                if (!isEnrolled) {
+                    return res.status(403).json({ success: false, message: "This course has been stopped by the educator" });
+                }
+                // Nếu là học viên đã đăng ký, cho phép truy cập
+            } else {
+                // Nếu không đăng nhập, không cho phép truy cập khóa học đã dừng
+                return res.status(403).json({ success: false, message: "This course has been stopped by the educator" });
+            }
         }
 
         // Mask lecture URLs for unpurchased courses
@@ -89,7 +108,7 @@ export const getCoursesByEducator = async (req, res) => {
   try {
     const { educatorId } = req.params;
     const excludeId = req.query.excludeId;
-    const query = { educator: educatorId };
+    const query = { educator: educatorId, isDeleted: { $ne: true } };
     if (excludeId) query._id = { $ne: excludeId };
     const courses = await Course.find(query).populate('educator');
     res.json({ success: true, courses });

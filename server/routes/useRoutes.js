@@ -5,7 +5,7 @@ import {
     purchaseCourse, updateUserCourseProgress,
     userEnrolledCourses, getAllCompletedCourses,
     enrollCourses, updateCourseEducator, getSimpleCertificateData,
-    getUserPurchaseHistory
+    getUserPurchaseHistory, resetCourseProgress
 }
     from '../controllers/userController.js'
 
@@ -22,6 +22,7 @@ userRouter.post('/enroll-course', enrollCourses)
 userRouter.post('/update-course-educator', updateCourseEducator)
 userRouter.post('/get-simple-certificate', getSimpleCertificateData)
 userRouter.get('/purchase/history', getUserPurchaseHistory)
+userRouter.post('/reset-course-progress', resetCourseProgress)
 
 userRouter.get('/test-schema', async (req, res) => {
     try {

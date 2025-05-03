@@ -10,8 +10,8 @@ import { toast } from 'react-toastify';
 export const AppContext = createContext();
 
 export const AppContextProvider = (props) => {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL;
-    const currency = import.meta.env.VITE_CURRENCY;
+    const backendUrl = process.env.REACT_APP_BACKEND_URL;
+    const currency = process.env.REACT_APP_CURRENCY;
     const navigate = useNavigate();
     const location = useLocation();
     const { getToken } = useAuth();

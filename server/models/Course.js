@@ -39,6 +39,10 @@ const courseSchema = new mongoose.Schema({
     courseThumbnail: { type: String },
     coursePrice: { type: Number, required: true, default: 0 },
     isPublished: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false }, // Trường đánh dấu khóa học đã bị xóa
+    isUpdated: { type: Boolean, default: false }, // Trường đánh dấu khóa học đã được cập nhật
+    lastUpdated: { type: Date }, // Thời gian cập nhật gần nhất
+    paypalEmail: { type: String }, // Email PayPal của người tạo khóa học
     discount: { type: Number, required: true, min: 0, max: 100, default: 0 },
     discountEndTime: { type: Date }, // Thời gian kết thúc giảm giá
     courseContent: [chapterSchema],

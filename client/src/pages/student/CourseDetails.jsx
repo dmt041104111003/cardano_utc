@@ -125,34 +125,13 @@ const CourseDetails = () => {
     return (
         <>
             <div className='relative min-h-screen'>
-                <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-green-100/70 via-cyan-100/50 to-white'></div>
+                {/* Background with modern gradient */}
+                <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-50 via-indigo-50/30 to-white'></div>
+                
+                
+                
                 <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 relative z-10'>
-                    <div className='flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-36 px-8 md:pt-30 pt-20 text-left'>
-                        <div className="z-10 w-full mb-6 md:hidden">
-                            <nav className="flex" aria-label="Breadcrumb">
-                                <ol className="inline-flex items-center space-x-1 md:space-x-3">
-                                    <li className="inline-flex items-center">
-                                        <a href="/" className="text-sm text-gray-700 hover:text-blue-600">Home</a>
-                                    </li>
-                                    <li>
-                                        <div className="flex items-center">
-                                            <svg className="w-3 h-3 mx-1 text-gray-400" fill="none" viewBox="0 0 6 10">
-                                                <path stroke="currentColor" d="m1 9 4-4-4-4"/>
-                                            </svg>
-                                            <a href="/courses" className="text-sm text-gray-700 hover:text-blue-600">Courses</a>
-                                        </div>
-                                    </li>
-                                    <li aria-current="page">
-                                        <div className="flex items-center">
-                                            <svg className="w-3 h-3 mx-1 text-gray-400" fill="none" viewBox="0 0 6 10">
-                                                <path stroke="currentColor" d="m1 9 4-4-4-4"/>
-                                            </svg>
-                                            <span className="text-sm font-medium text-gray-500">{courseData.courseTitle}</span>
-                                        </div>
-                                    </li>
-                                </ol>
-                            </nav>
-                        </div>
+                    <div className='flex md:flex-row flex-col-reverse gap-10 relative items-start justify-between md:px-8 px-4 text-left'>
 
                         <div className='z-10 text-gray-500 w-full md:w-2/3 '>
                             {timeLeft && (

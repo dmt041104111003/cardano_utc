@@ -8,6 +8,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import Swal from 'sweetalert2';
 
 const MyEnrollments = () => {
     const { 
@@ -43,6 +44,8 @@ const MyEnrollments = () => {
     const [filteredCourses, setFilteredCourses] = useState([]);
     const [showCompleted, setShowCompleted] = useState(false);
     const [showCertified, setShowCertified] = useState(false);
+    const [updatingProgress, setUpdatingProgress] = useState({});
+    const [resetCourses, setResetCourses] = useState({}); // Thêm state mới để theo dõi các khóa học đã reset
     const itemsPerPage = 7;
     const [purchaseHistory, setPurchaseHistory] = useState([]);
     const [loadingPurchase, setLoadingPurchase] = useState(false);
@@ -54,48 +57,61 @@ const MyEnrollments = () => {
             const token = await getToken();
             const tempProgressArray = await Promise.all(
                 enrolledCourses.map(async (course) => {
-                    const { data } = await axios.post(`${backendUrl}/api/user/get-course-progress`,
-                        { courseId: course._id }, { headers: { Authorization: `Bearer ${token}` } }
-                    )
-                    
-                    // Get total lectures and tests
-                    let totalLectures = 0;
-                    let totalTests = 0;
-                    
-                    // Count lectures and tests from course content
-                    course.courseContent?.forEach(chapter => {
-                        if (chapter.chapterContent) {
-                            totalLectures += chapter.chapterContent.length;
+                    try {
+                        const { data } = await axios.post(`${backendUrl}/api/user/get-course-progress`,
+                            { courseId: course._id }, { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        
+                        // Get total lectures and tests
+                        let totalLectures = 0;
+                        let totalTests = 0;
+                        
+                        // Count lectures and tests from course content
+                        course.courseContent?.forEach(chapter => {
+                            if (chapter.chapterContent) {
+                                totalLectures += chapter.chapterContent.length;
+                            }
+                        });
+                        
+                        // Count tests
+                        if (course.tests) {
+                            totalTests = course.tests.length;
                         }
-                    });
-                    
-                    // Count tests
-                    if (course.tests) {
-                        totalTests = course.tests.length;
-                    }
 
-                    // Get completed counts
-                    const lectureCompleted = data.progressData ? data.progressData.lectureCompleted.length : 0;
-                    const testsCompleted = data.progressData ? data.progressData.tests.filter(test => test.passed).length : 0;
-                    
-                    // Calculate total progress percentage
-                    const totalItems = totalLectures + totalTests;
-                    const completedItems = lectureCompleted + testsCompleted;
-                    const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+                        // Get completed counts
+                        const lectureCompleted = data.progressData ? data.progressData.lectureCompleted.length : 0;
+                        const testsCompleted = data.progressData ? data.progressData.tests.filter(test => test.passed).length : 0;
+                        
+                        // Calculate total progress percentage
+                        const totalItems = totalLectures + totalTests;
+                        const completedItems = lectureCompleted + testsCompleted;
+                        const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
 
-                    return {
-                        totalLectures,
-                        totalTests,
-                        lectureCompleted,
-                        testsCompleted,
-                        progressPercentage,
-                        completed: data.progressData?.completed || false
+                        return {
+                            totalLectures,
+                            totalTests,
+                            lectureCompleted,
+                            testsCompleted,
+                            progressPercentage,
+                            completed: data.progressData?.completed || false
+                        };
+                    } catch (error) {
+                        console.error(`Error getting progress for course ${course._id}:`, error);
+                        return {
+                            totalLectures: 0,
+                            totalTests: 0,
+                            lectureCompleted: 0,
+                            testsCompleted: 0,
+                            progressPercentage: 0,
+                            completed: false
+                        };
                     }
                 })
-            )
+            );
             setProgressArray(tempProgressArray);
         } catch (error) {
-            toast.error(error.message);
+            console.error("Error in getCourseProgress:", error);
+            toast.error("Failed to get course progress");
         }
     }
 
@@ -143,6 +159,32 @@ const MyEnrollments = () => {
 
             const token = await getToken();
 
+            // Kiểm tra địa chỉ ví mua khóa học
+            const verifyResponse = await axios.get(
+                `${backendUrl}/api/purchase/verify-purchase-address/${courseId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            console.log('Debug - Verify purchase response:', verifyResponse.data);
+
+            // Kiểm tra nếu cần xác minh địa chỉ ví
+            if (verifyResponse.data.success && 
+                verifyResponse.data.hasPurchaseAddress && 
+                verifyResponse.data.requireAddressCheck) {
+                
+                // Nếu địa chỉ ví hiện tại không khớp với địa chỉ ví đã mua khóa học
+                if (userAddress !== verifyResponse.data.purchaseAddress) {
+                    throw new Error(
+                        "The wallet address you are using is different from the one used to purchase this course. " +
+                        "Please connect the wallet that was used to purchase the course."
+                    );
+                }
+                
+                console.log('Debug - Wallet address verified successfully');
+            } else {
+                console.log('Debug - No wallet address verification required');
+            }
+
             await axios.post(
                 `${backendUrl}/api/address/save`,
                 { 
@@ -157,7 +199,7 @@ const MyEnrollments = () => {
             setSentToEducator(prev => ({ ...prev, [courseId]: true }));
         } catch (error) {
             console.error('Error saving address:', error);
-            toast.error(error.message);
+            toast.error(error.response?.data?.message || error.message);
         } finally {
             setSavingAddress(prev => ({ ...prev, [courseId]: false }));
         }
@@ -283,9 +325,12 @@ const MyEnrollments = () => {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
             const token = await getToken();
 
+            // Luôn kiểm tra trạng thái chứng chỉ mới nhất trước
+            await checkCertificateStatus(courseId);
+            
             // First get certificate info to get policyId and transactionHash
             const { data: certData } = await axios.get(
-                `${backendUrl}/api/certificate/${userData._id}/${courseId}`,
+                `${backendUrl}/api/certificate/${userData._id}/${courseId}?timestamp=${new Date().getTime()}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -302,7 +347,7 @@ const MyEnrollments = () => {
             try {
                 // Get NFT info directly using policy ID and transaction hash
                 const { data: nftData } = await axios.get(
-                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
+                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}?timestamp=${new Date().getTime()}`,
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
 
@@ -339,9 +384,12 @@ const MyEnrollments = () => {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
             const token = await getToken();
 
+            // Luôn kiểm tra trạng thái chứng chỉ mới nhất trước
+            await checkCertificateStatus(courseId);
+            
             // First get certificate info to get policyId and transactionHash
             const { data: certData } = await axios.get(
-                `${backendUrl}/api/certificate/${userData._id}/${courseId}`,
+                `${backendUrl}/api/certificate/${userData._id}/${courseId}?timestamp=${new Date().getTime()}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -358,7 +406,7 @@ const MyEnrollments = () => {
             try {
                 // Get NFT info directly using policy ID and transaction hash
                 const { data: nftData } = await axios.get(
-                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
+                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}?timestamp=${new Date().getTime()}`,
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
 
@@ -400,7 +448,6 @@ const MyEnrollments = () => {
     useEffect(() => {
         if (enrolledCourses) {
             getCourseProgress();
-            checkAllStatuses();
         }
     }, [enrolledCourses]);
 
@@ -433,7 +480,7 @@ const MyEnrollments = () => {
             setLoadingSimpleCert(prev => ({ ...prev, [courseId]: true }));
             const token = await getToken();
             const { data } = await axios.post(
-                `${backendUrl}/api/user/get-simple-certificate`,
+                `${backendUrl}/api/user/get-simple-certificate?timestamp=${new Date().getTime()}`,
                 { courseId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -644,13 +691,13 @@ const MyEnrollments = () => {
         pdf.setFontSize(20);
         pdf.setTextColor(41, 128, 185);
         pdf.text(certData.courseInfo.title, centerX, 135, { align: "center" });
-        
+                
         // Thông tin giáo viên
         pdf.setFont(undefined, "normal");
         pdf.setFontSize(14);
         pdf.setTextColor(70, 70, 70);
         pdf.text(`Instructor: ${certData.courseInfo.educatorName}`, centerX, 150, { align: "center" });
-        
+                
         // Ngày hoàn thành
         pdf.text(`Completion Date: ${new Date(certData.completedAt).toLocaleDateString()}`, centerX, 165, { align: "center" });
         
@@ -659,7 +706,7 @@ const MyEnrollments = () => {
         pdf.setTextColor(100, 100, 100);
         pdf.text(`Course ID: ${certData.courseId}`, centerX, 180, { align: "center" });
         pdf.text("Verified on Cardano Blockchain", centerX, 185, { align: "center" });
-        
+                
         // Thêm chữ ký và con dấu
         pdf.setDrawColor(41, 128, 185);
         pdf.setLineWidth(0.5);
@@ -671,7 +718,7 @@ const MyEnrollments = () => {
         // Save the PDF
         pdf.save(`${certData.courseInfo.title}-certificate.pdf`);
     };
-
+                
     // Hàm fetch lịch sử mua khoá học
     const fetchPurchaseHistory = async () => {
         setLoadingPurchase(true);
@@ -715,92 +762,305 @@ const MyEnrollments = () => {
         }
     }, [searchParams]);
 
-    return enrolledCourses ? (
-        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-green-100/70 via-cyan-100/50 to-white'>
-            <div className='w-full'>
-                <div className='flex justify-between items-center mb-4'>
-                    <div className='flex items-center gap-4'>
-                        <h2 className='text-lg font-medium mt-0'>My Enrollments</h2>
-                         
+    useEffect(() => {
+        // Kiểm tra và cập nhật trạng thái chứng chỉ cho tất cả các khóa học đã hoàn thành
+        const checkAllCertificateStatus = async () => {
+            if (!enrolledCourses || !progressArray) return;
+            
+            // Tạo một đối tượng mới để lưu trạng thái chứng chỉ
+            const newCertificateStatus = {};
+            
+            try {
+                const token = await getToken();
+                
+                // Lấy danh sách tất cả thông báo chứng chỉ của người dùng
+                const { data } = await axios.get(
+                    `${backendUrl}/api/notification/student-notifications`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                
+                if (data.success && data.notifications) {
+                    // Lọc các thông báo đã hoàn thành
+                    const completedNotifications = data.notifications.filter(
+                        notification => notification.status === 'completed'
+                    );
+                    
+                    // Cập nhật trạng thái chứng chỉ cho từng khóa học
+                    completedNotifications.forEach(notification => {
+                        newCertificateStatus[notification.courseId] = 'completed';
+                    });
+                    
+                    // Cập nhật state với dữ liệu mới
+                    setCertificateStatus(newCertificateStatus);
+                }
+            } catch (error) {
+                console.error("Error checking all certificate statuses:", error);
+            }
+        };
+        
+        // Gọi hàm kiểm tra khi enrolledCourses hoặc progressArray thay đổi
+        checkAllCertificateStatus();
+    }, [enrolledCourses, progressArray, userData]);
+
+    // Hàm reset tiến trình khóa học
+    const handleResetProgress = async (courseId) => {
+        try {
+            // Hiển thị thông báo xác nhận
+            const result = await Swal.fire({
+                title: 'Reset Course Progress',
+                html: `
+                    <div class="text-left">
+                        <p>If you update, all your old data will be reset to 0. Do you agree?</p>
+                        <p>We are not responsible for any data loss.</p>
+                        <p>If you have already minted a certificate, don't worry - it will remain permanently on the blockchain.</p>
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Search by course name or ID..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                    />
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, reset it!',
+                cancelButtonText: 'Cancel'
+            });
+            
+            if (!result.isConfirmed) {
+                return;
+            }
+            
+            // Đánh dấu đang cập nhật
+            setUpdatingProgress(prev => ({ ...prev, [courseId]: true }));
+            
+            const token = await getToken();
+            const { data } = await axios.post(
+                `${backendUrl}/api/user/reset-course-progress`,
+                { courseId },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            if (data.success) {
+                toast.success("Course progress has been reset successfully");
+                
+                // Reset trạng thái sentToEducator và certificateStatus
+                setSentToEducator(prev => ({
+                    ...prev,
+                    [courseId]: false
+                }));
+                
+                // Cập nhật trạng thái chứng chỉ
+                setCertificateStatus(prev => {
+                    const newStatus = { ...prev };
+                    delete newStatus[courseId]; // Xóa hoàn toàn trạng thái chứng chỉ
+                    return newStatus;
+                });
+                
+                // Đánh dấu khóa học đã được reset
+                setResetCourses(prev => ({
+                    ...prev,
+                    [courseId]: true
+                }));
+                
+                // Cập nhật lại tiến trình khóa học
+                getCourseProgress();
+                
+                // Tải lại trang để đảm bảo tất cả trạng thái được cập nhật
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 1500);
+            } else {
+                toast.error(data.message || "Failed to reset course progress");
+            }
+        } catch (error) {
+            console.error("Error resetting course progress:", error);
+            toast.error("An error occurred while resetting course progress");
+        } finally {
+            // Đánh dấu đã hoàn thành cập nhật
+            setUpdatingProgress(prev => ({ ...prev, [courseId]: false }));
+        }
+    };
+
+    return enrolledCourses ? (
+        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 relative'>
+            {/* Background Elements */}
+            <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-50 via-indigo-50/30 to-white"></div>
+                <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
+            </div>
+            
+            <div className='w-full max-w-7xl mx-auto'>
+                <div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4'>
+                    <div className='flex items-center gap-3'>
+                        <div className="h-12 w-1.5 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-full"></div>
+                        <h2 className='text-3xl font-bold text-gray-800 mt-0 flex items-center gap-3'>
+                            My Enrollments
+                            <span className="bg-gradient-to-r from-blue-100 to-indigo-100 text-transparent bg-clip-text border border-blue-200 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center">
+                                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">{enrolledCourses.length} Courses</span>
+                            </span>
+                        </h2>
+                    </div>
+                    <div className="relative w-full md:w-64 group">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <svg className="w-4 h-4 text-indigo-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search by course name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-white/80 backdrop-blur-sm border border-indigo-100 text-gray-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-300 block w-full pl-10 p-3 shadow-sm transition-all duration-200 group-hover:shadow-md"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </div>
                 </div>
 
-                <div className="flex gap-4 mt-6">
+                <div className="flex gap-4 mt-8 mb-2">
                     <button
-                        className={`px-4 py-2 rounded ${!showPurchaseHistory ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        className={`btn ${!showPurchaseHistory ? 'btn-primary' : 'btn-outline-secondary'} px-6 py-2.5 rounded-lg font-medium transition-all duration-300 border border-transparent ${!showPurchaseHistory ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:bg-gradient-to-r hover:from-blue-700 hover:to-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300 hover:border-gray-400'}`}
                         onClick={() => setShowPurchaseHistory(false)}
                     >
-                        My Enrollments
+                        <span className="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+                            </svg>
+                            My Enrollments
+                        </span>
                     </button>
                     <button
-                        className={`px-4 py-2 rounded ${showPurchaseHistory ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        className={`btn ${showPurchaseHistory ? 'btn-primary' : 'btn-outline-secondary'} px-6 py-2.5 rounded-lg font-medium transition-all duration-300 border border-transparent ${showPurchaseHistory ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:bg-gradient-to-r hover:from-blue-700 hover:to-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300 hover:border-gray-400'}`}
                         onClick={() => setShowPurchaseHistory(true)}
                     >
-                        Purchase History
+                        <span className="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                                <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
+                            </svg>
+                            Purchase History
+                        </span>
                     </button>
                 </div>
 
                 {/* Nếu là purchase history thì chỉ hiển thị bảng giao dịch, ẩn phần enrollments */}
                 {showPurchaseHistory ? (
                     <div className="mt-8">
-                        <h2 className="text-xl font-bold mb-4">Purchase History</h2>
+                        <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent inline-block">Purchase History</h2>
                         {loadingPurchase ? (
-                            <div>Loading...</div>
+                            <div className="flex justify-center items-center py-10">
+                                <div className="animate-pulse flex flex-col items-center">
+                                    <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full mb-3 animate-spin"></div>
+                                    <div className="text-base font-medium text-gray-600">Loading purchase history...</div>
+                                </div>
+                            </div>
                         ) : purchaseHistory.length === 0 ? (
-                            <div>No purchase history found.</div>
+                            <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-lg shadow-sm">
+                                <div className="flex">
+                                    <div className="flex-shrink-0">
+                                        <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <p className="text-sm text-blue-700">
+                                            No purchase history found. When you purchase courses, your transactions will appear here.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         ) : (
                             <>
-                                <table className="w-full border rounded-lg overflow-hidden">
-                                    <thead className="bg-gray-100">
-                                        <tr>
-                                            <th className="px-4 py-2 text-left">Course ID</th>
-                                            <th className="px-4 py-2 text-left">Amount</th>
-                                            <th className="px-4 py-2 text-left">Status</th>
-                                            <th className="px-4 py-2 text-left">Currency</th>
-                                            <th className="px-4 py-2 text-left">Payment Method</th>
-                                            <th className="px-4 py-2 text-left">Note</th>
-                                            <th className="px-4 py-2 text-left">Created At</th>
-                                            <th className="px-4 py-2 text-left">Updated At</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paginatedFilteredCourses.map((item) => (
-                                            <tr key={item._id} className="border-b">
-                                                <td className="px-4 py-2">
-                                                    {item.courseId && typeof item.courseId === 'object'
-                                                        ? `${item.courseId.courseTitle || ''} (${item.courseId._id})`
-                                                        : item.courseId}
-                                                </td>
-                                                <td className="px-4 py-2">{item.amount}</td>
-                                                <td className="px-4 py-2 capitalize">{item.status}</td>
-                                                <td className="px-4 py-2">{item.currency}</td>
-                                                <td className="px-4 py-2">{item.paymentMethod}</td>
-                                                <td className="px-4 py-2">{item.note}</td>
-                                                <td className="px-4 py-2">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</td>
-                                                <td className="px-4 py-2">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : ''}</td>
+                                <div className="overflow-x-auto bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-100/50 relative">
+                                    <div className="absolute top-0 left-0 w-40 h-40 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-full filter blur-2xl opacity-70 -translate-x-1/2 -translate-y-1/2"></div>
+                                    <div className="absolute bottom-0 right-0 w-40 h-40 bg-gradient-to-tl from-purple-400/10 to-pink-500/10 rounded-full filter blur-2xl opacity-70 translate-x-1/2 translate-y-1/2"></div>
+                                    
+                                    <table className="table table-hover w-full min-w-full divide-y divide-gray-200 relative z-10">
+                                        <thead>
+                                            <tr className="bg-gradient-to-r from-gray-50 to-indigo-50">
+                                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Course</th>
+                                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
+                                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Currency</th>
+                                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Payment Method</th>
+                                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created At</th>
+                                                <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Updated At</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {paginatedFilteredCourses.map((item, index) => (
+                                                <tr key={item._id} className={`hover:bg-indigo-50/50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            <div className="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                                                {item.courseId && typeof item.courseId === 'object' && item.courseId.courseTitle ? item.courseId.courseTitle.charAt(0).toUpperCase() : 'C'}
+                                                            </div>
+                                                            <div className="ml-3">
+                                                                <div className="text-sm font-medium text-gray-900 line-clamp-1">
+                                                                    {item.courseId && typeof item.courseId === 'object'
+                                                                        ? item.courseId.courseTitle || 'Unknown Course'
+                                                                        : 'Unknown Course'}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500">
+                                                                    {item.courseId && typeof item.courseId === 'object'
+                                                                        ? item.courseId._id
+                                                                        : item.courseId}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-medium text-gray-900">{item.amount}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${item.status === 'completed' ? 'bg-green-100 text-green-800' : item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                            {item.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.currency}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                        <div className="flex items-center">
+                                                            {item.paymentMethod === 'cardano' ? (
+                                                                <svg className="h-4 w-4 text-blue-500 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2a8 8 0 100-16 8 8 0 000 16zm-3-7h6v2H9v-2zm0-4h6v2H9V9zm0-4h6v2H9V5z"/>
+                                                                </svg>
+                                                            ) : item.paymentMethod === 'stripe' ? (
+                                                                <svg className="h-4 w-4 text-purple-500 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-3.5-8v2H11v2h2v-2h1a2.5 2.5 0 100-5h-4a.5.5 0 010-1h5.5V8H13V6h-2v2h-1a2.5 2.5 0 000 5h4a.5.5 0 010 1H8.5z"/>
+                                                                </svg>
+                                                            ) : (
+                                                                <svg className="h-4 w-4 text-gray-500 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-3.5-8v2H11v2h2v-2h1a2.5 2.5 0 100-5h-4a.5.5 0 010-1h5.5V8H13V6h-2v2h-1a2.5 2.5 0 000 5h4a.5.5 0 010 1H8.5z"/>
+                                                                </svg>
+                                                            )}
+                                                            {item.paymentMethod}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                        {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                        {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : ''}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
 
                                 {totalPages > 1 && (
                                     <div className="flex justify-center gap-2 my-4 w-full border-t border-gray-500/20 pt-4">
                                         <button
                                             onClick={() => handlePageChange(currentPage - 1)}
                                             disabled={currentPage === 1}
-                                            className={`px-3 py-1 rounded-md text-sm ${
+                                            className={`btn ${currentPage === 1 ? 'btn-outline-secondary' : 'btn-outline-primary'} px-3 py-1 rounded-md text-sm flex items-center gap-1 ${
                                                 currentPage === 1
-                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                    : 'bg-gray-200 hover:bg-gray-300'
+                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                                                    : 'bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-200'
                                             }`}
                                         >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
                                             Previous
                                         </button>
                                         {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -815,10 +1075,10 @@ const MyEnrollments = () => {
                                                             <span className="px-2 py-1">...</span>
                                                             <button
                                                                 onClick={() => handlePageChange(page)}
-                                                                className={`px-3 py-1 rounded-md text-sm ${
+                                                                className={`btn ${currentPage === page ? 'btn-primary' : 'btn-outline-secondary'} px-3 py-1 rounded-md text-sm ${
                                                                     currentPage === page
-                                                                        ? 'bg-blue-600 text-white'
-                                                                        : 'bg-gray-200 hover:bg-gray-300'
+                                                                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0'
+                                                                        : 'bg-white hover:bg-gray-100 border border-gray-200'
                                                                 }`}
                                                             >
                                                                 {page}
@@ -830,10 +1090,10 @@ const MyEnrollments = () => {
                                                     <button
                                                         key={page}
                                                         onClick={() => handlePageChange(page)}
-                                                        className={`px-3 py-1 rounded-md text-sm ${
+                                                        className={`btn ${currentPage === page ? 'btn-primary' : 'btn-outline-secondary'} px-3 py-1 rounded-md text-sm ${
                                                             currentPage === page
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-gray-200 hover:bg-gray-300'
+                                                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0'
+                                                                : 'bg-white hover:bg-gray-100 border border-gray-200'
                                                         }`}
                                                     >
                                                         {page}
@@ -843,13 +1103,16 @@ const MyEnrollments = () => {
                                         <button
                                             onClick={() => handlePageChange(currentPage + 1)}
                                             disabled={currentPage === totalPages}
-                                            className={`px-3 py-1 rounded-md text-sm ${
+                                            className={`btn ${currentPage === totalPages ? 'btn-outline-secondary' : 'btn-outline-primary'} px-3 py-1 rounded-md text-sm flex items-center gap-1 ${
                                                 currentPage === totalPages
-                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                    : 'bg-gray-200 hover:bg-gray-300'
+                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                                                    : 'bg-white text-indigo-600 hover:bg-indigo-50 border border-indigo-200'
                                             }`}
                                         >
                                             Next
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                            </svg>
                                         </button>
                                     </div>
                                 )}
@@ -858,37 +1121,51 @@ const MyEnrollments = () => {
                     </div>
                 ) : (
                     <>
-                        <table className='md:table-auto table-fixed w-full overflow-hidden border mt-10'>
-                            <thead className='text-gray-900 border-b border-gray-500/20 text-sm text-left max-sm:hidden'>
+                        <table className='md:table-auto table-fixed w-full overflow-hidden rounded-xl shadow-sm bg-white/80 backdrop-blur-sm mt-6'>
+                            <thead className='text-gray-900 border-b border-indigo-100 text-sm text-left max-sm:hidden bg-gradient-to-r from-blue-50 to-indigo-50'>
                                 <tr>
-                                    <th className='px-4 py-3 font-semibold truncate w-16'>STT</th>
-                                    <th className='px-4 py-3 font-semibold truncate'>Course ID</th>
-                                    <th className='px-4 py-3 font-semibold truncate'>Course</th>
+                                    <th className='px-6 py-4 font-semibold truncate w-16'>STT</th>
+                                    <th className='px-6 py-4 font-semibold truncate'>Course ID</th>
+                                    <th className='px-6 py-4 font-semibold truncate'>Course</th>
                                    
-                                    {/* <th className='px-4 py-3 font-semibold truncate'>Duration</th>
-                                    <th className='px-4 py-3 font-semibold truncate'>Completed</th> */}
-                                    <th className='px-4 py-3 font-semibold truncate'>Status</th>
-                                    <th className='px-4 py-3 font-semibold truncate'>Actions</th>
+                                    {/* <th className='px-6 py-4 font-semibold truncate'>Duration</th>
+                                    <th className='px-6 py-4 font-semibold truncate'>Completed</th> */}
+                                    <th className='px-6 py-4 font-semibold truncate'>Status</th>
+                                    <th className='px-6 py-4 font-semibold truncate'>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {paginatedFilteredCourses.map((course, index) => (
-                                    <tr key={course._id} className='border-b border-gray-500/20'>
-                                        <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm text-center'>
+                                    <tr key={course._id} className='border-b border-indigo-50 hover:bg-blue-50/30 transition-colors duration-150'>
+                                        <td className='px-6 py-4 max-sm:hidden text-gray-500 text-sm text-center'>
                                             {startIndex + index + 1}
                                         </td>
-                                        <td className='px-4 py-3 max-sm:hidden text-gray-500 text-sm'>
-                                            <div className="break-all max-w-[200px]">{course._id}</div>
+                                        <td className='px-6 py-4 max-sm:hidden text-gray-500 text-sm'>
+                                            <div className="break-all max-w-[200px] font-mono text-xs">{course._id}</div>
                                         </td>
-                                        <td className='md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3'>
-                                            <img src={course.courseThumbnail} alt=""
-                                                className='w-14 sm:w-24 md:x-28' />
+                                        <td className='md:px-6 pl-3 md:pl-6 py-4 flex items-center space-x-4'>
+                                            <div className="relative group overflow-hidden rounded-lg shadow-sm hover:shadow-md transition-all duration-300">
+                                                <img src={course.courseThumbnail} alt=""
+                                                    className='w-16 sm:w-24 md:w-28 h-auto object-cover transition-transform duration-300 group-hover:scale-105' />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                            </div>
                                             <div className='flex-1'>
-                                                <p className='mb-1 max-sm:text-sm'>{course.courseTitle}</p>
-                                                <Line strokeWidth={2} percent={progressArray[index]?.progressPercentage || 0} className='bg-gray-300 rounded-full' />
-                                                <div className='text-xs text-gray-500 mt-1'>
-                                                    Lectures: {progressArray[index]?.lectureCompleted || 0}/{progressArray[index]?.totalLectures || 0},
-                                                    Tests: {progressArray[index]?.testsCompleted || 0}/{progressArray[index]?.totalTests || 0}
+                                                <p className='mb-2 max-sm:text-sm font-medium text-gray-800'>{course.courseTitle}</p>
+                                                <Line strokeWidth={2} percent={progressArray[index]?.progressPercentage || 0} strokeColor={isCompleted(index) ? "#10b981" : "#4f46e5"} className='bg-gray-200 rounded-full h-2' />
+                                                <div className='text-xs text-gray-500 mt-2 flex gap-3'>
+                                                    <span className="flex items-center gap-1">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+                                                        </svg>
+                                                        Lectures: {progressArray[index]?.lectureCompleted || 0}/{progressArray[index]?.totalLectures || 0}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                                                            <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                                                        </svg>
+                                                        Tests: {progressArray[index]?.testsCompleted || 0}/{progressArray[index]?.totalTests || 0}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </td>
@@ -899,23 +1176,42 @@ const MyEnrollments = () => {
                                         <td className='px-4 py-3 max-sm:hidden'>
                                             {course.progress && `${course.progress.lectureCompleted} / ${course.progress.totalLectures}`}  <span>Lectures</span>
                                         </td> */}
-                                        <td className='px-4 py-3 max-sm:text-right'>
+                                        <td className='px-6 py-4 max-sm:text-right'>
                                             <button 
-                                                className={`px-3 sm:px-5 py-1.5 ${isCompleted(index) ? 'bg-green-600' : 'bg-blue-600'} max-sm:text-xs text-white rounded`} 
+                                                className={`btn ${isCompleted(index) ? 'btn-success' : 'btn-primary'} px-4 sm:px-5 py-2 ${isCompleted(index) ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'} max-sm:text-xs text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 font-medium flex items-center gap-1.5 border-0`} 
                                                 onClick={() => navigate('/player/' + course._id)}
                                             >
-                                                {isCompleted(index) ? 'Completed' : 'On Going'}
+                                                {isCompleted(index) ? (
+                                                    <>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                        </svg>
+                                                        Completed
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                                        </svg>
+                                                        Continue
+                                                    </>
+                                                )}
                                             </button>
                                         </td>
-                                        <td className='px-4 py-3'>
+                                        <td className='px-6 py-4'>
                                             {/* NFT chỉ hiển thị nếu là khóa onchain (course.txHash tồn tại) và đã kết nối ví. Các nút khác giữ nguyên. */}
-                                            <div className="flex gap-2 mt-2">
+                                            <div className="flex flex-wrap gap-2">
                                                 {connected && course.txHash && (
                                                     <button
                                                         onClick={() => handleNFT(course._id)}
                                                         disabled={loadingNFT[course._id]}
-                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded hover:from-purple-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500"
+                                                        className="btn btn-secondary px-3 py-1.5 text-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded shadow-sm hover:from-purple-600 hover:to-purple-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
                                                     >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z" />
+                                                            <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z" />
+                                                            <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z" />
+                                                        </svg>
                                                         {loadingNFT[course._id] ? 'Loading...' : 'NFT'}
                                                     </button>
                                                 )}
@@ -924,8 +1220,11 @@ const MyEnrollments = () => {
                                                     <button
                                                         onClick={() => handleSaveAddress(course._id)}
                                                         disabled={savingAddress[course._id] || sentToEducator[course._id]}
-                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded hover:from-orange-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-500"
+                                                        className="btn btn-warning px-3 py-1.5 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded shadow-sm hover:from-orange-600 hover:to-orange-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
                                                     >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                                                        </svg>
                                                         {sentToEducator[course._id]
                                                             ? 'Sent, waiting for mint...'
                                                             : savingAddress[course._id]
@@ -937,8 +1236,11 @@ const MyEnrollments = () => {
                                                 {course.txHash && isCompleted(index) && certificateStatus[course._id] === 'completed' && (
                                                     <button
                                                         disabled
-                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded opacity-60 cursor-not-allowed"
+                                                        className="btn btn-success px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded shadow-sm font-medium border-0 flex items-center gap-1.5"
                                                     >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                        </svg>
                                                         Minted
                                                     </button>
                                                 )}
@@ -947,15 +1249,22 @@ const MyEnrollments = () => {
                                                     <>
                                                         <button
                                                             onClick={() => handleCertificate(course._id)}
-                                                            className="px-3 py-1 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded hover:from-amber-600 hover:to-amber-700"
+                                                            className="btn btn-warning px-3 py-1.5 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded shadow-sm hover:from-amber-600 hover:to-amber-700 hover:shadow transition-all duration-200 font-medium border-0 flex items-center gap-1.5"
                                                         >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                                                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                                            </svg>
                                                             {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
                                                         </button>
                                                         <button
                                                             onClick={() => handleViewCertificate2(course._id)}
                                                             disabled={loadingCertificate[course._id]}
-                                                            className="px-3 py-1 text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white rounded hover:from-orange-700 hover:to-red-700"
+                                                            className="btn btn-danger px-3 py-1.5 text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white rounded shadow-sm hover:from-orange-700 hover:to-red-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
                                                         >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                            </svg>
                                                             {loadingCertificate[course._id] ? 'Loading...' : 'Info Download Certificate NFT'}
                                                         </button>
                                                     </>
@@ -965,8 +1274,11 @@ const MyEnrollments = () => {
                                                     <button
                                                         onClick={() => handleGetSimpleCertificate(course._id)}
                                                         disabled={loadingSimpleCert[course._id]}
-                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500"
+                                                        className="btn btn-success px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded shadow-sm hover:from-green-600 hover:to-green-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
                                                     >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                                        </svg>
                                                         {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
                                                     </button>
                                                 )}
@@ -975,11 +1287,25 @@ const MyEnrollments = () => {
                                                     <button
                                                         onClick={() => handleGetSimpleCertificate(course._id)}
                                                         disabled={loadingSimpleCert[course._id]}
-                                                        className="px-3 py-1 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500"
+                                                        className="btn btn-success px-3 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded shadow-sm hover:from-green-600 hover:to-green-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
                                                     >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                                        </svg>
                                                         {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
                                                     </button>
                                                 )}
+                                                {/* Reset Progress */}
+                                                <button
+                                                    onClick={() => handleResetProgress(course._id)}
+                                                    disabled={updatingProgress[course._id]}
+                                                    className="btn btn-danger px-3 py-1.5 text-sm bg-gradient-to-r from-red-500 to-red-600 text-white rounded shadow-sm hover:from-red-600 hover:to-red-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                                    </svg>
+                                                    {updatingProgress[course._id] ? 'Resetting...' : 'Reset Progress'}
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -1279,7 +1605,7 @@ const MyEnrollments = () => {
                                 <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
                                     <div className="border border-gray-200 p-2">
                                         <QRCodeSVG
-                                            value={`https://transaction-b3.vercel.app/verify?policyId=${selectedNFTForQR.policyId}&txHash=${selectedNFTForQR.mintTransaction.txHash}`}
+                                            value={`https://client-react-brown.vercel.app/verify?policyId=${selectedNFTForQR.policyId}&txHash=${selectedNFTForQR.mintTransaction.txHash}`}
                                             size={200}
                                             level="H"
                                             includeMargin={true}
@@ -1713,14 +2039,7 @@ const MyEnrollments = () => {
                                                     {test.score !== undefined && (
                                                         <p><span className="font-medium">Score:</span> {test.score}</p>
                                                     )}
-                                                    {test.answers && (
-                                                        <div>
-                                                            <p className="font-medium">Answers:</p>
-                                                            <pre className="bg-gray-100 p-2 rounded mt-1 text-sm">
-                                                                {JSON.stringify(test.answers, null, 2)}
-                                                            </pre>
-                                                        </div>
-                                                    )}
+                                                    
                                                 </div>
                                             </div>
                                         ))}

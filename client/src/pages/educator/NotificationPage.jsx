@@ -141,12 +141,12 @@ const NotificationPage = () => {
 
             // Kiểm tra ID educator
             if (userData?._id !== addressResponse.data?.address?.educatorId) {
-                throw new Error('Bạn không phải là educator của khóa học này');
+                throw new Error('You are not the educator of this course.');
             }
 
             // Kiểm tra ví educator
             if (currentWallet !== addressResponse.data?.address?.educatorWallet) {
-                throw new Error('Ví đang kết nối không phải là ví đã đăng ký cho khóa học này');
+                throw new Error('The wallet being connected is not the wallet registered for this course');
             }
 
             console.log('Debug - Thông tin address:', {
@@ -503,65 +503,84 @@ const NotificationPage = () => {
     if (!notifications) return <Loading />;
 
     return (
-        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
-            <div className='w-full'>
-                <div className='flex justify-between items-center mb-4'>
-                    <div className='flex items-center gap-4'>
-                        <h2 className='text-lg font-medium mt-0'>Notifications</h2>
+        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-blue-50 to-white'>
+            <div className='w-full max-w-7xl mx-auto'>
+                <div className='mb-8'>
+                    <h1 className='text-2xl md:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2'>
+                        <div className='w-1.5 h-8 bg-blue-600 rounded-full mr-2'></div>
+                        Notifications
+                    </h1>
+                    <p className='text-gray-600 ml-5'>Manage certificate requests from your students</p>
+                </div>
+                
+                <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200'>
+                    <div className='flex items-center flex-wrap gap-3'>
                         <button
                             onClick={() => setShowCompleted(!showCompleted)}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${showCompleted 
-                                ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${showCompleted 
+                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300'}`}
                         >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             {showCompleted ? 'Show All' : 'Show Completed'}
                         </button>
                         <button
                             onClick={handleMintAllCertificates}
                             disabled={mintingAll || !connected || !wallet}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
                                 mintingAll
-                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    ? 'bg-gray-400 cursor-not-allowed text-white'
                                     : !connected || !wallet
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-orange-500 text-white hover:bg-orange-600'
+                                        ? 'bg-gray-400 cursor-not-allowed text-white'
+                                        : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm'
                             }`}
                         >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                            </svg>
                             {mintingAll ? 'Minting All...' : 'Mint All'}
+                            <span className="text-xs bg-white bg-opacity-20 px-1.5 py-0.5 rounded">Save on gas fees (pay only once)</span>
                         </button>
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Search by course name, ID or student name..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
-                    />
+                    <div className='relative w-full md:w-80'>
+                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search by course name, ID or student name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm"
+                        />
+                    </div>
                 </div>
 
-                <div className='flex flex-col items-center max-w-4xl w-full overflow-hidden rounded-md bg-white border border-gray-500/20'>
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className='w-full overflow-hidden rounded-lg shadow-sm bg-white border border-gray-200'>
+                    <div className='overflow-x-auto'>
+                        <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 text-left">
                         <tr>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-                                STT
+                            <th className="px-4 py-3.5 text-sm font-semibold text-gray-700 w-16 text-center">
+                                #
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">
                                 Student
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">
                                 Course
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Course ID
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                            <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">
                                 Date
                             </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3.5 text-sm font-semibold text-gray-700 text-center">
                                 Status
                             </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3.5 text-sm font-semibold text-gray-700 text-center">
                                 Actions
                             </th>
                         </tr>
@@ -637,9 +656,10 @@ const NotificationPage = () => {
                         })}
                     </tbody>
                 </table>
+                    </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
+                    {/* Pagination */}
+                    {totalPages > 1 && (
                     <div className="flex justify-center gap-2 my-4 w-full border-t border-gray-500/20 pt-4">
                         {/* Previous button */}
                         <button

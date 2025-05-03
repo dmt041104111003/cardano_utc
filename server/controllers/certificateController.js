@@ -14,7 +14,9 @@ const blockfrost = new BlockFrostAPI({
 export const getDetailCertificate = async (req, res) => {
     try {
         const { userId, courseId } = req.params;
+        // Sắp xếp theo createdAt giảm dần để lấy chứng chỉ mới nhất
         const certificate = await Certificate.findOne({ userId, courseId })
+            .sort({ createdAt: -1 }) // Lấy chứng chỉ mới nhất
             .populate("userId", "name email")
             .populate("courseId", "courseTitle")
             .populate("issueBy", "name");

@@ -22,8 +22,48 @@ const StudentsEnrolled = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             )
             if (data.success) {
-                const sortedStudents = data.enrolledStudents.reverse();
+                // Đảm bảo mỗi student đều có _id
+                const studentsWithUserIds = await Promise.all(data.enrolledStudents.map(async (student) => {
+                    // Nếu đã có _id thì giữ nguyên
+                    if (student.student && student.student._id) {
+                        return student;
+                    }
+                    
+                    // Nếu không có _id, thực hiện fetch user ID
+                    try {
+                        // Giả sử API endpoint để lấy thông tin user dựa trên student.student.userId hoặc email
+                        const userResponse = await axios.get(
+                            `${backendUrl}/api/user/profile/${student.student.userId || student.student.email}`,
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        
+                        if (userResponse.data.success && userResponse.data.user) {
+                            // Cập nhật thông tin student với user ID
+                            return {
+                                ...student,
+                                student: {
+                                    ...student.student,
+                                    _id: userResponse.data.user._id || student.student.userId || 'unknown-id'
+                                }
+                            };
+                        }
+                        return student;
+                    } catch (userError) {
+                        console.error('Error fetching user ID:', userError);
+                        // Nếu không fetch được, sử dụng ID mặc định hoặc giá trị hiện có
+                        return {
+                            ...student,
+                            student: {
+                                ...student.student,
+                                _id: student.student.userId || 'unknown-id'
+                            }
+                        };
+                    }
+                }));
+                
+                const sortedStudents = studentsWithUserIds.reverse();
                 setEnrolledStudents(sortedStudents);
+                
                 // Chỉ reset trang 1 và filter khi lần đầu load
                 if (isFirstLoad) {
                     setFilteredStudents(sortedStudents);
@@ -67,10 +107,10 @@ const StudentsEnrolled = () => {
         if (enrolledStudents) {
             let filtered = enrolledStudents;
 
-            // Filter by search query (course title, course ID or student name)
+            // Filter by search query (course title, user ID or student name)
             filtered = filtered.filter(student =>
                 student.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                student.courseId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                student.student._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 student.student.name.toLowerCase().includes(searchQuery.toLowerCase())
             );
 
@@ -98,11 +138,24 @@ const StudentsEnrolled = () => {
     };
 
     return enrolledStudents ? (
-        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
-            <div className='w-full'>
-                <div className='flex justify-between items-center mb-4'>
+        <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-blue-50 to-white'>
+            <div className='w-full max-w-7xl mx-auto'>
+                <div className='mb-8'>
+                    <h1 className='text-2xl md:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2'>
+                        <div className='w-1.5 h-8 bg-blue-600 rounded-full mr-2'></div>
+                        Students Enrolled
+                    </h1>
+                    <p className='text-gray-600 ml-5'>Track all students enrolled in your courses</p>
+                </div>
+                
+                <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200'>
                     <div className='flex items-center gap-4'>
-                        <h2 className='text-lg font-medium mt-0'>Students Enrolled</h2>
+                        <div className='flex items-center gap-2 text-blue-600'>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span className='font-medium'>Total: {enrolledStudents.length} students</span>
+                        </div>
                         {/* <button
                             onClick={() => setShowCompleted(!showCompleted)}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${showCompleted 
@@ -112,117 +165,150 @@ const StudentsEnrolled = () => {
                             {showCompleted ? 'Show All' : 'Show Completed'}
                         </button> */}
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Search by course name, ID or student name..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-80"
-                    />
+                    <div className='relative w-full md:w-80'>
+                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search by course name, user ID or student name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm"
+                        />
+                    </div>
                 </div>
 
-                <div className='flex flex-col items-center max-w-4x1 w-full overflow-hidden rounded-md bg-white border border-gray-500/20'>
-                    <table className='md:table-auto table-fixed w-full overflow-hidden'>
-                        <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left">
-                            <tr>
-                                <th className="px-4 py-3 font-semibold truncate w-16">STT</th>
-                                <th className="px-4 py-3 font-semibold truncate">Student Name</th>
-                                <th className="px-4 py-3 font-semibold truncate">Course Title</th>
-                                <th className="px-4 py-3 font-semibold truncate">Course ID</th>
-                                <th className="px-4 py-3 font-semibold truncate">Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedStudents.map((student, index) => (
-                                <tr key={index} className="border-b border-gray-500/20">
-                                    <td className="px-4 py-3 text-center text-gray-500 text-sm">{startIndex + index + 1}</td>
-                                    <td className="px-4 py-3 flex items-center space-x-3">
-                                        <img 
-                                            src={student.student.imageUrl || dummyStudentEnrolled} 
-                                            alt="Student" 
-                                            className="w-8 h-8 rounded-full object-cover"
-                                        />
-                                        <span>{student.student.name}</span>
-                                    </td>
-                                    <td className="px-4 py-3">{student.courseTitle}</td>
-                                    <td className="px-4 py-3 text-gray-500 text-sm">{student.courseId}</td>
-                                    <td className="px-4 py-3">
-                                        {new Date(student.purchaseDate).toLocaleDateString()}
-                                    </td>
+                <div className='w-full overflow-hidden rounded-lg shadow-sm bg-white border border-gray-200'>
+                    <div className='overflow-x-auto'>
+                        <table className='min-w-full divide-y divide-gray-200'>
+                            <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 text-left">
+                                <tr>
+                                    <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">#</th>
+                                    <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">Student Name</th>
+                                    <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">Course Title</th>
+                                    <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">User ID</th>
+                                    <th className="px-4 py-3.5 text-sm font-semibold text-gray-700">Enrollment Date</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {paginatedStudents.map((student, index) => (
+                                    <tr key={index} className="hover:bg-blue-50 transition-colors duration-150">
+                                        <td className="px-4 py-4 text-center text-gray-500 text-sm font-medium">{startIndex + index + 1}</td>
+                                        <td className="px-4 py-4">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden border border-gray-200 shadow-sm">
+                                                    <img 
+                                                        src={student.student.imageUrl || dummyStudentEnrolled} 
+                                                        alt="Student" 
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <p className="text-sm font-medium text-gray-900">{student.student.name}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="text-sm text-gray-900 font-medium">{student.courseTitle}</div>
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="text-xs text-gray-500 font-mono bg-gray-100 rounded px-2 py-1 break-all">
+                                                {student.student._id}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-4 text-sm text-gray-600">
+                                            {new Date(student.purchaseDate).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'short',
+                                                day: 'numeric'
+                                            })}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="flex justify-center gap-2 my-4 w-full border-t border-gray-500/20 pt-4">
+                        <div className="flex justify-center items-center gap-2 py-4 w-full border-t border-gray-200 bg-gray-50">
                             {/* Previous button */}
                             <button
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={currentPage === 1}
-                                className={`px-3 py-1 rounded-md text-sm ${
+                                className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
                                     currentPage === 1
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 hover:bg-gray-300'
+                                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm'
                                 }`}
                             >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
                                 Previous
                             </button>
 
                             {/* Page numbers */}
-                            {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                .filter(page => {
-                                    // Always show first and last page
-                                    if (page === 1 || page === totalPages) return true;
-                                    // Show pages around current page
-                                    return Math.abs(page - currentPage) <= 2;
-                                })
-                                .map((page, index, array) => {
-                                    // Add ellipsis if there's a gap
-                                    if (index > 0 && page - array[index - 1] > 1) {
+                            <div className="flex items-center">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(page => {
+                                        // Always show first and last page
+                                        if (page === 1 || page === totalPages) return true;
+                                        // Show pages around current page
+                                        return Math.abs(page - currentPage) <= 1;
+                                    })
+                                    .map((page, index, array) => {
+                                        // Add ellipsis if there's a gap
+                                        if (index > 0 && page - array[index - 1] > 1) {
+                                            return (
+                                                <React.Fragment key={`ellipsis-${page}`}>
+                                                    <span className="px-2 py-1 text-gray-500">...</span>
+                                                    <button
+                                                        onClick={() => handlePageChange(page)}
+                                                        className={`flex items-center justify-center w-8 h-8 rounded-md text-sm font-medium transition-colors duration-200 ${
+                                                            currentPage === page
+                                                                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm'
+                                                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300'
+                                                        }`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                </React.Fragment>
+                                            );
+                                        }
                                         return (
-                                            <React.Fragment key={`ellipsis-${page}`}>
-                                                <span className="px-2 py-1">...</span>
-                                                <button
-                                                    onClick={() => handlePageChange(page)}
-                                                    className={`px-3 py-1 rounded-md text-sm ${
-                                                        currentPage === page
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-gray-200 hover:bg-gray-300'
-                                                    }`}
-                                                >
-                                                    {page}
-                                                </button>
-                                            </React.Fragment>
+                                            <button
+                                                key={page}
+                                                onClick={() => handlePageChange(page)}
+                                                className={`flex items-center justify-center w-8 h-8 mx-0.5 rounded-md text-sm font-medium transition-colors duration-200 ${
+                                                    currentPage === page
+                                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm'
+                                                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300'
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
                                         );
-                                    }
-                                    return (
-                                        <button
-                                            key={page}
-                                            onClick={() => handlePageChange(page)}
-                                            className={`px-3 py-1 rounded-md text-sm ${
-                                                currentPage === page
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-gray-200 hover:bg-gray-300'
-                                            }`}
-                                        >
-                                            {page}
-                                        </button>
-                                    );
-                                })}
+                                    })}
+                            </div>
 
                             {/* Next button */}
                             <button
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={currentPage === totalPages}
-                                className={`px-3 py-1 rounded-md text-sm ${
+                                className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
                                     currentPage === totalPages
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 hover:bg-gray-300'
+                                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 shadow-sm'
                                 }`}
                             >
                                 Next
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
                             </button>
                         </div>
                     )}

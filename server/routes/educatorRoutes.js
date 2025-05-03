@@ -5,7 +5,8 @@ import { protectEducator } from '../middlewares/authMiddleware.js'
 import {
     addCourse, deleteCourse, deleteAllCourses, educatorDashboardData,
     getEducatorCourses, getEnrolledStudentsData, updateCourse,
-    updatetoRoleToEducator,educatorDetails
+    updatetoRoleToEducator, educatorDetails, unstopCourse, unstopAllCourses,
+    checkTermsAgreement, agreeToTerms
 } from '../controllers/educatorController.js';
 
 const educatorRouter = express.Router()
@@ -21,4 +22,11 @@ educatorRouter.get('/enrolled-students', protectEducator, getEnrolledStudentsDat
 educatorRouter.put("/update-course", upload.single("image"), protectEducator, updateCourse);
 educatorRouter.delete('/delete-course/:courseId', protectEducator, deleteCourse);
 educatorRouter.delete('/delete-all-courses', protectEducator, deleteAllCourses);
+educatorRouter.put('/unstop-course/:courseId', protectEducator, unstopCourse);
+educatorRouter.put('/unstop-all-courses', protectEducator, unstopAllCourses);
+
+// Routes cho điều khoản và chính sách
+educatorRouter.get('/check-terms-agreement', checkTermsAgreement);
+educatorRouter.post('/agree-to-terms', agreeToTerms);
+
 export default educatorRouter;

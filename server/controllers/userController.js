@@ -505,7 +505,7 @@ export const getSimpleCertificateData = async (req, res) => {
 export const enrollCourses = async (req, res) => {
     const { origin } = req.headers;
     const userId = req.auth.userId;
-    let { courseId,paymentMethod,currency,receiverAddress } = req.body;
+    let { courseId, paymentMethod, currency, receiverAddress, senderAddress } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(courseId)) {
         return res.status(400).json({ success: false, message: 'Invalid course ID' });
@@ -534,6 +534,7 @@ export const enrollCourses = async (req, res) => {
                 currency: currency,
                 paymentMethod: paymentMethod,
                 receiverAddress: receiverAddress,
+                senderAddress: senderAddress, // Lưu địa chỉ ví người gửi
                 createdAt: new Date(),
                 note: ""
             };
@@ -563,3 +564,39 @@ export const getUserPurchaseHistory = async (req, res) => {
     }
 };
 
+// Reset tiến trình khóa học của user
+export const resetCourseProgress = async (req, res) => {
+    try {
+        const userId = req.auth.userId;
+        const { courseId } = req.body;
+
+        if (!courseId) {
+            return res.status(400).json({ success: false, message: 'Course ID is required' });
+        }
+
+        // Tìm tiến trình khóa học
+        const progressData = await CourseProgress.findOne({ userId, courseId });
+
+        if (!progressData) {
+            return res.status(404).json({ success: false, message: 'Course progress not found' });
+        }
+
+        // Reset tiến trình
+        progressData.lectureCompleted = [];
+        progressData.tests = [];
+        progressData.completed = false;
+        progressData.completedAt = null;
+        progressData.lastUpdated = new Date();
+
+        await progressData.save();
+
+        res.json({ 
+            success: true, 
+            message: 'Course progress has been reset successfully',
+            progressData
+        });
+    } catch (error) {
+        console.error('Error resetting course progress:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

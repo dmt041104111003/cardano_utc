@@ -816,45 +816,65 @@ const AddCourse = () => {
     }
   };
   return (
-    <div className='h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
-      <form onSubmit={handleSubmit} className='flex flex-col gap-4 max-w-md w-full text-gray-500'>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Wallet Address
-          </label>
-          <input
-            type="text"
-            value={walletAddress}
-            readOnly
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-100"
-          />
-          {!connected && (
-            <p className="text-red-500 text-xs italic mt-1">
-              Please connect your wallet to create a course
-            </p>
-          )}
+    <div className='min-h-screen overflow-auto flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-blue-50 via-indigo-50/30 to-white'>
+      <div className='w-full'>
+        <div className='flex items-center gap-3 mb-6'>
+          <div className="h-10 w-1.5 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-full"></div>
+          <h1 className='text-2xl font-bold text-gray-800'>Add New Course</h1>
         </div>
-        <div className='flex flex-col gap-1'>
-          <p>Course Title</p>
-          <input 
-            onChange={e => setCourseTitle(e.target.value)}
-            value={courseTitle} 
-            type="text" 
-            placeholder='Enter course title' 
-            className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500' 
-            required 
-            onInvalid={e => e.target.setCustomValidity('Please enter a course title')}
-            onInput={e => e.target.setCustomValidity('')}
-          />
-          {courseTitle === '' && <p className="text-red-500 text-xs mt-1">Course title is required</p>}
+        
+        <form onSubmit={handleSubmit} className='bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6 w-full'>
+        <h2 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"></path>
+          </svg>
+          Course Details
+        </h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Wallet Address
+            </label>
+            <input
+              type="text"
+              value={walletAddress}
+              readOnly
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm"
+            />
+            {!connected && (
+              <p className="text-red-500 text-xs mt-1">
+                Please connect your wallet to create a course
+              </p>
+            )}
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Course Title
+            </label>
+            <input 
+              onChange={e => setCourseTitle(e.target.value)}
+              value={courseTitle} 
+              type="text" 
+              placeholder='Enter course title' 
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm' 
+              required 
+              onInvalid={e => e.target.setCustomValidity('Please enter a course title')}
+              onInput={e => e.target.setCustomValidity('')}
+            />
+            {courseTitle === '' && <p className="text-red-500 text-xs mt-1">Course title is required</p>}
+          </div>
         </div>
-        <div className='flex flex-col gap-1'>
-          <p>Course Description</p>
-          <div ref={editorRef}></div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Course Description</label>
+          <div className="border border-gray-300 rounded-lg overflow-hidden">
+            <div ref={editorRef}></div>
+          </div>
         </div>
-        <div className='flex items-center justify-between flex-wrap'>
-          <div className='flex flex-col gap-1'>
-            <p>Course Price (ADA)</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">Course Price (ADA)</label>
             <input 
               onKeyDown={preventMinus}
               onChange={e => setCoursePrice(e.target.value)} 
@@ -863,14 +883,14 @@ const AddCourse = () => {
               min="0"
               step="0.01"
               placeholder='0' 
-              className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm'
               onInvalid={e => e.target.setCustomValidity('Please enter a valid price (0 or greater)')}
               onInput={e => e.target.setCustomValidity('')}
             />
             {coursePrice < 0 && <p className="text-red-500 text-xs mt-1">Price cannot be negative</p>}
           </div>
-          <div className='flex flex-col gap-1'>
-            <p>Discount (%)</p>
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">Discount (%)</label>
             <input 
               onKeyDown={preventMinus}
               onChange={e => setDiscount(e.target.value)} 
@@ -879,44 +899,71 @@ const AddCourse = () => {
               min="0"
               max="100"
               placeholder='0' 
-              className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm'
               onInvalid={e => e.target.setCustomValidity('Please enter a valid discount (0-100%)')}
               onInput={e => e.target.setCustomValidity('')}
             />
             {discount < 0 && <p className="text-red-500 text-xs mt-1">Discount cannot be negative</p>}
             {discount > 100 && <p className="text-red-500 text-xs mt-1">Discount cannot exceed 100%</p>}
           </div>
-          {discount > 0 && (
-            <div className='flex flex-col gap-1'>
-              <p>Discount End Time</p>
-              <input 
-                onChange={e => setDiscountEndTime(e.target.value)}
-                value={discountEndTime}
-                type="datetime-local"
-                className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500'
-                required
-                onInvalid={e => e.target.setCustomValidity('Please select when the discount ends')}
-                onInput={e => e.target.setCustomValidity('')}
-              />
-              {!discountEndTime && discount > 0 && <p className="text-red-500 text-xs mt-1">Required when discount is applied</p>}
-            </div>
-          )}
-          <div className='flex md:flex-row flex-col items-center gap-3'>
-            <p>Course Thumbnail</p>
-            <label htmlFor='thumbnailImage' className='flex items-center gap-3'>
-              <img src={assets.file_upload_icon} alt="" className='p-3 bg-blue-500 rounded' />
-              <input 
-                type="file" 
-                id='thumbnailImage' 
-                onChange={e => setImage(e.target.files[0])} 
-                accept="image/*" 
-                hidden 
-                required
-              />
-              <img className='max-h-10' src={image ? URL.createObjectURL(image) : null} alt="" />
-            </label>
-            {!image && <p className="text-red-500 text-xs">Course thumbnail is required</p>}
+        </div>
+        
+        {discount > 0 && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Discount End Time</label>
+            <input 
+              onChange={e => setDiscountEndTime(e.target.value)}
+              value={discountEndTime}
+              type="datetime-local"
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm'
+              required
+              onInvalid={e => e.target.setCustomValidity('Please select when the discount ends')}
+              onInput={e => e.target.setCustomValidity('')}
+            />
+            {!discountEndTime && discount > 0 && <p className="text-red-500 text-xs mt-1">Required when discount is applied</p>}
           </div>
+        )}
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Course Thumbnail</label>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative group">
+              <label htmlFor='thumbnailImage' className='cursor-pointer'>
+                <input 
+                  type="file" 
+                  id='thumbnailImage' 
+                  onChange={e => setImage(e.target.files[0])} 
+                  accept="image/*" 
+                  className="sr-only" 
+                  required
+                />
+                <div className='inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md'>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  Choose Image
+                </div>
+              </label>
+            </div>
+            <div className="h-20 w-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center group-hover:border-blue-400 transition-colors duration-200">
+              {image ? (
+                <img className='h-full w-full object-cover' src={URL.createObjectURL(image)} alt="Thumbnail" />
+              ) : (
+                <div className="text-center p-2">
+                  <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  <p className="mt-1 text-xs text-gray-500">Preview</p>
+                </div>
+              )}
+            </div>
+          </div>
+          {!image && <p className="text-red-500 text-xs mt-2 flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path>
+            </svg>
+            Course thumbnail is required
+          </p>}
         </div>
         <div className="mb-6">
           <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
@@ -1097,15 +1144,24 @@ const AddCourse = () => {
         )}
         <button
           type='submit'
-          className={`bg-black text-white w-max py-2.5 px-8 rounded my-4 ${!canCreate || !userData?.canCreateCourse ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm ${!canCreate || !userData?.canCreateCourse ? 'opacity-50 cursor-not-allowed' : ''}`}
           disabled={!canCreate || !userData?.canCreateCourse}
-        >ADD</button>
+        >
+          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+          </svg>
+          ADD COURSE
+        </button>
         {!canCreate && cooldownLeft > 0 && (
-          <div className="mt-2 text-yellow-700 text-sm font-semibold">
+          <div className="mt-2 text-yellow-700 text-sm font-semibold bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+            <svg className="w-5 h-5 inline-block mr-1 text-yellow-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"></path>
+            </svg>
             Wait {Math.floor(cooldownLeft / 60000)}:{((cooldownLeft % 60000) / 1000).toFixed(0).padStart(2, '0')} to create a new course
           </div>
         )}
       </form>
+      </div>
     </div>
   );
 };

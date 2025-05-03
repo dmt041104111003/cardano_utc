@@ -79,6 +79,7 @@ export const addCourse = async (req, res) => {
 export const getEducatorCourses = async (req, res) => {
     try {
         const educator = req.auth.userId;
+        // Lấy tất cả khóa học của giáo viên, bao gồm cả những khóa học đã bị đánh dấu là xóa
         const courses = await Course.find({ educator });
         res.json({ success: true, courses });
     } catch (error) {
@@ -200,6 +201,10 @@ export const updateCourse = async (req, res) => {
 
         // Cập nhật dữ liệu khóa học
         Object.assign(course, parsedCourseData);
+        
+        // Đánh dấu khóa học đã được cập nhật
+        course.isUpdated = true;
+        course.lastUpdated = new Date();
 
         // Xử lý upload ảnh nếu có
         if (imageFile) {
@@ -267,16 +272,12 @@ export const deleteCourse = async (req, res) => {
             });
         }
 
-        await Course.deleteOne({ _id: courseId });
-
-        if (course.courseThumbnail) {
-            const publicId = course.courseThumbnail.split("/").pop().split(".")[0];
-            await cloudinary.uploader.destroy(publicId);
-        }
+        // Thay vì xóa khóa học, chỉ đánh dấu là đã xóa
+        await Course.findByIdAndUpdate(courseId, { isDeleted: true });
 
         return res.status(200).json({
             success: true,
-            message: "Course deleted successfully",
+            message: "Course marked as deleted successfully",
         });
     } catch (error) {
         console.error("Error in deleteCourse:", error);
@@ -302,22 +303,15 @@ export const deleteAllCourses = async (req, res) => {
             });
         }
         
-        // Xóa tất cả khóa học
-        await Course.deleteMany({ educator: educatorId });
-        
-        // Xóa tất cả ảnh thumbnail trên Cloudinary
-        const deletePromises = courses
-            .filter(course => course.courseThumbnail)
-            .map(course => {
-                const publicId = course.courseThumbnail.split("/").pop().split(".")[0];
-                return cloudinary.uploader.destroy(publicId);
-            });
-        
-        await Promise.all(deletePromises);
+        // Đánh dấu tất cả khóa học là đã xóa thay vì xóa chúng
+        await Course.updateMany(
+            { educator: educatorId }, 
+            { $set: { isDeleted: true } }
+        );
         
         return res.status(200).json({
             success: true,
-            message: `${courses.length} courses deleted successfully`,
+            message: `${courses.length} courses marked as stopped successfully`,
         });
     } catch (error) {
         console.error("Error in deleteAllCourses:", error);
@@ -388,4 +382,73 @@ export const educatorDetails  = async (req, res) => {
     }
 };
 
+// Khôi phục khóa học đã bị dừng
+export const unstopCourse = async (req, res) => {
+    try {
+        const educatorId = req.auth.userId;
+        const { courseId } = req.params;
 
+        if (!courseId) {
+            return res.status(400).json({
+                success: false,
+                message: "Course ID is required",
+            });
+        }
+
+        const course = await Course.findOne({ _id: courseId, educator: educatorId });
+        if (!course) {
+            return res.status(404).json({
+                success: false,
+                message: "Course not found or you are not authorized to unstop this course",
+            });
+        }
+
+        // Đánh dấu khóa học là không bị dừng nữa
+        await Course.findByIdAndUpdate(courseId, { isDeleted: false });
+
+        return res.status(200).json({
+            success: true,
+            message: "Course has been successfully unstoped",
+        });
+    } catch (error) {
+        console.error("Error in unstopCourse:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error: " + error.message,
+        });
+    }
+};
+
+// Khôi phục tất cả khóa học đã bị dừng
+export const unstopAllCourses = async (req, res) => {
+    try {
+        const educatorId = req.auth.userId;
+        
+        // Tìm tất cả khóa học đã bị dừng của educator
+        const courses = await Course.find({ educator: educatorId, isDeleted: true });
+        
+        if (courses.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No stopped courses found for this educator",
+            });
+        }
+        
+        // Đánh dấu tất cả khóa học là không bị dừng nữa
+        await Course.updateMany(
+            { educator: educatorId, isDeleted: true }, 
+            { $set: { isDeleted: false } }
+        );
+        
+        return res.status(200).json({
+            success: true,
+            message: `${courses.length} courses have been successfully unstoped`,
+        });
+    } catch (error) {
+        console.error("Error in unstopAllCourses:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error: " + error.message,
+        });
+    }
+};
