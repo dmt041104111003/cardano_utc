@@ -13,6 +13,9 @@ import notificationRouter from './routes/notificationRoutes.js'
 import blockchainRouter from './routes/blockchainRoute.js'
 import nftRouter from './routes/nftRoute.js'
 import addressRouter from './routes/addressRoute.js'
+import premiumRoute from './routes/premiumRoute.js'
+import batchMintRouter from './routes/batchMintRoutes.js'
+import purchaseRouter from './routes/purchaseRoutes.js'
 
 const app = express()
 
@@ -21,6 +24,9 @@ await connectDB()
 await connectCloudinary()
 
 app.use(cors())
+
+// Increase JSON payload limit for batch operations
+app.use(express.json({ limit: '50mb' }))
 
 app.use(clerkMiddleware())
 
@@ -43,6 +49,13 @@ app.use('/api/blockchain', express.json(), blockchainRouter)
 app.use('/api/nft', express.json(), nftRouter)
 
 app.use('/api/address', express.json(), addressRouter)
+
+app.use('/api/premium', express.json(), premiumRoute)
+
+app.use('/api/batch', express.json(), batchMintRouter)
+
+app.use('/api/purchase', express.json(), purchaseRouter)
+
 
 app.post('/stripe', express.raw({ type: 'application/json' }), stripeWebhooks)
 

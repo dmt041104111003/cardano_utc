@@ -2,6 +2,34 @@ import Address from "../models/Address.js";
 import Course from "../models/Course.js";
 import Notification from "../models/Notification.js";
 
+// Kiểm tra xem học viên đã gửi yêu cầu chứng chỉ cho khóa học cụ thể chưa
+export const checkAddress = async (req, res) => {
+    try {
+        const { courseId, userId } = req.query;
+
+        if (!courseId || !userId) {
+            return res.json({
+                success: false,
+                message: 'Missing courseId or userId'
+            });
+        }
+
+        const address = await Address.findOne({
+            courseId: courseId,
+            userId: userId
+        });
+
+        res.json({
+            success: true,
+            exists: !!address,
+            address: address
+        });
+    } catch (error) {
+        console.error('Error checking address:', error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
 // Tìm địa chỉ theo courseId và educatorId
 export const findAddress = async (req, res) => {
     try {
@@ -10,7 +38,7 @@ export const findAddress = async (req, res) => {
         if (!courseId || !educatorId) {
             return res.json({
                 success: false,
-                message: 'Thiếu courseId hoặc educatorId'
+                message: 'Missing courseId or educatorId'
             });
         }
 
@@ -26,7 +54,7 @@ export const findAddress = async (req, res) => {
             address: address
         });
     } catch (error) {
-        console.error('Lỗi khi tìm address:', error);
+        console.error('Error finding address:', error);
         res.json({ success: false, message: error.message });
     }
 };

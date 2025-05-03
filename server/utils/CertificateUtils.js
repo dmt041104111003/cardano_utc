@@ -15,7 +15,7 @@ const generateCertificateImage = async (username, mintUsername, courseName, issu
         ctx.drawImage(background, 0, 0, width, height);
         console.log("Load ảnh thành công!");
     } catch (error) {
-        console.log("Lỗi khi load ảnh:", error);
+        console.log("Error loading image:", error);
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, width, height);
     }
@@ -24,7 +24,7 @@ const generateCertificateImage = async (username, mintUsername, courseName, issu
     ctx.fillStyle = "black";
     ctx.textAlign = "center";
 
-    ctx.fillText(username || "Người nhận", width / 2, 250);
+    ctx.fillText(username || "Recipient", width / 2, 250);
     ctx.fillText(`Khóa học: ${courseName}`, width / 2, 320);
     ctx.fillText(`Ngày cấp: ${issueAt}`, width / 2, 390);
     ctx.fillText(`Cấp bởi: ${mintUsername}`, width / 2, 460);
@@ -52,7 +52,7 @@ const uploadToPinata = async (filePath) => {
 
         return response.data;
     } catch (error) {
-        console.error("Lỗi khi upload lên Pinata:", error);
+        console.error("Error uploading to Pinata:", error);
         throw error;
     }
 };
@@ -60,9 +60,9 @@ const uploadToPinata = async (filePath) => {
 const deleteFileAfterUpload = async (filePath) => {
     try {
         await fs.remove(filePath);
-        console.log("File đã được xóa sau khi upload thành công!");
+        console.log("File deleted after successful upload!");
     } catch (error) {
-        console.error("Lỗi khi xóa file:", error);
+        console.error("Error deleting file:", error);
     }
 };
 

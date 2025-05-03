@@ -37,7 +37,7 @@ const Navbar = () => {
     };
 
     return (
-        <div className="flex items-center justify-between px-5 sm:px-10 md:px-14 lg:px-36 border-b border-green-200/30 py-4 shadow-md bg-gradient-to-b from-green-100/70 to-cyan-100/50">
+        <div className="flex items-center justify-between px-5 sm:px-10 md:px-14 lg:px-36 border-b border-blue-100/50 py-4 shadow-md bg-gradient-to-b from-blue-50 via-indigo-50/30 to-white sticky top-0 z-50 backdrop-blur-sm transition-all duration-300">
             <div className='flex items-center gap-4'>
                 <LMSCardanoLogo onClick={() => navigate('/')} className="hover:scale-105 transition-transform" />
             </div>
@@ -49,19 +49,26 @@ const Navbar = () => {
                         <>
                         <Link 
                                 to='/' 
-                                className='text-sm font-medium hover:text-cyan-600 transition-colors'
+                                onClick={() => {window.scrollTo(0, 0); navigate('/');}}
+                                className={`text-sm font-medium transition-all duration-300 relative ${location.pathname === '/' ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-cyan-600'} ${location.pathname === '/' ? 'after:content-[""] after:absolute after:w-full after:h-0.5 after:bg-blue-600 after:bottom-[-8px] after:left-0 after:rounded-full' : ''}`}
                             >
                                 Home
                             </Link>
                             <button 
-                                onClick={becomeEducator} 
-                                className='text-sm font-medium hover:text-green-600 transition-colors'
+                                onClick={() => {
+                                    window.scrollTo(0, 0);
+                                    becomeEducator();
+                                }} 
+                                className={`text-sm font-medium transition-all duration-300 relative ${isEducator ? 'text-green-600 font-semibold' : 'text-gray-600 hover:text-green-600'}`}
                             >
                                 {isEducator ? 'Educator Dashboard' : 'Become Educator'}
                             </button>
                             <button 
-                                onClick={() => navigate('/courses')}
-                                className='text-sm font-medium hover:text-green-600 transition-colors'
+                                onClick={() => {
+                                    window.scrollTo(0, 0);
+                                    navigate('/courses');
+                                }}
+                                className={`text-sm font-medium transition-all duration-300 relative ${location.pathname === '/courses' ? 'text-blue-600 font-semibold after:content-[""] after:absolute after:w-full after:h-0.5 after:bg-blue-600 after:bottom-[-8px] after:left-0 after:rounded-full' : 'text-gray-600 hover:text-green-600'}`}
                             >
                                 Courses
                             </button>
@@ -69,13 +76,15 @@ const Navbar = () => {
                       
                             <Link 
                                 to='/my-enrollments' 
-                                className='text-sm font-medium hover:text-cyan-600 transition-colors'
+                                onClick={() => window.scrollTo(0, 0)}
+                                className={`text-sm font-medium transition-all duration-300 relative ${location.pathname === '/my-enrollments' ? 'text-blue-600 font-semibold after:content-[""] after:absolute after:w-full after:h-0.5 after:bg-blue-600 after:bottom-[-8px] after:left-0 after:rounded-full' : 'text-gray-600 hover:text-cyan-600'}`}
                             >
                                 My Enrollments
                             </Link>
                             <Link 
                                 to='/my-profile' 
-                                className='text-sm font-medium hover:text-blue-600 transition-colors'
+                                onClick={() => window.scrollTo(0, 0)}
+                                className={`text-sm font-medium transition-all duration-300 relative ${location.pathname === '/my-profile' ? 'text-blue-600 font-semibold after:content-[""] after:absolute after:w-full after:h-0.5 after:bg-blue-600 after:bottom-[-8px] after:left-0 after:rounded-full' : 'text-gray-600 hover:text-blue-600'}`}
                             >
                                 My Profile
                             </Link>
@@ -87,7 +96,7 @@ const Navbar = () => {
                 ) : (
                     <button 
                         onClick={() => openSignIn()} 
-                        className='bg-gradient-to-r from-green-500 to-cyan-500 text-white px-5 py-2 rounded-full text-sm font-semibold hover:from-green-600 hover:to-cyan-600 transition-all duration-300 shadow-md hover:shadow-lg'
+                        className='bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg'
                     >
                         Create Account
                     </button>
@@ -100,32 +109,38 @@ const Navbar = () => {
                     {user && (
                         <>
                             <button 
-                                onClick={() => navigate('/courses')}
-                                className='text-xs font-medium hover:text-green-600 transition-colors'
+                                onClick={() => {
+                                    window.scrollTo(0, 0);
+                                    navigate('/courses');
+                                }}
+                                className={`text-xs font-medium transition-all duration-300 relative ${location.pathname === '/courses' ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-green-600'}`}
                             >
                                 Courses
                             </button>
                             <button 
-                                onClick={becomeEducator} 
-                                className='text-xs font-medium hover:text-green-600 transition-colors'
+                                onClick={() => {
+                                    window.scrollTo(0, 0);
+                                    becomeEducator();
+                                }} 
+                                className={`text-xs font-medium transition-all duration-300 relative ${isEducator ? 'text-green-600 font-semibold' : 'text-gray-600 hover:text-green-600'}`}
                             >
                                 {isEducator ? 'Educator' : 'Become Edu'}
                             </button>
                             <Link 
                                 to='/' 
-                                className='text-sm font-medium hover:text-cyan-600 transition-colors'
+                                className={`text-xs font-medium transition-all duration-300 relative ${location.pathname === '/' ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-cyan-600'}`}
                             >
                                 Home
                             </Link>
                             <Link 
                                 to='/my-enrollments' 
-                                className='text-xs font-medium hover:text-cyan-600 transition-colors'
+                                className={`text-xs font-medium transition-all duration-300 relative ${location.pathname === '/my-enrollments' ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-cyan-600'}`}
                             >
                                 Enrollments
                             </Link>
                             <Link 
                                 to='/my-profile' 
-                                className='text-xs font-medium hover:text-blue-600 transition-colors'
+                                className={`text-xs font-medium transition-all duration-300 relative ${location.pathname === '/my-profile' ? 'text-blue-600 font-semibold' : 'text-gray-600 hover:text-blue-600'}`}
                             >
                                 Profile
                             </Link>
@@ -137,9 +152,11 @@ const Navbar = () => {
                 ) : (
                     <button 
                         onClick={() => openSignIn()} 
-                        className='p-2 rounded-full bg-green-100 hover:bg-green-200 transition-colors'
+                        className='p-2 rounded-full bg-blue-100 hover:bg-blue-200 transition-colors flex items-center justify-center'
                     >
-                        <img src={assets.user_icon} alt="User" className="w-6 h-6" />
+                        <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                        </svg>
                     </button>
                 )}
             </div>

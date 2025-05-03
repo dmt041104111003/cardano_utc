@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const lectureSchema = new mongoose.Schema({
     lectureId: { type: String, required: true },
     lectureTitle: { type: String, required: true },
-    lectureDuration: { type: Number, required: true },
+    lectureDuration: { type: Number, required: false },
     lectureUrl: { type: String, required: true },
     isPreviewFree: { type: Boolean, default: true },
     lectureOrder: { type: Number, required: true },
@@ -19,10 +19,10 @@ const chapterSchema = new mongoose.Schema({
 const questionSchema = new mongoose.Schema({
     questionText: { type: String, required: true },
     type: { type: String, enum: ['multiple_choice', 'essay'], required: true },
-    options: [{ type: String }], // Chỉ dùng cho multiple_choice
-    correctAnswers: [{ type: String }], // Mảng các đáp án đúng cho multiple_choice
-    essayAnswer: { type: String }, // Chỉ dùng cho essay
-    note: { type: String } // Note cho câu hỏi
+    options: [{ type: String }], // Only used for multiple_choice
+    correctAnswers: [{ type: String }], // Array of correct answers for multiple_choice
+    essayAnswer: { type: String }, // Only used for essay
+    note: { type: String } // Note for the question
 }, { _id: false });
 
 const testSchema = new mongoose.Schema({
@@ -39,6 +39,10 @@ const courseSchema = new mongoose.Schema({
     courseThumbnail: { type: String },
     coursePrice: { type: Number, required: true, default: 0 },
     isPublished: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false }, // Trường đánh dấu khóa học đã bị xóa
+    isUpdated: { type: Boolean, default: false }, // Trường đánh dấu khóa học đã được cập nhật
+    lastUpdated: { type: Date }, // Thời gian cập nhật gần nhất
+    paypalEmail: { type: String }, // Email PayPal của người tạo khóa học
     discount: { type: Number, required: true, min: 0, max: 100, default: 0 },
     discountEndTime: { type: Date }, // Thời gian kết thúc giảm giá
     courseContent: [chapterSchema],
@@ -50,8 +54,13 @@ const courseSchema = new mongoose.Schema({
     enrolledStudents: [
         { type: String, ref: 'User' }
     ],
-    creatorAddress: { type: String, required: true },
-    txHash: { type: String, required: true },
+    creatorAddress: { type: String, required: false },
+    txHash: { type: String, required: false },
+    paymentMethods: {
+      ada: { type: Boolean, default: false },
+      stripe: { type: Boolean, default: false },
+      paypal: { type: Boolean, default: false }
+    }
 }, { timestamps: true, minimize: false });
 
 const Course = mongoose.model('Course', courseSchema);

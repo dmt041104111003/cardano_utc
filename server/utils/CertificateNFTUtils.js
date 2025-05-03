@@ -50,23 +50,20 @@ async function createCertificateNFT({
         const shortCreatorAddress = courseData.creatorAddress ? 
             courseData.creatorAddress.slice(0, 10) + '...' + courseData.creatorAddress.slice(-10) : '';
 
-        // Prepare metadata with shortened IPFS URI
-        const ipfsHash = "bafkreib2xqvtrkgzsivinihbasxl5qghmswa3x7pjy4kzllkgs7pra6mde";
+        // Use provided IPFS hash from certificate image if available
+        const ipfsHash = courseData.ipfsHash;
+        console.log('Using certificate IPFS hash:', ipfsHash);
         
         const metadata = {
-            // Simple metadata for Eternal Wallet
             name: `${courseData.courseTitle} Certificate`,
-            image: ipfsHash,  // Just store the hash, wallet will prepend ipfs://
+            image: ipfsHash,
             mediaType: "image/png",
             description: "Course completion certificate",
-            
-            // properties: {
-            //     courseId: courseData._id.toString(),
-            //     studentName: courseData.studentName,
-            //     educator: typeof courseData.educator === 'object' ? courseData.educator.name : courseData.educator,
-            //     issuedAt: new Date().toISOString().split('T')[0]
-            // },
-            
+            properties: {
+                courseId: courseData._id.toString(),
+                // ... các trường khác nếu cần
+            },
+            course_id: courseData._id.toString(),
             // CIP-721 metadata for standards compliance
             "721": {
                 [policyId]: {

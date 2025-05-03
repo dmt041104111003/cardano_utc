@@ -21,7 +21,9 @@ import NotificationPage from './pages/educator/NotificationPage.jsx';
 import EditCourse from './pages/educator/Editcourse.jsx';
 import PaymentPage from './pages/student/PaymentPage.jsx';
 import CertificateViewer from './pages/student/CertificateViewer';
-import EducatorDetail from './pages/student/EducatorDetail.jsx';
+// EducatorDetail đã được xóa
+import Subscription from './pages/educator/Subscription';
+
 
 const App = () => {
 
@@ -42,7 +44,7 @@ const App = () => {
         <Route path='/player/:courseId' element={<Player />} />
         <Route path='/payment/:courseId' element={<PaymentPage />} />
         <Route path='/loading/:path' element={<Loading />} />
-        <Route path='/user/:id' element={<EducatorDetail />} />
+        {/* Route đến trang EducatorDetail đã được xóa */}
         {/* <Route path="/player/:courseId/test/:testId" element={<TestPage />} /> */}
         <Route path="/courses" element={<CoursesList />} />
         <Route path="/certificate/:txHash" element={<CertificateViewer />} />
@@ -55,6 +57,7 @@ const App = () => {
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
           <Route path='notification' element={<NotificationPage />} />
           <Route path='edit-course' element={<EditCourse />} />
+          <Route path='subscription' element={<Subscription />} />
         </Route>
       </Routes>
     </div>
