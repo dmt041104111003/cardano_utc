@@ -161,16 +161,16 @@ export const paypalSuccess = async (req, res) => {
             await user.save();
         }
 
-        const origin = req.get('origin') || 'https://client-react-brown.vercel.app/educator/subscription';
+        const origin = req.get('origin') || 'https://client-react-brown.vercel.app';
         res.redirect(`${origin}/educator/subscription?status=success&message=Payment successful! Your premium plan has been activated.`);
     } catch (error) {
         console.error('Premium PayPal success error:', error);
-        const origin = req.get('origin') || 'https://client-react-brown.vercel.app/educator/subscription';
+        const origin = req.get('origin') || 'https://client-react-brown.vercel.app';
         res.redirect(`${origin}/educator/subscription?status=error&message=${encodeURIComponent(error.message)}`);
     }
 };
 
 export const paypalCancel = async (req, res) => {
-    const origin = req.get('origin') || 'https://client-react-brown.vercel.app/educator/subscription';
+    const origin = req.get('origin') || 'https://client-react-brown.vercel.app';
     res.redirect(`${origin}/educator/subscription?status=cancelled&message=Payment was cancelled.`);
 }; 
