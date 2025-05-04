@@ -23,6 +23,7 @@ import PaymentPage from './pages/student/PaymentPage.jsx';
 import CertificateViewer from './pages/student/CertificateViewer';
 // EducatorDetail đã được xóa
 import Subscription from './pages/educator/Subscription';
+import TransactionChecker from './components/student/TransactionChecker';
 
 
 const App = () => {
@@ -48,6 +49,7 @@ const App = () => {
         {/* <Route path="/player/:courseId/test/:testId" element={<TestPage />} /> */}
         <Route path="/courses" element={<CoursesList />} />
         <Route path="/certificate/:txHash" element={<CertificateViewer />} />
+        <Route path="/verify" element={<TransactionChecker />} />
 
 
         <Route path='/educator' element={<Educator />}>

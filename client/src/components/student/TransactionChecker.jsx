@@ -1,8 +1,8 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 
 const TransactionChecker = () => {
@@ -10,14 +10,39 @@ const TransactionChecker = () => {
     const [txHash, setTxHash] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
     const { backendUrl, getToken } = useContext(AppContext);
     const [showNFTModal, setShowNFTModal] = useState(false);
     const [selectedNFT, setSelectedNFT] = useState(null);
     const [activeTab, setActiveTab] = useState('nft');
     const [showRawMetadata, setShowRawMetadata] = useState(false);
+    
+    // Xử lý tham số từ URL khi component được tải
+    useEffect(() => {
+        // Kiểm tra xem có tham số policyId và txHash trong URL không
+        const policyIdParam = searchParams.get('policyId');
+        const txHashParam = searchParams.get('txHash');
+        
+        if (policyIdParam && txHashParam) {
+            console.log('Received params from URL:', { policyId: policyIdParam, txHash: txHashParam });
+            setPolicyId(policyIdParam);
+            setTxHash(txHashParam);
+            toast.info('Certificate information loaded from QR code');
+            
+            // Tự động gọi hàm handleCheck để xác minh chứng chỉ
+            setTimeout(() => {
+                handleCheck(policyIdParam, txHashParam);
+            }, 1000);
+        }
+    }, [searchParams]);
 
-    const handleCheck = async () => {
-        if (!policyId.trim() || !txHash.trim()) {
+    const handleCheck = async (pId, tHash) => {
+        // Sử dụng tham số nếu được truyền vào, nếu không thì sử dụng giá trị từ state
+        const policyIdToUse = pId || policyId;
+        const txHashToUse = tHash || txHash;
+        
+        if (!policyIdToUse.trim() || !txHashToUse.trim()) {
             toast.error('Please enter both Policy ID and Transaction Hash');
             return;
         }
@@ -28,7 +53,7 @@ const TransactionChecker = () => {
 
             // Get NFT info using policy ID and transaction hash
             const { data: nftData } = await axios.get(
-                `${backendUrl}/api/nft/info/by-policy/${policyId}/${txHash}`,
+                `${backendUrl}/api/nft/info/by-policy/${policyIdToUse}/${txHashToUse}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
