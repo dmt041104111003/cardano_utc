@@ -1,4 +1,5 @@
-# Cardano UTC - Blockchain Learning Management System
+<h1 align="center">📚 LMS | CaUTC</h1>
+<h3 align="center">A Research and Development Project for a Modern Learning Management System</h3>
 
 Web demo: [https://client-react-brown.vercel.app/]
 ## Overview
