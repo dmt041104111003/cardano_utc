@@ -1,7 +1,7 @@
 # Cardano UTC - Blockchain Learning Management System
 
-![Cardano UTC Logo](client/src/assets/images/logo.png)
-
+![Cardano UTC]([client/src/assets/images/logo.png](https://client-react-brown.vercel.app/))
+Web demo: [https://client-react-brown.vercel.app/]
 ## Overview
 
 Cardano UTC is an online learning platform integrated with Cardano blockchain technology, enabling certificate verification through NFTs and payments using ADA cryptocurrency. This project combines modern technologies to create a reliable and transparent Learning Management System (LMS).
