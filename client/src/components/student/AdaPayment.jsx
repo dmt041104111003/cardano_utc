@@ -4,7 +4,6 @@ import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { convertUsdToAda } from "../../../utils/convertUsdToAda";
 
 export default function AdaPayment({ courseData }) {
     const { currentWallet, userData, getToken, backendUrl, fetchUserData, fetchUserEnrolledCourses } = useContext(AppContext);
@@ -35,9 +34,22 @@ export default function AdaPayment({ courseData }) {
         fetchBalance();
     }, [currentWallet, userData]);
       
-    const coursePrice = ( convertUsdToAda(
-        courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100
-    )).toFixed(2);
+    // Calculate course price with discount if applicable
+const calculatePrice = () => {
+    if (!courseData) return "0.00";
+    
+    const currentDate = new Date();
+    const discountEnd = courseData.discountEndTime ? new Date(courseData.discountEndTime) : null;
+    const isDiscountActive = discountEnd && !isNaN(discountEnd.getTime()) && currentDate <= discountEnd;
+    
+    if (isDiscountActive && courseData.discount > 0) {
+        return (courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100).toFixed(2);
+    }
+    
+    return courseData.coursePrice.toFixed(2);
+};
+
+const coursePrice = calculatePrice();
 
     const handlePayment = async () => {
         if (!userData) {
@@ -76,12 +88,12 @@ export default function AdaPayment({ courseData }) {
                 toast.success(`Payment successful! TX Hash: ${txHash}`);
                 return true;
             } else {
-                toast.error("Thanh toán thất bại!");
+                toast.error("Payment failed!");
                 return false;
             }
         } catch (error) {
-            console.error("Lỗi khi thanh toán:", error);
-            toast.error("Lỗi khi thanh toán!");
+            console.error("Payment error:", error);
+            toast.error(error.response?.data?.message || error.message || "Payment failed. Please try again.");
             return false;
         }
     }
@@ -89,7 +101,13 @@ export default function AdaPayment({ courseData }) {
     const enrollCourse = async () => {
         try {
             if (!userData) {
-                return toast.error('Login to Enroll');
+                return toast.error('Please log in to enroll');
+            }
+
+            // Lấy địa chỉ ví người mua
+            const userAddress = await currentWallet.getChangeAddress();
+            if (!userAddress) {
+                return toast.error('Could not get wallet address');
             }
 
             const token = await getToken();
@@ -97,7 +115,8 @@ export default function AdaPayment({ courseData }) {
                 courseId: courseData._id,
                 paymentMethod: "ADA Payment",
                 currency: "ADA",
-                receiverAddress: courseData.creatorAddress
+                receiverAddress: courseData.creatorAddress,
+                senderAddress: userAddress // Thêm địa chỉ ví người mua
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -112,6 +131,7 @@ export default function AdaPayment({ courseData }) {
                 toast.error(data.message);
             }
         } catch (error) {
+            console.error('Error enrolling course:', error);
             toast.error(error.response?.data?.message || error.message);
         }
     };
@@ -127,13 +147,13 @@ export default function AdaPayment({ courseData }) {
             const course = data.courses.find(c => c._id === courseData._id);
 
             if (!course) {
-                toast.error('Không tìm thấy thông tin khóa học');
+                toast.error('Course information not found');
                 setIsLoading(false);
                 return;
             }
 
             if (userData._id === course.educator._id) {
-                toast.error('Bạn không thể đăng ký khóa học này vì bạn là giảng viên của khóa học này');
+                toast.error('You cannot enroll in this course because you are the instructor');
                 setIsLoading(false);
                 return;
             }
@@ -141,7 +161,7 @@ export default function AdaPayment({ courseData }) {
             const userWallet = await currentWallet.getChangeAddress();
             if (userWallet && course.creatorAddress && 
                 userWallet.toLowerCase() === course.creatorAddress.toLowerCase()) {
-                toast.error('Bạn không thể đăng ký khóa học này vì đây là địa chỉ ví của giảng viên');
+                toast.error('You cannot enroll in this course because this is the instructor\'s wallet address');
                 setIsLoading(false);
                 return;
             }
@@ -152,7 +172,7 @@ export default function AdaPayment({ courseData }) {
                 await fetchUserData();
                 await fetchUserEnrolledCourses();
             } else {
-                toast.error("Thanh toán khóa học thất bại");
+                toast.error("Payment failed!");
             }
         } catch (error) {
             console.error('Error:', error);
@@ -162,45 +182,85 @@ export default function AdaPayment({ courseData }) {
     };
 
     return (
-        <div className="p-4 border rounded-lg mt-4 bg-purple-50">
-            <div className="flex items-center mb-3">
-             
-                <h3 className="text-lg font-semibold">Thanh toán bằng ADA</h3>
+        <div className="p-5 border rounded-xl mt-4 bg-gradient-to-br from-purple-50 to-white shadow-sm">
+            <div className="flex items-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-600 mr-2" viewBox="0 0 256 256">
+                    <circle cx="128" cy="128" r="120" fill="none" stroke="currentColor" strokeWidth="8"/>
+                    <circle cx="128" cy="128" r="40" fill="currentColor"/>
+                    <circle cx="128" cy="48" r="12" fill="currentColor"/>
+                    <circle cx="128" cy="208" r="12" fill="currentColor"/>
+                    <circle cx="48" cy="128" r="12" fill="currentColor"/>
+                    <circle cx="208" cy="128" r="12" fill="currentColor"/>
+                    <circle cx="68" cy="68" r="12" fill="currentColor"/>
+                    <circle cx="188" cy="188" r="12" fill="currentColor"/>
+                    <circle cx="68" cy="188" r="12" fill="currentColor"/>
+                    <circle cx="188" cy="68" r="12" fill="currentColor"/>
+                    <circle cx="158" cy="48" r="8" fill="currentColor"/>
+                    <circle cx="98" cy="48" r="8" fill="currentColor"/>
+                    <circle cx="48" cy="98" r="8" fill="currentColor"/>
+                    <circle cx="48" cy="158" r="8" fill="currentColor"/>
+                    <circle cx="98" cy="208" r="8" fill="currentColor"/>
+                    <circle cx="158" cy="208" r="8" fill="currentColor"/>
+                    <circle cx="208" cy="158" r="8" fill="currentColor"/>
+                    <circle cx="208" cy="98" r="8" fill="currentColor"/>
+                </svg>
+                <h3 className="text-xl font-bold text-blue-800">Cardano Wallet</h3>
             </div>
 
             {!userData ? (
-                <>
-                    <p className="text-gray-600 mb-3">Vui lòng đăng nhập hoặc đăng ký tài khoản để xem thông tin thanh toán</p>
+                <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
+                    <p className="text-gray-700 mb-4">Please log in or sign up to view payment information</p>
                     <button 
-                        onClick={() => toast.error("Vui lòng đăng nhập hoặc đăng ký tài khoản trước khi thanh toán")}
-                        className="w-full py-2 px-4 rounded-md bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors"
+                        onClick={() => toast.error("Please log in or sign up before making a payment")}
+                        className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-[1.02] shadow-md"
                     >
-                        Tiếp tục với ADA
+                        Continue with Cardano Wallet
                     </button>
-                </>
+                </div>
             ) : (
-                <>
-                    <div className="text-gray-700 mb-3">
-                        <p>Giá khóa học: <span className="font-semibold">{coursePrice} ADA</span></p>
-                        <p>Số dư ví: <span className="font-semibold">{balance} ADA</span></p>
+                <div className="space-y-4">
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
+                            <span className="text-gray-700">Course price:</span>
+                            <span className="font-bold text-purple-700">{coursePrice} ADA</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Wallet balance:</span>
+                            <span className={`font-bold ${balance >= coursePrice ? 'text-green-600' : 'text-red-600'}`}>
+                                {balance} ADA
+                                {balance < coursePrice && (
+                                    <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">
+                                        Insufficient
+                                    </span>
+                                )}
+                            </span>
+                        </div>
                     </div>
 
                     <button
                         onClick={handleEnrollCourse}
-                        className={`w-full py-2 px-4 rounded-md font-medium transition-colors ${
-                            currentWallet && balance >= coursePrice 
-                                ? "bg-purple-600 text-white hover:bg-purple-700"
-                                : "bg-gray-400 text-gray-700 cursor-not-allowed"
+                        className={`w-full py-3 px-4 rounded-lg font-medium transition-all transform ${
+                            currentWallet && balance >= coursePrice && !isLoading
+                                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 hover:scale-[1.02] shadow-md"
+                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
                         }`}
                         disabled={!currentWallet || balance < coursePrice || isLoading}
                     >
-                        {isLoading ? "Đang xử lý..." : "Thanh toán với ADA"}
+                        {isLoading ? (
+                            <span className="flex items-center justify-center">
+                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Processing Payment...
+                            </span>
+                        ) : "Pay with Cardano Wallet"}
                     </button>
 
-                    <p className="text-xs text-gray-500 mt-2">
-                        Bằng cách thanh toán, bạn đồng ý với Điều khoản dịch vụ của chúng tôi
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                        By making a payment, you agree to our <a href="#" className="text-purple-600 hover:underline">Terms of Service</a>.
                     </p>
-                </>
+                </div>
             )}
         </div>
     );

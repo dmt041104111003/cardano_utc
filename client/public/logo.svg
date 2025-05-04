@@ -1,0 +1,29 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient background -->
+  <defs>
+    <linearGradient id="cardanoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0033AD" />
+      <stop offset="100%" style="stop-color:#0055FF" />
+    </linearGradient>
+  </defs>
+
+  <!-- Main circle with gradient -->
+  <circle cx="100" cy="100" r="85" fill="url(#cardanoGradient)" />
+
+  <!-- Cardano symbol -->
+  <circle cx="100" cy="100" r="55" fill="none" stroke="white" strokeWidth="2.5" />
+  <circle cx="100" cy="100" r="40" fill="none" stroke="white" strokeWidth="2" />
+
+  <!-- Book/learning element -->
+  <g>
+    <path d="M85 75 L85 125 L115 110 L145 125 L145 75 Z" fill="white" opacity="0.95" />
+    <path d="M85 75 L85 125 L115 110 L115 75 Z" fill="#f0f8ff" opacity="0.7" />
+    <path d="M85 75 L145 75 L145 125 L85 125" fill="none" stroke="white" strokeWidth="1.5" opacity="0.9" />
+
+    <!-- Book pages -->
+    <path d="M100 80 L130 80" stroke="rgba(0,51,173,0.3)" strokeWidth="1" />
+    <path d="M100 85 L130 85" stroke="rgba(0,51,173,0.3)" strokeWidth="1" />
+    <path d="M100 90 L130 90" stroke="rgba(0,51,173,0.3)" strokeWidth="1" />
+    <path d="M100 95 L120 95" stroke="rgba(0,51,173,0.3)" strokeWidth="1" />
+  </g>
+</svg>

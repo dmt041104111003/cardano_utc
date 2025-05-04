@@ -15,6 +15,7 @@ const CoursesList = () => {
     const [searchQuery, setSearchQuery] = React.useState('');
     const [showPublishedOnly, setShowPublishedOnly] = React.useState(false);
     const [showNewest, setShowNewest] = React.useState(false);
+    const [chainType, setChainType] = React.useState('all'); // 'all', 'onchain', 'offchain'
     const [loading, setLoading] = React.useState(false);
     const itemsPerPage = 8;
 
@@ -38,6 +39,13 @@ const CoursesList = () => {
                         item.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         item.courseDescription?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         item.educator?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                }
+
+                // Filter by chain type
+                if (chainType !== 'all') {
+                    tempCourses = tempCourses.filter(course => 
+                        chainType === 'onchain' ? course.txHash : !course.txHash
                     );
                 }
 
@@ -91,7 +99,7 @@ const CoursesList = () => {
             clearInterval(intervalId);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [searchQuery, showNewest]);
+    }, [searchQuery, showNewest, chainType]);
 
     // Handle show newest toggle
     const toggleShowNewest = () => {
@@ -118,44 +126,54 @@ const CoursesList = () => {
     return (
         <>
             <div className='relative min-h-screen'>
-                <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-green-100/70 via-cyan-100/50 to-white'></div>
+                <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-50 via-indigo-50/30 to-white'></div>
                 <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 relative z-10'>
-                    <div className='flex md:flex-row flex-col gap-6 items-start justify-start justify-between w-full'>
-                        <div>
-                            <h1 className='text-4xl font-semibold text-gray-800'>Course List</h1>
-                            <p className='text-gray-500'>
-                                <span onClick={() => navigate('/')} className='text-blue-600 cursor-pointer'>Home</span> /
-                                <span>Course List</span>
-                            </p>
+                    <div className='flex md:flex-row flex-col gap-6 items-start justify-between w-full'>
+                        <div className='flex items-center gap-3'>
+                            <div className="h-10 w-1.5 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-full"></div>
+                            <h1 className='text-2xl font-bold text-gray-800 flex items-center gap-2'>
+                                Course List
+                                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                    {filteredCourses.length} Courses
+                                </span>
+                            </h1>
                         </div>
                         <div className="flex flex-col md:flex-row gap-4 items-center">
-                            <div className="relative">
+                            <div className="relative w-full md:w-64">
+                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <svg className="w-4 h-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                                    </svg>
+                                </div>
                                 <input
                                     type="text"
                                     placeholder="Search courses..."
                                     value={searchQuery}
-                                    onChange={(e) => {
-                                        setSearchQuery(e.target.value);
-                                    }}
-                                    className="pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 shadow-sm"
                                 />
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3 top-2.5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                                </svg>
+                                {/* <button
+                                    onClick={() => fetchLatestCourses(true)}
+                                    className="absolute right-0 p-2.5 text-white bg-blue-600 rounded-r-lg border border-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300"
+                                >
+                                    <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
+                                    </svg>
+                                    <span className="sr-only">Search</span>
+                                </button> */}
                             </div>
-                            {/* <button 
-                                onClick={() => setShowPublishedOnly(!showPublishedOnly)}
-                                className={`px-4 py-2 rounded-md ${
-                                    showPublishedOnly ? 'bg-green-600' : 'bg-gray-600'
-                                } text-white min-w-[150px]`}
+                            <select
+                                value={chainType}
+                                onChange={(e) => setChainType(e.target.value)}
+                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5 shadow-sm"
                             >
-                                {showPublishedOnly ? 'Published Only' : 'All Courses'}
-                            </button> */}
+                                <option value="all">All Types</option>
+                                <option value="onchain">On-Chain</option>
+                                <option value="offchain">Off-Chain</option>
+                            </select>
                             <button 
                                 onClick={toggleShowNewest}
-                                className={`px-4 py-2 rounded-md ${
-                                    newestFromUrl ? 'bg-blue-600' : 'bg-gray-600'
-                                } text-white min-w-[150px]`}
+                                className={`px-4 py-2.5 rounded-lg ${newestFromUrl ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'} text-white text-sm font-medium shadow-sm transition-colors duration-200`}
                             >
                                 {newestFromUrl ? 'Show All' : 'Show Newest'}
                             </button>
@@ -163,19 +181,62 @@ const CoursesList = () => {
                     </div>
 
                     {/* Course count and current filters */}
-                    <div className="mt-6 text-gray-600">
-                        <p>Showing {paginatedCourses.length} of {filteredCourses.length} courses</p>
-                        {(searchQuery || newestFromUrl) && (
-                            <p className="text-sm mt-1">
-                                Filters: {' '}
-                                {searchQuery && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">Search: "{searchQuery}"</span>}
-                                {/* {showPublishedOnly && <span className="bg-green-100 text-green-800 px-2 py-1 rounded mr-2">Published Only</span>} */}
-                                {newestFromUrl && <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Newest</span>}
+                    <div className="mt-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100 w-full">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <p className="text-gray-700 font-medium">
+                                Showing <span className="font-semibold text-blue-600">{paginatedCourses.length}</span> of <span className="font-semibold text-blue-600">{filteredCourses.length}</span> courses
                             </p>
-                        )}
+                            {(searchQuery || newestFromUrl || chainType !== 'all') && (
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <span className="text-sm text-gray-500">Active filters:</span>
+                                    {searchQuery && (
+                                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                            Search: "{searchQuery}"
+                                            <button onClick={() => setSearchQuery('')} className="ml-1.5 text-blue-600 hover:text-blue-800">
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    )}
+                                    {chainType !== 'all' && (
+                                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                                            {chainType === 'onchain' ? 'On-Chain' : 'Off-Chain'}
+                                            <button onClick={() => setChainType('all')} className="ml-1.5 text-purple-600 hover:text-purple-800">
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    )}
+                                    {newestFromUrl && (
+                                        <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                                            Newest
+                                            <button onClick={toggleShowNewest} className="ml-1.5 text-yellow-600 hover:text-yellow-800">
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    )}
+                                    {(searchQuery || newestFromUrl || chainType !== 'all') && (
+                                        <button 
+                                            onClick={() => {
+                                                setSearchQuery('');
+                                                setChainType('all');
+                                                if (newestFromUrl) toggleShowNewest();
+                                            }}
+                                            className="text-xs text-gray-500 hover:text-gray-700 underline"
+                                        >
+                                            Clear all
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-8 gap-3 px-2 md:p-0'>
+                    <div className='container mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-8 gap-4 px-4'>
                         {paginatedCourses.length > 0 ? (
                             paginatedCourses.map((course) => 
                                 <CourseCard key={course._id} course={course} />
@@ -189,77 +250,70 @@ const CoursesList = () => {
 
                     {/* Enhanced Pagination */}
                     {totalPages > 1 && (
-                        <div className="flex justify-center items-center gap-3 mt-6 mb-8">
-                            {/* <button
-                                onClick={() => handlePageChange(1)}
-                                disabled={currentPage === 1}
-                                className={`px-3 py-2 rounded-md ${
-                                    currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
-                            >
-                                First
-                            </button> */}
-                            <button
-                                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                                disabled={currentPage === 1}
-                                className={`px-4 py-2 rounded-md ${
-                                    currentPage === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
-                            >
-                                Previous
-                            </button>
-                            <div className="flex items-center gap-2">
-                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter(page => {
-                                        if (totalPages <= 10) return true;
-                                        if (page === 1 || page === totalPages) return true;
-                                        if (page >= currentPage - 2 && page <= currentPage + 2) return true;
-                                        return false;
-                                    })
-                                    .map((page, index, array) => (
-                                        <React.Fragment key={page}>
-                                            {index > 0 && array[index - 1] !== page - 1 && (
-                                                <span className="text-gray-400">...</span>
-                                            )}
-                                            <button
-                                                onClick={() => handlePageChange(page)}
-                                                className={`px-4 py-2 rounded-md min-w-[40px] ${
-                                                    currentPage === page
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'bg-gray-200 hover:bg-gray-300'
-                                                }`}
-                                            >
-                                                {page}
-                                            </button>
-                                        </React.Fragment>
-                                    ))}
-                            </div>
-                            <button
-                                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                                disabled={currentPage === totalPages}
-                                className={`px-4 py-2 rounded-md ${
-                                    currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
-                            >
-                                Next
-                            </button>
-                            {/* <button
-                                onClick={() => handlePageChange(totalPages)}
-                                disabled={currentPage === totalPages}
-                                className={`px-3 py-2 rounded-md ${
-                                    currentPage === totalPages
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
-                            >
-                                Last
-                            </button> */}
+                        <div className="flex justify-center items-center mt-8 mb-8">
+                            <nav aria-label="Page navigation">
+                                <ul className="inline-flex -space-x-px text-sm">
+                                    <li>
+                                        <button
+                                            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                                            disabled={currentPage === 1}
+                                            className={`flex items-center justify-center px-3 h-8 ml-0 leading-tight ${currentPage === 1 
+                                                ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                                                : 'text-gray-500 bg-white hover:bg-gray-100 hover:text-gray-700'} border border-gray-300 rounded-l-lg`}
+                                        >
+                                            <svg className="w-3.5 h-3.5 mr-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
+                                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
+                                            </svg>
+                                            Prev
+                                        </button>
+                                    </li>
+                                    
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(page => {
+                                            if (totalPages <= 7) return true;
+                                            if (page === 1 || page === totalPages) return true;
+                                            if (page >= currentPage - 1 && page <= currentPage + 1) return true;
+                                            return false;
+                                        })
+                                        .map((page, index, array) => (
+                                            <React.Fragment key={page}>
+                                                {index > 0 && array[index - 1] !== page - 1 && (
+                                                    <li>
+                                                        <span className="flex items-center justify-center px-3 h-8 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700">
+                                                            ...
+                                                        </span>
+                                                    </li>
+                                                )}
+                                                <li>
+                                                    <button
+                                                        onClick={() => handlePageChange(page)}
+                                                        className={`flex items-center justify-center px-3 h-8 leading-tight ${currentPage === page 
+                                                            ? 'text-blue-600 border border-blue-300 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' 
+                                                            : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700'}`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                </li>
+                                            </React.Fragment>
+                                        ))
+                                    }
+                                    
+                                    <li>
+                                        <button
+                                            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className={`flex items-center justify-center px-3 h-8 leading-tight ${currentPage === totalPages 
+                                                ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                                                : 'text-gray-500 bg-white hover:bg-gray-100 hover:text-gray-700'} border border-gray-300 rounded-r-lg`}
+                                        >
+                                            Next
+                                            <svg className="w-3.5 h-3.5 ml-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
+                                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
+                                            </svg>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
                         </div>
                     )}
                 </div>

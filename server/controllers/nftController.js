@@ -1,5 +1,8 @@
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import Course from '../models/Course.js';
+import User from '../models/User.js';
+import Certificate from '../models/Certificate.js';
+import { Purchase } from '../models/Purchase.js';
 
 // Initialize Blockfrost API client
 const blockfrost = new BlockFrostAPI({
@@ -218,7 +221,54 @@ export const getNFTInfoByPolicy = async (req, res) => {
                 throw new Error('Asset metadata not found');
             }
 
-            console.log(' [NFT Query] Raw metadata:', metadata);
+            // Lấy courseId từ metadata nếu có
+            let courseId = null;
+            if (metadata.properties && metadata.properties.courseId) {
+                courseId = metadata.properties.courseId;
+            } else if (metadata.course_id) {
+                courseId = metadata.course_id;
+            }
+
+            let educator = null;
+            if (courseId) {
+                const course = await Course.findById(courseId).populate('educator');
+                if (course && course.educator) {
+                    // Lấy tất cả khóa học của educator này
+                    const allCourses = await Course.find({ educator: course.educator._id });
+                    // Tổng số học viên (unique)
+                    const allStudentIds = new Set();
+                    allCourses.forEach(c => c.enrolledStudents.forEach(sid => allStudentIds.add(sid)));
+                    // Số lượng khóa học
+                    const totalCourses = allCourses.length;
+                    // Địa chỉ ví
+                    const walletAddress = course.educator.walletAddress || '';
+                    // Số vote/rate từng khóa học
+                    const courseRates = allCourses.map(c => ({
+                        courseId: c._id,
+                        courseTitle: c.courseTitle,
+                        totalVotes: c.courseRatings.length,
+                        avgRate: c.courseRatings.length > 0 ? (c.courseRatings.reduce((a, b) => a + b.rating, 0) / c.courseRatings.length).toFixed(2) : 0,
+                        enrolledCount: c.enrolledStudents.length,
+                        price: c.coursePrice,
+                        discount: c.discount || 0,
+                        createdAt: c.createdAt
+                    }));
+                    
+                    // Không cần lấy số lượng chứng chỉ nữa
+
+                    educator = {
+                        name: course.educator.name,
+                        email: course.educator.email,
+                        walletAddress,
+                        totalStudents: allStudentIds.size,
+                        totalCourses,
+                        bio: course.educator.bio || '',
+                        joinDate: course.educator.createdAt,
+                        lastActive: course.educator.updatedAt,
+                        courseRates
+                    };
+                }
+            }
 
             // Extract full CIP-721 metadata
             let nftMetadata;
@@ -242,6 +292,7 @@ export const getNFTInfoByPolicy = async (req, res) => {
                 courseTitle: assetDetails.onchain_metadata?.name || metadata.name, // Chỉ lấy từ metadata
                 metadata: nftMetadata,
                 rawMetadata: metadata,
+                educator,
                 mintTransaction: {
                     txHash,
                     block: txDetails.block_height,

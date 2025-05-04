@@ -1,20 +1,55 @@
 import { stringToHex, BlockfrostProvider, MeshTxBuilder, ForgeScript, Transaction } from '@meshsdk/core';
 import dotenv from 'dotenv';
 import CustomInitiator from './CustomIInitiator.js';
+import { generateCertificateBuffer } from './ImageUtils.js';
+import { uploadToPinata } from './PinataUtils.js';
 
 dotenv.config();
 const PINATA_PREFIX_WEBSITE = "ipfs://";
 const blockfrostApiKey = process.env.BLOCKFROST_API_KEY;
 
+/**
+ * Tạo giao dịch mint NFT cho khóa học hoặc certificate
+ * @param {Array} utxos - Danh sách UTXOs của người dùng
+ * @param {String} changeAddress - Địa chỉ nhận lại tiền thừa
+ * @param {Array} collateral - Collateral UTXOs
+ * @param {String} getAddress - Địa chỉ ví của người dùng
+ * @param {Object} courseData - Thông tin khóa học hoặc certificate
+ * @returns {String} - Unsigned transaction hex
+ */
 async function createUnsignedMintTx(utxos, changeAddress, collateral, getAddress, courseData) {
     try {
-        // Create unique asset name with courseId and timestamp
-        const timestamp = Math.floor(Date.now() / 1000).toString(36); // Unix timestamp in base36
-        const shortCourseId = courseData.courseId.slice(0, 4); // Take first 4 chars
-        const assetName = `C${shortCourseId}${timestamp}`.slice(0, 16); // 'C' + 4 chars + ~8-10 chars timestamp
-        const assetNameHex = stringToHex(assetName);
+        // Kiểm tra xem đây là mint khóa học hay mint certificate
+        const isCertificate = courseData.studentId !== undefined;
+        
+        // Tạo asset name độc nhất
+        let assetName, assetNameHex;
+        
+        if (isCertificate) {
+            // Logic cho certificate
+            const shortCourseId = courseData.courseId.toString().substring(0, 2);
+            const studentId = courseData.studentId ? courseData.studentId.toString().substring(0, 2) : 'XX';
+            const timestamp = Date.now().toString().substring(8, 13); // Lấy 5 chữ số cuối của timestamp
+            const randomCode = Math.floor(1000 + Math.random() * 9000); // Mã ngẫu nhiên 4 chữ số
+            
+            // Kết hợp thành asset name độc nhất cho certificate
+            assetName = `C${shortCourseId}${studentId}${timestamp}${randomCode}`;
+        } else {
+            // Logic cho khóa học - đảm bảo tên ngắn hơn
+            // Chỉ lấy 2 ký tự đầu của courseId
+            const shortCourseId = courseData.courseId.toString().substring(0, 2);
+            // Lấy 3 chữ số cuối của timestamp
+            const timestamp = Date.now().toString().substring(10, 13);
+            // Mã ngẫu nhiên 3 chữ số
+            const randomCode = Math.floor(100 + Math.random() * 900);
+            
+            // Kết hợp thành asset name ngắn và độc nhất cho khóa học
+            assetName = `C${shortCourseId}${timestamp}${randomCode}`;
+        }
+        
+        assetNameHex = stringToHex(assetName);
 
-        console.log('Generated asset name:', {
+        console.log(`Generated ${isCertificate ? 'certificate' : 'course'} asset name:`, {
             assetName,
             length: assetName.length,
             hexLength: assetNameHex.length
@@ -27,42 +62,96 @@ async function createUnsignedMintTx(utxos, changeAddress, collateral, getAddress
         // Take only first and last 8 characters of the address to create a unique identifier
         const shortAddress = getAddress.slice(0, 8) + '...' + getAddress.slice(-8);
 
-        // Prepare metadata following CIP-721 standard with length limits
-        const ipfsHash = "bafkreib2xqvtrkgzsivinihbasxl5qghmswa3x7pjy4kzllkgs7pra6mde"; // Use same IPFS hash as certificate
+        let assetMetadata;
+        let ipfsUri = "";
         
-        const assetMetadata = {
-            // Simple metadata for Eternal Wallet
-            name: courseData.courseTitle.slice(0, 64),
-            image: ipfsHash,  // Just store the hash, wallet will prepend ipfs://
-            mediaType: "image/png",
-            // description: courseData.courseDescription.slice(0, 64),
+        if (isCertificate) {
+            // Logic cho certificate - tạo ảnh chứng chỉ và upload lên IPFS
+            console.log('Generating certificate image...');
+            const studentName = courseData.studentName || "Student";
+            const educatorName = courseData.educator || shortAddress;
             
-            properties: {
-                id: courseData.courseId.slice(0, 16),
-                creator: shortAddress,
-                created: Math.floor(new Date(courseData.createdAt).getTime() / 1000),
-                price: courseData.coursePrice,
-                discount: courseData.discount
-            },
+            // Generate certificate buffer
+            const certificateBuffer = await generateCertificateBuffer(
+                studentName,
+                educatorName, 
+                courseData.courseTitle,
+                new Date().toLocaleDateString('vi-VN')
+            );
             
-            // CIP-721 metadata for standards compliance
-            "721": {
-                [forgingScript]: {
-                    [assetName]: {
-                        name: courseData.courseTitle.slice(0, 64),
-                        // description: courseData.courseDescription.slice(0, 64),
-                        image: ipfsHash,  // Just store the hash
-                        mediaType: "image/png",
-                        courseId: courseData.courseId.slice(0, 16),
-                        courseTitle: courseData.courseTitle,
-                        // courseDescription: courseData.courseDescription || "",
-                        creator: shortAddress,
-                        price: courseData.coursePrice,
-                        discount: courseData.discount,
+            // Upload buffer to IPFS
+            console.log('Uploading certificate to IPFS...');
+            const ipfsResult = await uploadToPinata(certificateBuffer, `certificate_${courseData.courseId}_${Date.now()}.png`);
+            const ipfsHash = ipfsResult.IpfsHash;
+            console.log('Certificate image uploaded to IPFS:', ipfsHash);
+            
+            // Create full IPFS URI for metadata
+            ipfsUri = `ipfs://${ipfsHash}`;
+            
+            // Tạo metadata cho certificate
+            assetMetadata = {
+                "721": {
+                    [forgingScript.hash]: {
+                        [assetName]: {
+                            name: `${courseData.courseTitle} Certificate`,
+                            image: ipfsUri,
+                            mediaType: "image/png",
+                            description: `Certificate for ${courseData.studentName || 'Student'} - ${courseData.courseTitle}`,
+                            courseId: courseData.courseId.toString(),
+                            courseTitle: courseData.courseTitle,
+                            studentName: courseData.studentName || 'Student',
+                            studentId: courseData.studentId ? courseData.studentId.toString() : "",
+                            educatorName: courseData.educator || shortAddress,
+                            issuedAt: new Date().toISOString().split('T')[0],
+                            gatewayUrl: `https://gateway.pinata.cloud/ipfs/${ipfsHash}`
+                        }
                     }
                 }
-            }
-        };
+            };
+        } else {
+            // Logic cho khóa học - sử dụng ảnh IPFS cố định
+            console.log('Generating course NFT metadata...');
+            const educatorName = courseData.educator || shortAddress;
+            const coursePrice = courseData.coursePrice || 0;
+            const discount = courseData.discount || 0;
+            
+            // Sử dụng hash IPFS cố định đã được kiểm chứng hoạt động với ví Cardano
+            const ipfsHash = "bafkreiealuh6skgbomi77dczcpgacemtr3xxbctsjgvhecbqhx636gx7um";
+            console.log('Course image IPFS hash:', ipfsHash);
+            
+            // Tạo metadata theo cấu trúc mới - sử dụng cấu trúc được kiểm chứng hoạt động
+            assetMetadata = {
+                // Metadata cơ bản cho Eternal Wallet
+                name: courseData.courseTitle.slice(0, 64),
+                image: ipfsHash,  // Chỉ lưu hash, ví sẽ tự động thêm ipfs://
+                mediaType: "image/png",
+                
+                // Thuộc tính bổ sung
+                properties: {
+                    id: courseData.courseId.toString().slice(0, 16),
+                    creator: shortAddress,
+                    created: Math.floor(new Date().getTime() / 1000),
+                    price: coursePrice,
+                    discount: discount
+                },
+                
+                // CIP-721 metadata cho tiêu chuẩn Cardano
+                "721": {
+                    [forgingScript.hash]: {
+                        [assetName]: {
+                            name: courseData.courseTitle.slice(0, 64),
+                            image: ipfsHash,  // Chỉ lưu hash
+                            mediaType: "image/png",
+                            courseId: courseData.courseId.toString().slice(0, 16),
+                            courseTitle: courseData.courseTitle,
+                            creator: shortAddress,
+                            price: String(coursePrice),
+                            discount: String(discount)
+                        }
+                    }
+                }
+            };
+        }
 
         console.log('Asset being minted:', {
             assetName,

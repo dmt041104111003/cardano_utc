@@ -413,7 +413,7 @@ const Chapter = ({ chapter, index, handleChapter, handleLecture }) => (
 
 const AddCourse = () => {
 
-  const { backendUrl, getToken } = useContext(AppContext)
+  const { backendUrl, getToken, userData, fetchUserData } = useContext(AppContext)
   const { connected, wallet } = useWallet();
 
   const quillRef = useRef(null);
@@ -443,6 +443,9 @@ const AddCourse = () => {
   const [walletAddress, setWalletAddress] = useState('');
   const [showChapterPopup, setShowChapterPopup] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [paypalEmail, setPaypalEmail] = useState("");
+  const [cooldownLeft, setCooldownLeft] = useState(userData?.cooldownMs || 0);
+  const [canCreate, setCanCreate] = useState(userData?.canCreateCourse);
 
   const handleChapter = (action, chapterId) => {
     if (action === 'add') {
@@ -476,15 +479,15 @@ const AddCourse = () => {
 
   const handleAddTest = () => {
     if (!currentTest.duration) {
-      toast.error('Vui lòng nhập duration');
+      toast.error('Please enter test duration');
       return;
     }
     if (currentTest.passingScore === undefined ) {
-      toast.error('Vui lòng nhập passing score');
+      toast.error('Please enter passing score');
       return;
     }
     if (parseInt(currentTest.passingScore) > 100) {
-      toast.error('Vui lòng chọn bé hơn 100%');
+      toast.error('Passing score cannot exceed 100%');
       return;
     }
 
@@ -542,6 +545,10 @@ const AddCourse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canCreate || !userData?.canCreateCourse) {
+      // Do not show a hardcoded error, let the backend error message be shown if the request fails
+      return;
+    }
 
     if (!courseTitle) {
       toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
@@ -550,153 +557,209 @@ const AddCourse = () => {
 
     // Validate chapters
     if (chapters.length === 0) {
-      toast.error('Vui lòng tạo ít nhất 1 chapter');
+      toast.error('Please create at least 1 chapter');
       return;
     }
 
     // Validate lectures in each chapter
     for (let i = 0; i < chapters.length; i++) {
       if (chapters[i].chapterContent.length === 0) {
-        toast.error(`Chapter ${i + 1} cần có ít nhất 1 lecture`);
+        toast.error(`Chapter ${i + 1} need at least 1 lecture`);
         return;
       }
     }
 
+    // Validate tests
+    for (let test of tests) {
+      if (!test.passingScore || test.passingScore < 0 || test.passingScore > 100) {
+        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} need passing score from 0-100%`);
+        return;
+      }
+      if (!test.duration || test.duration <= 0) {
+        toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} need longer duration 0`);
+        return;
+      }
+    }
+
+    // Validate wallet or PayPal email
+    if (!connected && !paypalEmail) {
+      toast.error('You must connect your wallet or enter your PayPal email!');
+      return;
+    }
+
     try {
       if (courseTitle.trim().length < 5) {
-        toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
+        toast.error('Please enter course title at least 5 characters');
         return;
       }
       if (!image) {
         toast.error('Thumbnail Not Selected');
         return;
       }
-
       if (discount > 0 && !discountEndTime) {
-        toast.error('Vui lòng chọn thời gian kết thúc giảm giá');
-        return;
-      }
-
-      // Validate tests
-      for (let test of tests) {
-        if (!test.passingScore || test.passingScore < 0 || test.passingScore > 100) {
-          toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có passing score từ 0-100%`);
-          return;
-        }
-        if (!test.duration || test.duration <= 0) {
-          toast.error(`Test ${test.chapterNumber === 0 ? 'Final' : 'Chapter ' + test.chapterNumber} cần có duration lớn hơn 0`);
-          return;
-        }
-      }
-
-      if (!connected || !wallet) {
-        toast.error('Please connect your wallet first');
+        toast.error('Please select discount end time');
         return;
       }
 
       const token = await getToken();
       const courseId = uniqid();
-      
-      // Get wallet data
-      const addresses = await wallet.getUsedAddresses();
-      if (!addresses || addresses.length === 0) {
-        toast.error('No wallet addresses found');
-        return;
-      }
-      const address = addresses[0];
 
-      const utxos = await wallet.getUtxos();
-      if (!utxos || utxos.length === 0) {
-        toast.error('No UTXOs found in wallet. Please add some ADA to your wallet.');
-        return;
-      }
-
-      const collateral = await wallet.getCollateral();
-      if (!collateral || collateral.length === 0) {
-        toast.error('No collateral found in wallet. Please add collateral.');
-        return;
-      }
-
-      // Create course data for blockchain
-      const courseData = {
-        courseId,
-        courseTitle,
-        courseDescription: quillRef.current.root.innerHTML,
-        coursePrice: Number(coursePrice || 0),
-        discount: Number(discount || 0),
-        discountEndTime: discount > 0 ? discountEndTime : null,
-        courseContent: chapters,
-        tests: tests,
-        creatorId: address,
-        createdAt: new Date().toISOString()
-      };
-
-      // Get unsigned transaction
-      console.log('Sending to backend:', { courseData, utxos, collateral, address });
-      
-      const { data: txData } = await axios.post(
-        `${backendUrl}/api/blockchain/create-course-tx`,
-        {
-          courseData,
-          utxos,
-          collateral,
-          address
-        },
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'wallet-address': address
-          } 
+      // Nếu đã connect ví thì sẽ mint, bất kể có PayPal email hay không
+      if (connected && wallet) {
+        // --- MINT + LƯU CSDL ---
+        // Get wallet data
+        const addresses = await wallet.getUsedAddresses();
+        if (!addresses || addresses.length === 0) {
+          toast.error('No wallet addresses found');
+          return;
         }
-      );
+        const address = addresses[0];
 
-      console.log('Backend response:', txData);
-
-      if (!txData || !txData.success) {
-        toast.error(txData?.message || 'Failed to create transaction');
-        return;
-      }
-
-      // Sign transaction with wallet
-      const signedTx = await wallet.signTx(txData.unsignedTx);
-      const txHash = await wallet.submitTx(signedTx);
-
-      if (!txHash) {
-        toast.error('Failed to submit transaction');
-        return;
-      }
-
-      // Create form data for database
-      const formData = new FormData();
-      formData.append('courseData', JSON.stringify({
-        ...courseData,
-        creatorAddress: address,
-        txHash
-      }));
-      formData.append('image', image);
-
-      const { data } = await axios.post(
-        `${backendUrl}/api/educator/add-course`,
-        formData,
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'wallet-address': address
-          } 
+        const utxos = await wallet.getUtxos();
+        if (!utxos || utxos.length === 0) {
+          toast.error('No UTXOs found in wallet. Please add some ADA to your wallet.');
+          return;
         }
-      );
 
-      if (data.success) {
-        toast.success('Course created and minted successfully!');
-        setCourseTitle('');
-        setCoursePrice(0);
-        setDiscount(0);
-        setImage(null);
-        setChapters([]);
-        quillRef.current.root.innerHTML = "";
-      } else {
-        toast.error(data.message);
+        const collateral = await wallet.getCollateral();
+        if (!collateral || collateral.length === 0) {
+          toast.error('No collateral found in wallet. Please add collateral.');
+          return;
+        }
+
+        // Create course data for blockchain
+        const courseData = {
+          courseId,
+          courseTitle,
+          courseDescription: quillRef.current.root.innerHTML,
+          coursePrice: Number(coursePrice || 0),
+          discount: Number(discount || 0),
+          discountEndTime: discount > 0 ? discountEndTime : null,
+          courseContent: chapters,
+          tests: tests,
+          creatorId: address,
+          createdAt: new Date().toISOString(),
+          paypalEmail,
+          paymentMethods: {
+            ada: true, // Luôn true khi có wallet
+            stripe: !!paypalEmail,
+            paypal: !!paypalEmail
+          }
+        };
+
+        // Get unsigned transaction
+        const { data: txData } = await axios.post(
+          `${backendUrl}/api/blockchain/create-course-tx`,
+          {
+            courseData,
+            utxos,
+            collateral,
+            address
+          },
+          { 
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'wallet-address': address
+            } 
+          }
+        );
+
+        if (!txData || !txData.success) {
+          toast.error(txData?.message || 'Failed to create transaction');
+          return;
+        }
+
+        // Sign transaction with wallet
+        const signedTx = await wallet.signTx(txData.unsignedTx);
+        const txHash = await wallet.submitTx(signedTx);
+
+        if (!txHash) {
+          toast.error('Failed to submit transaction');
+          return;
+        }
+
+        // Create form data for database
+        const formData = new FormData();
+        formData.append('courseData', JSON.stringify({
+          ...courseData,
+          creatorAddress: address,
+          txHash,
+          paypalEmail
+        }));
+        formData.append('image', image);
+
+        try {
+          const { data } = await axios.post(
+            `${backendUrl}/api/educator/add-course`,
+            formData,
+            { 
+              headers: { 
+                Authorization: `Bearer ${token}`,
+                'wallet-address': address
+              } 
+            }
+          );
+
+          if (data.success) {
+            toast.success('Course created and minted successfully!');
+            setCourseTitle('');
+            setCoursePrice(0);
+            setDiscount(0);
+            setImage(null);
+            setChapters([]);
+            quillRef.current.root.innerHTML = "";
+            if (fetchUserData) await fetchUserData();
+          } else {
+            toast.error(data.message);
+          }
+        } catch (dbError) {
+          toast.error(dbError.response?.data?.message || dbError.message);
+        }
+        return;
+      }
+
+      // --- CHỈ LƯU CSDL (KHÔNG MINT) ---
+      if (!connected && paypalEmail) {
+        const courseData = {
+          courseId,
+          courseTitle,
+          courseDescription: quillRef.current.root.innerHTML,
+          coursePrice: Number(coursePrice || 0),
+          discount: Number(discount || 0),
+          discountEndTime: discount > 0 ? discountEndTime : null,
+          courseContent: chapters,
+          tests: tests,
+          creatorId: paypalEmail,
+          createdAt: new Date().toISOString(),
+          paypalEmail,
+          paymentMethods: {
+            ada: false,
+            stripe: true,
+            paypal: true
+          }
+        };
+        const formData = new FormData();
+        formData.append('courseData', JSON.stringify(courseData));
+        formData.append('image', image);
+        const { data } = await axios.post(
+          `${backendUrl}/api/educator/add-course`,
+          formData,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (data.success) {
+          toast.success('Course created successfully (no mint)!');
+          setCourseTitle('');
+          setCoursePrice(0);
+          setDiscount(0);
+          setImage(null);
+          setChapters([]);
+          quillRef.current.root.innerHTML = "";
+          if (fetchUserData) await fetchUserData();
+        } else {
+          toast.error(data.message);
+        }
+        return;
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -724,81 +787,225 @@ const AddCourse = () => {
     }
   }, [connected, wallet]);
 
+  useEffect(() => {
+    setCooldownLeft(userData?.cooldownMs || 0);
+    setCanCreate(userData?.canCreateCourse);
+  }, [userData]);
+
+  useEffect(() => {
+    let interval;
+    if (cooldownLeft > 0) {
+      interval = setInterval(() => {
+        setCooldownLeft(prev => {
+          if (prev <= 1000) {
+            clearInterval(interval);
+            setCanCreate(true); // Khi hết cooldown, cho phép tạo course ngay
+            if (typeof fetchUserData === 'function') fetchUserData(); // vẫn sync với server nếu muốn
+            return 0;
+          }
+          return prev - 1000;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [cooldownLeft, fetchUserData]);
+
+  const preventMinus = (e) => {
+    if (e.key === '-') {
+      e.preventDefault();
+    }
+  };
   return (
-    <div className='h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
-      <form onSubmit={handleSubmit} className='flex flex-col gap-4 max-w-md w-full text-gray-500'>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Wallet Address
-          </label>
-          <input
-            type="text"
-            value={walletAddress}
-            readOnly
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-100"
-          />
-          {!connected && (
-            <p className="text-red-500 text-xs italic mt-1">
-              Please connect your wallet to create a course
-            </p>
-          )}
+    <div className='min-h-screen overflow-auto flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 bg-gradient-to-b from-blue-50 via-indigo-50/30 to-white'>
+      <div className='w-full'>
+        <div className='flex items-center gap-3 mb-6'>
+          <div className="h-10 w-1.5 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-full"></div>
+          <h1 className='text-2xl font-bold text-gray-800'>Add New Course</h1>
         </div>
-        <div className='flex flex-col gap-1'>
-          <p>Course Title</p>
-          <input 
-            onChange={e => setCourseTitle(e.target.value)}
-            value={courseTitle} 
-            type="text" 
-            placeholder='Type here' 
-            className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500' 
-            required 
-          />
-        </div>
-        <div className='flex flex-col gap-1'>
-          <p>Course Description</p>
-          <div ref={editorRef}></div>
-        </div>
-        <div className='flex items-center justify-between flex-wrap'>
-          <div className='flex flex-col gap-1'>
-            <p>Course Price</p>
+        
+        <form onSubmit={handleSubmit} className='bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6 w-full'>
+        <h2 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"></path>
+          </svg>
+          Course Details
+        </h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Wallet Address
+            </label>
+            <input
+              type="text"
+              value={walletAddress}
+              readOnly
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm"
+            />
+            {!connected && (
+              <p className="text-red-500 text-xs mt-1">
+                Please connect your wallet to create a course
+              </p>
+            )}
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Course Title
+            </label>
             <input 
+              onChange={e => setCourseTitle(e.target.value)}
+              value={courseTitle} 
+              type="text" 
+              placeholder='Enter course title' 
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm' 
+              required 
+              onInvalid={e => e.target.setCustomValidity('Please enter a course title')}
+              onInput={e => e.target.setCustomValidity('')}
+            />
+            {courseTitle === '' && <p className="text-red-500 text-xs mt-1">Course title is required</p>}
+          </div>
+        </div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Course Description</label>
+          <div className="border border-gray-300 rounded-lg overflow-hidden">
+            <div ref={editorRef}></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">Course Price (ADA)</label>
+            <input 
+              onKeyDown={preventMinus}
               onChange={e => setCoursePrice(e.target.value)} 
               value={coursePrice} 
               type="number" 
+              min="0"
+              step="0.01"
               placeholder='0' 
-              className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm'
+              onInvalid={e => e.target.setCustomValidity('Please enter a valid price (0 or greater)')}
+              onInput={e => e.target.setCustomValidity('')}
             />
+            {coursePrice < 0 && <p className="text-red-500 text-xs mt-1">Price cannot be negative</p>}
           </div>
-          <div className='flex flex-col gap-1'>
-            <p>Discount %</p>
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">Discount (%)</label>
             <input 
+              onKeyDown={preventMinus}
               onChange={e => setDiscount(e.target.value)} 
               value={discount} 
               type="number" 
+              min="0"
+              max="100"
               placeholder='0' 
-              className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500'
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm'
+              onInvalid={e => e.target.setCustomValidity('Please enter a valid discount (0-100%)')}
+              onInput={e => e.target.setCustomValidity('')}
             />
+            {discount < 0 && <p className="text-red-500 text-xs mt-1">Discount cannot be negative</p>}
+            {discount > 100 && <p className="text-red-500 text-xs mt-1">Discount cannot exceed 100%</p>}
           </div>
-          {discount > 0 && (
-            <div className='flex flex-col gap-1'>
-              <p>Discount End Time</p>
-              <input 
-                onChange={e => setDiscountEndTime(e.target.value)}
-                value={discountEndTime}
-                type="datetime-local"
-                className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500'
-                required
-              />
+        </div>
+        
+        {discount > 0 && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Discount End Time</label>
+            <input 
+              onChange={e => setDiscountEndTime(e.target.value)}
+              value={discountEndTime}
+              type="datetime-local"
+              className='bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 shadow-sm'
+              required
+              onInvalid={e => e.target.setCustomValidity('Please select when the discount ends')}
+              onInput={e => e.target.setCustomValidity('')}
+            />
+            {!discountEndTime && discount > 0 && <p className="text-red-500 text-xs mt-1">Required when discount is applied</p>}
+          </div>
+        )}
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Course Thumbnail</label>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative group">
+              <label htmlFor='thumbnailImage' className='cursor-pointer'>
+                <input 
+                  type="file" 
+                  id='thumbnailImage' 
+                  onChange={e => setImage(e.target.files[0])} 
+                  accept="image/*" 
+                  className="sr-only" 
+                  required
+                />
+                <div className='inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-sm font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md'>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  Choose Image
+                </div>
+              </label>
             </div>
-          )}
-          <div className='flex md:flex-row flex-col items-center gap-3'>
-            <p>Course Thumbnail</p>
-            <label htmlFor='thumbnailImage' className='flex items-center gap-3'>
-              <img src={assets.file_upload_icon} alt="" className='p-3 bg-blue-500 rounded' />
-              <input type="file" id='thumbnailImage' onChange={e => setImage(e.target.files[0])} accept="image/*" hidden />
-              <img className='max-h-10' src={image ? URL.createObjectURL(image) : null} alt="" />
-            </label>
+            <div className="h-20 w-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center group-hover:border-blue-400 transition-colors duration-200">
+              {image ? (
+                <img className='h-full w-full object-cover' src={URL.createObjectURL(image)} alt="Thumbnail" />
+              ) : (
+                <div className="text-center p-2">
+                  <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  <p className="mt-1 text-xs text-gray-500">Preview</p>
+                </div>
+              )}
+            </div>
           </div>
+          {!image && <p className="text-red-500 text-xs mt-2 flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path>
+            </svg>
+            Course thumbnail is required
+          </p>}
+        </div>
+        <div className="mb-6">
+          <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2">
+            <span>PayPal Email</span>
+            <span className="text-sm font-normal text-gray-500">(optional if wallet is connected)</span>
+          </label>
+          <div className="relative">
+            <input
+              type="email"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none"
+              value={paypalEmail}
+              onChange={e => {
+                setPaypalEmail(e.target.value);
+                // Basic email validation
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (e.target.value && !emailRegex.test(e.target.value)) {
+                  e.target.setCustomValidity('Please enter a valid email address');
+                } else {
+                  e.target.setCustomValidity('');
+                }
+              }}
+              onBlur={e => {
+                if (!connected && !e.target.value) {
+                  e.target.classList.add('border-red-500');
+                } else {
+                  e.target.classList.remove('border-red-500');
+                }
+              }}
+              placeholder="example@paypal.com"
+              required={!connected}
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">
+            {connected 
+              ? "Optional: Add PayPal email to also receive payments via PayPal" 
+              : "Required: Enter PayPal email to receive payments"}
+          </p>
         </div>
         <div>
           {chapters.map((chapter, chapterIndex) => (
@@ -842,6 +1049,7 @@ const AddCourse = () => {
               <div>
                 <label className='block mb-1'>Duration (minutes)</label>
                 <input
+                onKeyDown={preventMinus}
                   type='number'
                   value={currentTest.duration}
                   onChange={(e) => setCurrentTest({ ...currentTest, duration: e.target.value })}
@@ -853,12 +1061,13 @@ const AddCourse = () => {
               <div>
                 <label className='block mb-1'>Passing Score (%)</label>
                 <input
+                onKeyDown={preventMinus}
                   type='number'
                   value={currentTest.passingScore}
                   onChange={(e) => {
                     const value = parseInt(e.target.value);
                     if (value > 100) {
-                      toast.error('Vui lòng chọn bé hơn 100%');
+                      toast.error('Passing score cannot exceed 100%');
                       return;
                     }
                     setCurrentTest({ ...currentTest, passingScore: value || 0 });
@@ -886,10 +1095,7 @@ const AddCourse = () => {
               <p>Lecture Title</p>
               <input type="text" className="mt-1 block w-full border rounded py-1 px-2" value={lectureDetails.lectureTitle} onChange={(e) => setLectureDetails({ ...lectureDetails, lectureTitle: e.target.value })} />
             </div>
-            <div className="mb-2">
-              <p>Duration (minutes)</p>
-              <input type="number" className="mt-1 block w-full border rounded py-1 px-2" value={lectureDetails.lectureDuration} onChange={(e) => setLectureDetails({ ...lectureDetails, lectureDuration: e.target.value })} />
-            </div>
+
             <div className="mb-2">
               <p>Lecture URL</p>
               <input type="text" className="mt-1 block w-full border rounded py-1 px-2" value={lectureDetails.lectureUrl} onChange={(e) => setLectureDetails({ ...lectureDetails, lectureUrl: e.target.value })} />
@@ -936,8 +1142,26 @@ const AddCourse = () => {
             </button>
           </Popup>
         )}
-        <button type='submit' className='bg-black text-white w-max py-2.5 px-8 rounded my-4'>ADD</button>
+        <button
+          type='submit'
+          className={`inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm ${!canCreate || !userData?.canCreateCourse ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={!canCreate || !userData?.canCreateCourse}
+        >
+          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+          </svg>
+          ADD COURSE
+        </button>
+        {!canCreate && cooldownLeft > 0 && (
+          <div className="mt-2 text-yellow-700 text-sm font-semibold bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+            <svg className="w-5 h-5 inline-block mr-1 text-yellow-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"></path>
+            </svg>
+            Wait {Math.floor(cooldownLeft / 60000)}:{((cooldownLeft % 60000) / 1000).toFixed(0).padStart(2, '0')} to create a new course
+          </div>
+        )}
       </form>
+      </div>
     </div>
   );
 };
