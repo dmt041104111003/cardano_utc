@@ -32,17 +32,59 @@ const TransactionChecker = () => {
             
             // Tự động gọi hàm handleCheck để xác minh chứng chỉ
             setTimeout(() => {
-                handleCheck(policyIdParam, txHashParam);
+                handleCheckFromParams(policyIdParam, txHashParam);
             }, 1000);
         }
     }, [searchParams]);
 
-    const handleCheck = async (pId, tHash) => {
-        // Sử dụng tham số nếu được truyền vào, nếu không thì sử dụng giá trị từ state
-        const policyIdToUse = pId || policyId;
-        const txHashToUse = tHash || txHash;
-        
-        if (!policyIdToUse.trim() || !txHashToUse.trim()) {
+    const handleCheckFromParams = async (pId, tHash) => {
+        try {
+            // Đảm bảo các giá trị là chuỗi
+            const policyIdToUse = String(pId || '');
+            const txHashToUse = String(tHash || '');
+            
+            if (policyIdToUse.trim() === '' || txHashToUse.trim() === '') {
+                toast.error('Invalid QR code parameters');
+                return;
+            }
+            
+            console.log('Verifying from URL params:', { policyId: policyIdToUse, txHash: txHashToUse });
+            
+            setLoading(true);
+            const token = await getToken();
+
+            // Get NFT info using policy ID and transaction hash
+            const { data: nftData } = await axios.get(
+                `${backendUrl}/api/nft/info/by-policy/${encodeURIComponent(policyIdToUse)}/${encodeURIComponent(txHashToUse)}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            if (nftData.success) {
+                // Store NFT info
+                setSelectedNFT({
+                    policyId: nftData.policyId,
+                    assetName: nftData.assetName,
+                    courseTitle: nftData.courseTitle,
+                    metadata: nftData.metadata,
+                    mintTransaction: nftData.mintTransaction,
+                    educator: nftData.educator
+                });
+
+                // Show NFT modal
+                setShowNFTModal(true);
+            } else {
+                toast.error('Could not find certificate NFT information');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error(error.response?.data?.message || 'Error fetching certificate information');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCheck = async () => {
+        if (!policyId.trim() || !txHash.trim()) {
             toast.error('Please enter both Policy ID and Transaction Hash');
             return;
         }
@@ -53,7 +95,7 @@ const TransactionChecker = () => {
 
             // Get NFT info using policy ID and transaction hash
             const { data: nftData } = await axios.get(
-                `${backendUrl}/api/nft/info/by-policy/${policyIdToUse}/${txHashToUse}`,
+                `${backendUrl}/api/nft/info/by-policy/${encodeURIComponent(policyId)}/${encodeURIComponent(txHash)}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
