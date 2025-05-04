@@ -1,6 +1,5 @@
 # Cardano UTC - Blockchain Learning Management System
 
-![Cardano UTC]([client/src/assets/images/logo.png](https://client-react-brown.vercel.app/))
 Web demo: [https://client-react-brown.vercel.app/]
 ## Overview
 
