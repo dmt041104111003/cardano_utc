@@ -13,6 +13,9 @@ import Certificate from '../../components/student/Certificate';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
+// Biến global để lưu trữ trạng thái bị chặn
+let globalIsBlocked = false;
+
 const Player = () => {
   const {
     enrolledCourses,
@@ -40,6 +43,9 @@ const Player = () => {
   const [testResult, setTestResult] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [exitAttempted, setExitAttempted] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [violationCount, setViolationCount] = useState(0);
+  const [studentId, setStudentId] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const testContainerRef = useRef(null);
   const courseDataCache = useRef(null);
@@ -145,6 +151,10 @@ const Player = () => {
 
   const handleTest = async (test) => {
     try {
+      // Lưu ý: Kiểm tra trạng thái vi phạm đã được thực hiện trong onClick của nút
+      // Nên không cần kiểm tra lại ở đây
+      console.log(`Starting test. Current isBlocked state: ${isBlocked}`);
+      
       const token = await getToken();
       const course = courseDataCache.current || (await axios.get(
         `${backendUrl}/api/course/${courseId}`,
@@ -509,6 +519,35 @@ const Player = () => {
               console.log(`${actualViolationType} violation saved to database`);
               // Đánh dấu đã gửi vi phạm cho bài kiểm tra này
               violationReportedForTestRef.current = true;
+              
+              // Tạo tiến trình khóa học khi có vi phạm
+              try {
+                console.log('Creating course progress for violation');
+                const progressToken = await getToken();
+                const progressResponse = await axios.post(
+                  `${backendUrl}/api/user/update-course-progress`,
+                  {
+                    courseId,
+                    // Sử dụng testId hoặc một ID duy nhất cho vi phạm
+                    lectureId: testId || `violation_${new Date().getTime()}`,
+                    violation: {
+                      type: actualViolationType,
+                      message: displayReason,
+                      timestamp: new Date(),
+                      imageData: imgData
+                    },
+                  },
+                  { headers: { Authorization: `Bearer ${progressToken}` } }
+                );
+                
+                if (progressResponse.data.success) {
+                  console.log('Course progress updated with violation data');
+                } else {
+                  console.error('Failed to update course progress with violation:', progressResponse.data.message);
+                }
+              } catch (progressError) {
+                console.error('Error updating course progress with violation:', progressError);
+              }
             } else {
               console.error("API returned error:", response.data);
             }
@@ -781,6 +820,114 @@ const Player = () => {
       return newAnswers;
     });
   };
+
+  // Hàm lấy userId từ context
+  const getUserId = () => {
+    try {
+      // Sử dụng userData từ context thay vì gọi API
+      if (userData && userData._id) {
+        console.log('Got user ID from context:', userData._id);
+        return userData._id;
+      }
+      console.error('User data not found in context');
+      return null;
+    } catch (error) {
+      console.error('Error getting user ID from context:', error);
+      return null;
+    }
+  };
+  
+  const checkViolationStatus = async () => {
+    try {
+      if (!courseId) return;
+      
+      // Lấy userId từ context
+      const userId = getUserId();
+      
+      if (!userId) {
+        console.log('No user ID available, cannot check violation status');
+        return;
+      }
+      
+      // Cập nhật studentId
+      setStudentId(userId);
+      console.log('Updated studentId:', userId);
+      
+      // Lấy token để gọi API
+      const token = await getToken();
+      
+      // Kiểm tra nếu không có token
+      if (!token) {
+        console.error('No token available, cannot check violation status');
+        return;
+      }
+      
+      console.log('Checking violation status with token:', token.substring(0, 10) + '...');
+      
+      // Gọi API với token
+      const response = await axios.get(
+        `${backendUrl}/api/violation/count?studentId=${userId}&courseId=${courseId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        const { count, isBlocked: blocked } = response.data;
+        console.log(`Violation status: count=${count}, isBlocked=${blocked}`);
+        
+        // Đảm bảo blocked luôn là boolean
+        const isBlockedBoolean = blocked === true || blocked === "true";
+        
+        // Cập nhật biến global
+        globalIsBlocked = isBlockedBoolean;
+        
+        console.log(`Setting isBlocked to: ${isBlockedBoolean} (global: ${globalIsBlocked})`);
+        setViolationCount(count);
+        setIsBlocked(isBlockedBoolean);
+        
+        // Log ra state sau khi cập nhật
+        setTimeout(() => {
+          console.log(`Current isBlocked state after update: ${isBlocked} (global: ${globalIsBlocked})`);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error checking violation status:', error);
+      
+      // Nếu lỗi 401, kiểm tra trạng thái vi phạm từ CourseProgress
+      if (error.response && error.response.status === 401) {
+        console.log('Unauthorized error, checking CourseProgress for violation data');
+        
+        try {
+          // Kiểm tra nếu progressData có thông tin vi phạm
+          if (progressData && progressData.violations) {
+            const { count, isBlocked: blocked } = progressData.violations;
+            console.log(`Found violations in CourseProgress: count=${count}, isBlocked=${blocked}`);
+            
+            // Cập nhật state và biến global
+            const isBlockedBoolean = blocked === true || blocked === "true";
+            globalIsBlocked = isBlockedBoolean;
+            setViolationCount(count || 0);
+            setIsBlocked(isBlockedBoolean);
+            
+            console.log(`Set isBlocked from CourseProgress: ${isBlockedBoolean} (global: ${globalIsBlocked})`);
+          }
+        } catch (progressError) {
+          console.error('Error checking CourseProgress for violations:', progressError);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (courseId && studentId) {
+      // Kiểm tra ngay khi component mount
+      checkViolationStatus();
+      
+      // Thiết lập interval để kiểm tra định kỳ
+      const intervalId = setInterval(checkViolationStatus, 10000); // 10 giây
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [courseId, studentId]);
 
   useEffect(() => {
     if (enrolledCourses.length > 0) {
@@ -1253,12 +1400,68 @@ const Player = () => {
                                     Passed
                                   </span>
                                 ) : (
-                                  <button
-                                    className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded transition-colors"
-                                    onClick={() => handleTest(test)}
-                                  >
-                                    {savedTest ? 'Retry Test' : 'Start Test'}
-                                  </button>
+                                  (isBlocked === true || globalIsBlocked === true) ? (
+                                    <button
+                                      className="text-xs font-medium text-white bg-gray-500 cursor-not-allowed px-2.5 py-1 rounded transition-colors"
+                                      disabled
+                                    >
+                                      Blocked ({violationCount} violations)
+                                    </button>
+                                  ) : (
+                                    <button
+                                      className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded transition-colors"
+                                      onClick={async () => {
+                                        try {
+                                          // Hiển thị thông báo đang kiểm tra
+                                          toast.info('Checking violation status...');
+                                          
+                                          // Kiểm tra trạng thái vi phạm trước khi bắt đầu bài kiểm tra
+                                          const token = await getToken();
+                                          const userId = getUserId();
+                                          
+                                          if (!userId || !courseId) {
+                                            toast.error('Missing user ID or course ID');
+                                            return;
+                                          }
+                                          
+                                          // Gọi trực tiếp API để kiểm tra trạng thái vi phạm
+                                          try {
+                                            const response = await axios.get(
+                                              `${backendUrl}/api/violation/count?studentId=${userId}&courseId=${courseId}`,
+                                              { headers: { Authorization: `Bearer ${token}` } }
+                                            );
+                                            
+                                            if (response.data.success) {
+                                              const { count, isBlocked: blocked } = response.data;
+                                              console.log(`Direct API check - Violation status: count=${count}, isBlocked=${blocked}`);
+                                              
+                                              // Nếu bị chặn, hiển thị thông báo và không cho phép bắt đầu bài kiểm tra
+                                              if (blocked === true || blocked === "true") {
+                                                toast.error(`You are blocked from taking tests due to ${count} violation(s)`);
+                                                return;
+                                              }
+                                            }
+                                          } catch (apiError) {
+                                            console.error('Error checking violation status from API:', apiError);
+                                            
+                                            // Nếu API lỗi, kiểm tra trong CourseProgress
+                                            if (progressData && progressData.violations && progressData.violations.isBlocked) {
+                                              toast.error(`You are blocked from taking tests due to ${progressData.violations.count || 'multiple'} violation(s)`);
+                                              return;
+                                            }
+                                          }
+                                          
+                                          // Nếu không bị chặn, bắt đầu bài kiểm tra
+                                          handleTest(test);
+                                        } catch (error) {
+                                          console.error('Error in Start Test button click handler:', error);
+                                          toast.error('An error occurred while checking violation status');
+                                        }
+                                      }}
+                                    >
+                                      {savedTest ? 'Retry Test' : 'Start Test'}
+                                    </button>
+                                  )
                                 )}
                                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                                   {test.duration || 3} min

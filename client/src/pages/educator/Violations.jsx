@@ -17,6 +17,10 @@ const Violations = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [violationTypeFilter, setViolationTypeFilter] = useState('');
   
+  // State cho phân trang ở phía client
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const { connected, wallet } = useWallet();
 
   useEffect(() => {
@@ -601,7 +605,9 @@ const Violations = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredViolations.map((violation) => (
+                  {filteredViolations
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((violation) => (
                     <tr key={violation._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
@@ -642,6 +648,34 @@ const Violations = () => {
                   ))}
                 </tbody>
               </table>
+              
+              {/* Phân trang */}
+              {filteredViolations.length > 0 && (
+                <div className="px-6 py-4 bg-white border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Hiển thị {Math.min(filteredViolations.length, (currentPage - 1) * itemsPerPage + 1)} - {Math.min(filteredViolations.length, currentPage * itemsPerPage)} trong tổng số {filteredViolations.length} vi phạm
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      Trước
+                    </button>
+                    <div className="px-3 py-1 bg-gray-100 rounded text-gray-700">
+                      Trang {currentPage} / {Math.ceil(filteredViolations.length / itemsPerPage)}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(prev => prev + 1)}
+                      disabled={currentPage >= Math.ceil(filteredViolations.length / itemsPerPage)}
+                      className={`px-3 py-1 rounded ${currentPage >= Math.ceil(filteredViolations.length / itemsPerPage) ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      Tiếp
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
