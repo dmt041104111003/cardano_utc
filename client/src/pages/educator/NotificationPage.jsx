@@ -323,6 +323,13 @@ const NotificationPage = () => {
 
                     const courseData = courseResponse.data.courseData;
                     
+                    // Lấy policyId từ API NFT info giống như mint thường
+                    const nftInfo = {
+                        policyId: nftResponse.data.policyId,
+                        assetName: nftResponse.data.assetName
+                    };
+                    console.log('NFT info for course:', notification.courseId?._id, nftInfo);
+
                     // Add to certificate requests
                     certificateRequests.push({
                         courseData: {
@@ -336,8 +343,8 @@ const NotificationPage = () => {
                             certificateImage: courseData.courseThumbnail,
                             studentName: notification.studentId?.name || notification.data?.userName || "Student",
                             studentId: notification.studentId?._id,
-                            policyId: nftResponse.data.policyId,
-                            assetName: nftResponse.data.assetName
+                            policyId: nftInfo.policyId,
+                            assetName: nftInfo.assetName
                         },
                         userAddress: notification.data.walletAddress,
                         notificationId: notification._id
@@ -416,8 +423,9 @@ const NotificationPage = () => {
                             courseId: request.courseData.courseId,
                             mintUserId: userData?._id,
                             ipfsHash: processedCert.ipfsHash,
-                            policyId: processedCert.policyId,
-                            transactionHash: txHash
+                            policyId: request.courseData.policyId, // Sử dụng policyId từ courseData (lấy từ API NFT info)
+                            transactionHash: txHash,
+                            assetName: request.courseData.assetName // Sử dụng assetName từ courseData
                         },
                         { headers: { Authorization: `Bearer ${token}` } }
                     )
@@ -529,7 +537,7 @@ const NotificationPage = () => {
                         <button
                             onClick={handleMintAllCertificates}
                             disabled={mintingAll || !connected || !wallet}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                            className={`px-4 py-2 rounded-md text-sm font-medium ${
                                 mintingAll
                                     ? 'bg-gray-400 cursor-not-allowed text-white'
                                     : !connected || !wallet

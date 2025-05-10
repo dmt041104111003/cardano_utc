@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+
 /* eslint-disable react/prop-types */
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import uniqid from 'uniqid';
@@ -551,7 +551,7 @@ const AddCourse = () => {
     }
 
     if (!courseTitle) {
-      toast.error('Vui lòng nhập course title ít nhất 5 ký tự');
+      toast.error('Please enter course title at least 5 characters');
       return;
     }
 
@@ -1121,7 +1121,7 @@ const AddCourse = () => {
             <button 
               onClick={() => {
                 if (!newChapterTitle.trim()) {
-                  toast.error('Vui lòng nhập tên chapter');
+                  toast.error('Please enter chapter name');
                   return;
                 }
                 const newChapter = {
