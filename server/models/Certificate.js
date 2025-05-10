@@ -6,6 +6,7 @@ const certificateSchema = new mongoose.Schema({
     certificateUrl: { type: String, required: true },
     transactionHash: { type: String, required: false, default: "pending" },
     policyId: { type: String, required: false },
+    assetName: { type: String, required: false }, // Thêm trường assetName để phân biệt NFT trong mint all
     issueBy: { type: String, ref: 'User', required: true }, 
 }, { timestamps: true, minimize: false });
 

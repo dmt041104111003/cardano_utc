@@ -1,4 +1,4 @@
-
+/* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import uniqid from 'uniqid';
@@ -519,11 +519,16 @@ const AddCourse = () => {
   };
 
   const addLecture = () => {
+    const formattedUrl = lectureDetails.lectureUrl.trim() !== '' 
+      ? `https://www.youtube.com/embed/${lectureDetails.lectureUrl.trim()}` 
+      : '';
+    
     setChapters(
       chapters.map((chapter) => {
         if (chapter.chapterId === currentChapterId) {
           const newLecture = {
             ...lectureDetails,
+            lectureUrl: formattedUrl, // Sử dụng URL đã được định dạng
             lectureOrder: chapter.chapterContent.length > 0
               ? chapter.chapterContent.slice(-1)[0].lectureOrder + 1
               : 1,
@@ -1097,8 +1102,36 @@ const AddCourse = () => {
             </div>
 
             <div className="mb-2">
-              <p>Lecture URL</p>
-              <input type="text" className="mt-1 block w-full border rounded py-1 px-2" value={lectureDetails.lectureUrl} onChange={(e) => setLectureDetails({ ...lectureDetails, lectureUrl: e.target.value })} />
+              <p>YouTube Video URL</p>
+              <input 
+                type="text" 
+                className="mt-1 block w-full border rounded py-1 px-2" 
+                value={lectureDetails.lectureUrl} 
+                onChange={(e) => {
+                  let videoId = e.target.value.trim();
+                  
+                  if (videoId.includes('youtube.com') || videoId.includes('youtu.be')) {
+                    const watchMatch = videoId.match(/(?:youtube\.com\/watch\?v=)([\w-]+)/);
+                    if (watchMatch && watchMatch[1]) {
+                      videoId = watchMatch[1];
+                    }
+                    
+                    const shortMatch = videoId.match(/(?:youtu\.be\/)([\w-]+)/);
+                    if (shortMatch && shortMatch[1]) {
+                      videoId = shortMatch[1];
+                    }
+                    
+                    // Xử lý URL dạng youtube.com/embed/VIDEO_ID
+                    const embedMatch = videoId.match(/(?:youtube\.com\/embed\/)([\w-]+)/);
+                    if (embedMatch && embedMatch[1]) {
+                      videoId = embedMatch[1];
+                    }
+                  }
+                  
+                  setLectureDetails({ ...lectureDetails, lectureUrl: videoId });
+                }} 
+                placeholder="URL Youtube Video " 
+              />
             </div>
             <div className="mb-2">
               <p>Is Preview Free?</p>
@@ -1121,7 +1154,7 @@ const AddCourse = () => {
             <button 
               onClick={() => {
                 if (!newChapterTitle.trim()) {
-                  toast.error('Please enter chapter name');
+                  toast.error('Vui lòng nhập tên chapter');
                   return;
                 }
                 const newChapter = {

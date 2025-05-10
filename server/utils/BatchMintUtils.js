@@ -3,6 +3,40 @@ import { ForgeScript } from '@meshsdk/core';
 import CustomInitiator from './CustomInitiator.js';
 
 /**
+ * Ensures a string is within the Cardano metadata value limit (64 bytes)
+ * @param {string} str - The string to truncate if needed
+ * @param {number} maxLength - Optional max length (default: 64)
+ * @returns {string} - Truncated string
+ */
+function ensureMetadataLength(str, maxLength = 64) {
+    if (!str) return '';
+    
+    // Convert to string if not already
+    const strValue = String(str);
+    
+    // Check byte length (UTF-8)
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(strValue);
+    
+    if (bytes.length <= maxLength) {
+        return strValue;
+    }
+    
+    // If too long, truncate and add ellipsis
+    // Start with half the max length and adjust until we're under the limit
+    let truncatedLength = Math.floor(maxLength * 0.8);
+    let truncated = strValue.substring(0, truncatedLength) + '...';
+    
+    // Check if we're still under the limit
+    while (encoder.encode(truncated).length > maxLength) {
+        truncatedLength -= 5;
+        truncated = strValue.substring(0, truncatedLength) + '...';
+    }
+    
+    return truncated;
+}
+
+/**
  * Create unsigned transaction for minting multiple NFT certificates in a single transaction
  */
 async function createBatchMintTransaction({
@@ -71,12 +105,22 @@ async function createBatchMintTransaction({
             const shortUserAddress = userAddress.slice(0, 10) + '...' + userAddress.slice(-10);
             const shortCreatorAddress = educatorAddress.slice(0, 10) + '...' + educatorAddress.slice(-10);
 
-            // Prepare metadata
+            // Prepare metadata with length-limited values
+            const truncatedTitle = ensureMetadataLength(courseData.courseTitle, 40);
+            const truncatedStudentName = ensureMetadataLength(courseData.studentName, 30);
+            const truncatedEducator = ensureMetadataLength(courseData.educator, 30);
+            
+            // Create certificate name that fits within limits
+            const certName = ensureMetadataLength(`${truncatedTitle} Certificate`, 64);
+            
+            // Create description that fits within limits
+            const description = ensureMetadataLength(`Cert for ${truncatedStudentName} - ${truncatedTitle}`, 64);
+            
             const metadata = {
-                name: `${courseData.courseTitle} Certificate`,
+                name: certName,
                 image: `ipfs://${ipfsHash}`,  // Sử dụng định dạng ipfs:// để tương thích tốt hơn
                 mediaType: "image/png",
-                description: `Certificate for ${courseData.studentName} - ${courseData.courseTitle}`,
+                description: description,
                 properties: {
                     courseId: courseData.courseId.toString(),
                     studentId: courseData.studentId ? courseData.studentId.toString() : "",
@@ -88,19 +132,18 @@ async function createBatchMintTransaction({
                 "721": {
                     [policyId]: {
                         [assetName]: {
-                            name: `${courseData.courseTitle} Certificate`,
+                            name: certName,
                             image: `ipfs://${ipfsHash}`,
                             mediaType: "image/png",
                             course_id: courseData.courseId.toString(),
-                            course_title: courseData.courseTitle,
-                            student_name: courseData.studentName,
+                            course_title: truncatedTitle,
+                            student_name: truncatedStudentName,
                             student_id: courseData.studentId ? courseData.studentId.toString() : "",
                             student_address: shortUserAddress,
-                            educator_name: courseData.educator,
+                            educator_name: truncatedEducator,
                             educator_address: shortCreatorAddress,
-                            asset_name: assetName,  // Thêm asset_name vào metadata để dễ tra cứu
+                            asset_name: assetName,
                             issued_at: new Date().toISOString().split('T')[0]
-                            // Không sử dụng gateway_url vì vượt quá giới hạn 64 bytes của Cardano
                         }
                     }
                 }
