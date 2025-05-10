@@ -217,9 +217,9 @@ export const getAllCompletedCourses = async (req, res) => {
 export const updateUserCourseProgress = async (req, res) => {
     try {
         const userId = req.auth.userId
-        const { courseId, lectureId, test } = req.body
+        const { courseId, lectureId, test, violation } = req.body
 
-        console.log('Received request:', { courseId, lectureId, test });
+        console.log('Received request:', { courseId, lectureId, test, hasViolation: !!violation });
 
         // Lấy thông tin khóa học 
         const course = await Course.findById(courseId);
@@ -306,6 +306,43 @@ export const updateUserCourseProgress = async (req, res) => {
         console.log('Completed lectures:', progressData.lectureCompleted);
         console.log('Tests:', progressData.tests);
 
+        // Xử lý vi phạm nếu có
+        if (violation) {
+            console.log('Processing violation data:', { type: violation.type, message: violation.message });
+            
+            // Tạo hoặc cập nhật trường violations trong CourseProgress
+            if (!progressData.violations) {
+                progressData.violations = {
+                    count: 1,
+                    isBlocked: false,
+                    lastUpdated: new Date(),
+                    records: [{
+                        timestamp: new Date(),
+                        violationType: violation.type,
+                        message: violation.message
+                    }]
+                };
+            } else {
+                // Tăng số lần vi phạm
+                progressData.violations.count += 1;
+                
+                // Kiểm tra nếu đủ điều kiện để bị chặn
+                progressData.violations.isBlocked = progressData.violations.count >= 2;
+                
+                // Cập nhật thời gian
+                progressData.violations.lastUpdated = new Date();
+                
+                // Thêm vi phạm vào danh sách records
+                progressData.violations.records.push({
+                    timestamp: new Date(),
+                    violationType: violation.type,
+                    message: violation.message
+                });
+            }
+            
+            console.log(`Updated violations: count=${progressData.violations.count}, isBlocked=${progressData.violations.isBlocked}`);
+        }
+        
         // Nếu là test thì cập nhật hoặc thêm mới vào mảng tests
         if (test) {
             const testIndex = progressData.tests.findIndex(t => t.testId === lectureId);
@@ -327,7 +364,7 @@ export const updateUserCourseProgress = async (req, res) => {
             }
         }
         // Nếu không phải test và là lecture hợp lệ thì lưu vào lectureCompleted
-        else if (normalLectures.has(lectureId)) {
+        else if (normalLectures.has(lectureId) && !violation) {
             if (!progressData.lectureCompleted.includes(lectureId)) {
                 progressData.lectureCompleted.push(lectureId);
             }

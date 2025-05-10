@@ -18,6 +18,7 @@ import batchMintRouter from './routes/batchMintRoutes.js'
 import purchaseRouter from './routes/purchaseRoutes.js'
 import violationRouter from './routes/violationRoutes.js'
 import violationNFTRouter from './routes/violationNFTRoutes.js'
+import violationCounterRouter from './routes/violationCounterRoutes.js'
 import profileRouter from './routes/profileRoutes.js'
 
 const app = express()
@@ -61,6 +62,8 @@ app.use('/api/batch', express.json(), batchMintRouter)
 app.use('/api/violation', express.json(), violationRouter)
 
 app.use('/api/violation-nft', express.json(), violationNFTRouter)
+
+app.use('/api/violation-counter', express.json(), violationCounterRouter)
 
 app.use('/api/purchase', express.json(), purchaseRouter)
 

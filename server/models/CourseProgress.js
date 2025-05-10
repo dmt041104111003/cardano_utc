@@ -30,6 +30,16 @@ const courseProgressSchema = new mongoose.Schema({
     studentInfo: {
         name: { type: String },
         userId: { type: String }
+    },
+    violations: {
+        count: { type: Number, default: 0 },
+        isBlocked: { type: Boolean, default: false },
+        lastUpdated: { type: Date, default: Date.now },
+        records: [{
+            timestamp: { type: Date, default: Date.now },
+            violationType: { type: String },
+            message: { type: String }
+        }]
     }
 }, { minimize: false });
 
