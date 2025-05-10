@@ -91,7 +91,7 @@ const Footer = () => {
                     </p>
                     <div className='flex flex-wrap items-center gap-3 justify-center md:justify-start'>
                         <a 
-                            href="https://www.youtube.com/watch?v=_6DHWPVufX4&t=3s" 
+                            href="https://www.youtube.com/watch?v=6ckXXCDMBow" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className='flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-500 px-4 py-2.5 text-white rounded-lg hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5'
@@ -115,7 +115,7 @@ const Footer = () => {
                         </a>
                         
                         <a 
-                            href="https://github.com/dmt041104111003/cardano_utc.git" 
+                            href="https://github.com/dmt041104111003/cardano_utc/wiki" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className='flex items-center gap-2 bg-gradient-to-r from-gray-800 to-gray-700 px-4 py-2.5 text-white rounded-lg hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5'

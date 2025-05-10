@@ -51,6 +51,8 @@ const MyEnrollments = () => {
     const [loadingPurchase, setLoadingPurchase] = useState(false);
     const [showPurchaseHistory, setShowPurchaseHistory] = useState(false);
     const [sentToEducator, setSentToEducator] = useState({});
+    
+    // Hàm fetchPurchaseHistory đã được định nghĩa ở dưới
 
     const getCourseProgress = async () => {
         try {
@@ -285,12 +287,12 @@ const MyEnrollments = () => {
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
                     if (data.success && data.exists) {
-                        console.log(`Address exists for course ${course._id}`);
+                        // console.log(`Address exists for course ${course._id}`);
                         // Nếu đã lưu địa chỉ, đánh dấu là đã gửi yêu cầu
                         setSentToEducator(prev => ({ ...prev, [course._id]: true }));
                     }
                 } catch (error) {
-                    console.error(`Error checking address status for course ${course._id}:`, error);
+                    // console.error(`Error checking address status for course ${course._id}:`, error);
                 }
             });
 
@@ -383,7 +385,7 @@ const MyEnrollments = () => {
         try {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
             const token = await getToken();
-
+    
             // Luôn kiểm tra trạng thái chứng chỉ mới nhất trước
             await checkCertificateStatus(courseId);
             
@@ -392,26 +394,37 @@ const MyEnrollments = () => {
                 `${backendUrl}/api/certificate/${userData._id}/${courseId}?timestamp=${new Date().getTime()}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
+    
             console.log('Certificate data:', certData);
-
+    
             if (!certData.success || !certData.certificate) {
                 toast.error(certData.message || 'Certificate not found');
                 return;
             }
-
+    
             const certificate = certData.certificate;
             console.log('Certificate details:', certificate);
-
+    
             try {
+                // Thêm log chi tiết để debug
+                console.log('CERTIFICATE DETAILS:', JSON.stringify(certificate, null, 2));
+                console.log('POLICY ID:', certificate.policyId);
+                console.log('TRANSACTION HASH:', certificate.transactionHash);
+                console.log('COURSE ID:', courseId);
+                console.log('REQUEST URL:', `${backendUrl}/api/nft/info/by-policy/${encodeURIComponent(certificate.policyId)}/${encodeURIComponent(certificate.transactionHash)}`);
+                
                 // Get NFT info directly using policy ID and transaction hash
+                // Mã hóa URL các tham số giống như TransactionChecker
+                console.log('Sending request with encoded parameters:',
+                    `policyId: ${encodeURIComponent(certificate.policyId)}`,
+                    `txHash: ${encodeURIComponent(certificate.transactionHash)}`);                
                 const { data: nftData } = await axios.get(
-                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}?timestamp=${new Date().getTime()}`,
+                    `${backendUrl}/api/nft/info/by-policy/${encodeURIComponent(certificate.policyId)}/${encodeURIComponent(certificate.transactionHash)}?timestamp=${new Date().getTime()}`,
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
-
+    
                 console.log('NFT data:', nftData);
-
+    
                 if (nftData.success) {
                     const qrData = {
                         policyId: nftData.policyId,
@@ -508,6 +521,8 @@ const MyEnrollments = () => {
         if (!progressArray[index]) return false;
         return progressArray[index].completed;
     }
+
+    // Hàm xử lý URL parameters từ Stripe được di chuyển xuống dưới sau khi fetchPurchaseHistory được định nghĩa
 
     useEffect(() => {
         if (showPurchaseHistory) {
@@ -746,21 +761,58 @@ const MyEnrollments = () => {
             fetchPurchaseHistory();
         }
     }, [showPurchaseHistory]);
-
+    
+    // Xử lý tham số URL từ Stripe khi người dùng quay lại
     useEffect(() => {
+        // Xóa các thông báo cũ trước khi xử lý URL parameters
+        toast.dismiss();
+        
         const status = searchParams.get('status');
+        const purchase_id = searchParams.get('purchase_id');
         const message = searchParams.get('message');
-
-        if (status && message) {
-            if (status === 'success') {
-                toast.success(message);
-            } else if (status === 'error') {
-                toast.error(message);
-            } else if (status === 'cancelled') {
-                toast.info(message);
-            }
+        
+        // Nếu không có status hoặc purchase_id, không làm gì
+        if (!status || !purchase_id) return;
+        
+        // Xóa tham số URL ngay lập tức để tránh việc gọi nhiều lần
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        
+        // Kiểm tra xem có phải redirect từ thanh toán Stripe không
+        if (status === 'success') {
+            // Gọi API stripeSuccess để cập nhật trạng thái thanh toán
+            const callStripeSuccess = async () => {
+                try {
+                    // Gọi API stripeSuccess để cập nhật trạng thái thanh toán
+                    const response = await axios.get(`${backendUrl}/api/course/stripe-success?purchase_id=${purchase_id}`);
+                    
+                    if (response.data && response.data.success) {
+                        // Hiển thị thông báo thành công
+                        toast.success(message || 'Payment successful! Your course enrollment has been processed.');
+                        
+                        // Cập nhật danh sách khóa học đã đăng ký
+                        fetchUserEnrolledCourses();
+                        
+                        // Cập nhật lịch sử mua hàng
+                        fetchPurchaseHistory();
+                    } else {
+                        // Bỏ thông báo lỗi theo yêu cầu
+                        console.log('Payment was processed but enrollment failed, not showing error message as requested');
+                    }
+                } catch (error) {
+                    console.error('Error processing Stripe payment:', error);
+                    // Bỏ thông báo lỗi theo yêu cầu
+                }
+            };
+            
+            callStripeSuccess();
+        } else if (status === 'error') {
+            // Bỏ thông báo lỗi theo yêu cầu
+            console.log('Payment error, but not showing error message as requested');
         }
-    }, [searchParams]);
+    }, [searchParams, fetchUserEnrolledCourses, fetchPurchaseHistory, backendUrl, getToken]);
+
+    // useEffect xử lý URL parameters đã được thay thế bằng useEffect mới ở trên
 
     useEffect(() => {
         // Kiểm tra và cập nhật trạng thái chứng chỉ cho tất cả các khóa học đã hoàn thành
@@ -794,7 +846,7 @@ const MyEnrollments = () => {
                     setCertificateStatus(newCertificateStatus);
                 }
             } catch (error) {
-                console.error("Error checking all certificate statuses:", error);
+                // console.error("Error checking all certificate statuses:", error);
             }
         };
         
@@ -1247,7 +1299,7 @@ const MyEnrollments = () => {
                                                 {/* View Certificate và Info Download Certificate NFT chỉ hiển thị khi đã mint */}
                                                 {certificateStatus[course._id] === 'completed' && (
                                                     <>
-                                                        <button
+                                                        {/* <button
                                                             onClick={() => handleCertificate(course._id)}
                                                             className="btn btn-warning px-3 py-1.5 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded shadow-sm hover:from-amber-600 hover:to-amber-700 hover:shadow transition-all duration-200 font-medium border-0 flex items-center gap-1.5"
                                                         >
@@ -1256,7 +1308,7 @@ const MyEnrollments = () => {
                                                                 <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                                                             </svg>
                                                             {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
-                                                        </button>
+                                                        </button> */}
                                                         <button
                                                             onClick={() => handleViewCertificate2(course._id)}
                                                             disabled={loadingCertificate[course._id]}
@@ -1407,18 +1459,18 @@ const MyEnrollments = () => {
                                 <label className="text-sm text-gray-600">Policy ID</label>
                                 <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.policyId}</p>
                             </div>
-                            <div>
+                            {/* <div>
                                 <label className="text-sm text-gray-600">Hex Name</label>
                                 <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.hexName}</p>
                             </div>
                             <div>
                                 <label className="text-sm text-gray-600">Asset Name (Readable)</label>
                                 <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.assetName || 'Loading...'}</p>
-                            </div>
-                            <div>
+                            </div> */}
+                            {/* <div>
                                 <label className="text-sm text-gray-600">Course Title</label>
                                 <p className="text-sm bg-gray-50 p-2 rounded">{selectedNFT.courseTitle}</p>
-                            </div>
+                            </div> */}
                             
                             {selectedNFT.metadata && selectedNFT.metadata['721'] && (
                                 <div className="mt-4">
@@ -1531,7 +1583,7 @@ const MyEnrollments = () => {
                                 </div>
                             </div>
 
-                            <div>
+                            {/* <div>
                                 <h3 className="text-gray-600 mb-2">Hex Name</h3>
                                 <div className="bg-gray-50 p-4 rounded">
                                     {selectedNFTForQR.hexName}
@@ -1543,7 +1595,7 @@ const MyEnrollments = () => {
                                 <div className="bg-gray-50 p-4 rounded">
                                     {selectedNFTForQR.assetName}
                                 </div>
-                            </div>
+                            </div> */}
 
                             {selectedNFTForQR.metadata && selectedNFTForQR.metadata['721'] && (
                                 <div className="mt-4">
@@ -1579,7 +1631,7 @@ const MyEnrollments = () => {
                             )}
 
                             <div>
-                                <h3 className="text-gray-600 mb-2">Course Title</h3>
+                                <h3 className="text-gray-600 mb-2">Name Cert</h3>
                                 <div className="bg-gray-50 p-4 rounded">
                                     {selectedNFTForQR.courseTitle}
                                 </div>
@@ -1616,9 +1668,9 @@ const MyEnrollments = () => {
                             </div>
 
                             <div>
-                                <h3 className="text-gray-600 mb-2">Direct Info QR Code</h3>
+                                {/* <h3 className="text-gray-600 mb-2">Direct Info QR Code</h3> */}
                                 <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
-                                    <div className="border border-gray-200 p-2">
+                                    {/* <div className="border border-gray-200 p-2">
                                         <QRCodeSVG
                                             value={JSON.stringify({
                                                 policyId: selectedNFTForQR.policyId,
@@ -1628,7 +1680,7 @@ const MyEnrollments = () => {
                                             level="H"
                                             includeMargin={true}
                                         />
-                                    </div>
+                                    </div> */}
                                     <p className="mt-4 text-sm text-gray-600">Scan for blockchain info</p>
                                     <button
                                         onClick={() => {

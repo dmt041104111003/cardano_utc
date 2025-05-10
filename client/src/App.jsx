@@ -24,6 +24,7 @@ import CertificateViewer from './pages/student/CertificateViewer';
 // EducatorDetail đã được xóa
 import Subscription from './pages/educator/Subscription';
 import TransactionChecker from './components/student/TransactionChecker';
+import Violations from './pages/educator/Violations';
 
 
 const App = () => {
@@ -60,6 +61,7 @@ const App = () => {
           <Route path='notification' element={<NotificationPage />} />
           <Route path='edit-course' element={<EditCourse />} />
           <Route path='subscription' element={<Subscription />} />
+          <Route path='violations' element={<Violations />} />
         </Route>
       </Routes>
     </div>
