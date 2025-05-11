@@ -187,12 +187,33 @@ const MyEnrollments = () => {
                 console.log('Debug - No wallet address verification required');
             }
 
+            // Lấy txHash từ profile API
+            let txHash = '';
+            try {
+                const profileResponse = await axios.get(
+                    `${backendUrl}/api/profile/user/current`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                
+                console.log('Profile response:', profileResponse.data);
+                
+                if (profileResponse.data && profileResponse.data.success && profileResponse.data.profile) {
+                    txHash = profileResponse.data.profile.txHash || '';
+                    console.log('Got txHash from profile:', txHash);
+                }
+            } catch (profileError) {
+                console.error('Error fetching profile:', profileError);
+                // Tiếp tục mặc dù không lấy được txHash
+            }
+            
+            // Gửi address và txHash đến server
             await axios.post(
                 `${backendUrl}/api/address/save`,
                 { 
                     walletAddress: userAddress,
                     userName: userData?.name,
-                    courseId: courseId
+                    courseId: courseId,
+                    txHash: txHash // Thêm txHash vào dữ liệu gửi đi
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -857,6 +878,27 @@ const MyEnrollments = () => {
     // Hàm reset tiến trình khóa học
     const handleResetProgress = async (courseId) => {
         try {
+            // Kiểm tra trạng thái blocked trước khi cho phép reset progress
+            const checkToken = await getToken();
+            const { data: progressCheckData } = await axios.post(
+                `${backendUrl}/api/user/get-course-progress`,
+                { courseId },
+                { headers: { Authorization: `Bearer ${checkToken}` } }
+            );
+            
+            // Kiểm tra nếu khóa học bị blocked
+            if (progressCheckData.progressData?.blocked === true || progressCheckData.progressData?.violations?.isBlocked === true) {
+                // Hiển thị thông báo lỗi sử dụng Swal thay vì toast
+                await Swal.fire({
+                    title: 'Reset Progress Blocked',
+                    text: 'You cannot reset progress because you are blocked due to violations',
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#d33'
+                });
+                return;
+            }
+            
             // Hiển thị thông báo xác nhận
             const result = await Swal.fire({
                 title: 'Reset Course Progress',
@@ -1348,16 +1390,16 @@ const MyEnrollments = () => {
                                                     </button>
                                                 )}
                                                 {/* Reset Progress */}
-                                                <button
-                                                    onClick={() => handleResetProgress(course._id)}
-                                                    disabled={updatingProgress[course._id]}
-                                                    className="btn btn-danger px-3 py-1.5 text-sm bg-gradient-to-r from-red-500 to-red-600 text-white rounded shadow-sm hover:from-red-600 hover:to-red-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                                                    </svg>
-                                                    {updatingProgress[course._id] ? 'Resetting...' : 'Reset Progress'}
-                                                </button>
+                                                    <button
+                                                        onClick={() => handleResetProgress(course._id)}
+                                                        disabled={updatingProgress[course._id]}
+                                                        className="btn btn-danger px-3 py-1.5 text-sm bg-gradient-to-r from-red-500 to-red-600 text-white rounded shadow-sm hover:from-red-600 hover:to-red-700 hover:shadow transition-all duration-200 font-medium disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none disabled:opacity-70 border-0 flex items-center gap-1.5"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                                        </svg>
+                                                        {updatingProgress[course._id] ? 'Resetting...' : 'Reset Progress'}
+                                                    </button>
                                             </div>
                                         </td>
                                     </tr>

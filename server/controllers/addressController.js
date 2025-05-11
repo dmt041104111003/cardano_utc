@@ -61,8 +61,22 @@ export const findAddress = async (req, res) => {
 
 export const saveAddress = async (req, res) => {
     try {
-        const userId = req.auth.userId;
-        const { walletAddress, userName, courseId } = req.body;
+        console.log('Debug - saveAddress request body:', req.body);
+        console.log('Debug - saveAddress auth:', req.auth);
+        
+        // Lấy userId từ req.auth (middleware Clerk)
+        const userId = req.auth?.userId;
+        
+        if (!userId) {
+            console.error('Debug - No userId found in request auth');
+            return res.json({ 
+                success: false, 
+                message: 'Authentication failed. User ID not found.' 
+            });
+        }
+        
+        const { walletAddress, userName, courseId, txHash } = req.body;
+        console.log('Debug - Extracted data:', { walletAddress, userName, courseId, txHash });
 
         if (!walletAddress || !userName || !courseId) {
             return res.json({ 
@@ -83,19 +97,32 @@ export const saveAddress = async (req, res) => {
                 message: 'Course educator information is incomplete' 
             });
         }
+        
+        console.log('Debug - Found course:', { 
+            id: course._id, 
+            title: course.courseTitle,
+            educator: course.educator,
+            creatorAddress: course.creatorAddress
+        });
 
-        // Save address with educator info
-        const address = await Address.create({
+        // Save address with educator info and txHash
+        const addressData = {
             userId,
             userName,
             walletAddress,
             courseId,
             educatorId: course.educator,
-            educatorWallet: course.creatorAddress
-        });
+            educatorWallet: course.creatorAddress,
+            txHash: txHash || '' // Lưu txHash vào cơ sở dữ liệu
+        };
+        
+        console.log('Debug - Creating address with data:', addressData);
+        
+        const address = await Address.create(addressData);
+        console.log('Debug - Created address:', address);
 
         // Create notification for educator
-        await Notification.create({
+        const notificationData = {
             studentId: userId,
             studentModel: userId.startsWith('user_') ? 'ClerkUser' : 'User',
             courseId: course._id,
@@ -105,16 +132,24 @@ export const saveAddress = async (req, res) => {
             message: `${userName} has submitted their wallet address for certificate`,
             data: {
                 walletAddress,
-                courseTitle: course.courseTitle
+                courseTitle: course.courseTitle,
+                txHash: txHash || '' // Thêm txHash vào thông báo
             }
-        });
+        };
+        
+        console.log('Debug - Creating notification with data:', notificationData);
+        
+        const notification = await Notification.create(notificationData);
+        console.log('Debug - Created notification:', notification);
 
         res.json({ 
             success: true, 
             message: 'Address saved and certificate request sent to educator',
-            address 
+            address,
+            notification
         });
     } catch (error) {
+        console.error('Debug - Error in saveAddress:', error);
         res.json({ success: false, message: error.message });
     }
 };

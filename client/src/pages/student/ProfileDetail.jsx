@@ -46,6 +46,7 @@ const ProfilePage = () => {
   const [cccd, setCccd] = useState('');
   const [profileImage, setProfileImage] = useState(null);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [profileId, setProfileId] = useState('');
 
   const {
     enrolledCourses,
@@ -141,11 +142,11 @@ const ProfilePage = () => {
         return;
       }
       
-      // First try to get profile by user ID
+      // First try to get profile by user ID - sử dụng endpoint mới không yêu cầu xác thực
       try {
+        console.log('Fetching profile for user ID:', userId);
         const { data } = await axios.get(
-          `${backendUrl}/api/profile/user/current`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          `${backendUrl}/api/profile/user/${userId}`
         );
         
         if (data.success && data.profile) {
