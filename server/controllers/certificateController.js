@@ -1,4 +1,5 @@
 import Certificate from "../models/Certificate.js";
+import Profile from "../models/Profile.js";
 
 import { generateCertificateBuffer } from '../utils/ImageUtils.js';
 import { uploadToPinata } from '../utils/PinataUtils.js';
@@ -62,12 +63,25 @@ export const createUnsignedMintTx = async (req, res) => {
         console.log('Received request body:', JSON.stringify(req.body, null, 2));
         const { courseId, utxos, userAddress, collateral, courseData } = req.body;
         const studentName = courseData?.studentName || "Student";
+        const userId = courseData?.userId || "";
 
         if (!courseId || !utxos || !userAddress || !collateral || !courseData) {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required parameters'
             });
+        }
+
+        // Fetch user profile data if available
+        let profileData = null;
+        if (userId) {
+            try {
+                profileData = await Profile.findOne({ userId });
+                console.log('Found profile data:', profileData ? 'Yes' : 'No');
+            } catch (profileError) {
+                console.error('Error fetching profile data:', profileError);
+                // Continue without profile data
+            }
         }
 
         // Format course data for certificate
@@ -79,9 +93,25 @@ export const createUnsignedMintTx = async (req, res) => {
                 name: courseData.educator
             },
             creatorAddress: courseData.creatorAddress,
-            studentName: studentName
+            studentName: studentName,
+            // Thêm các thông tin từ Blockfrost API
+            txHash: courseData.txHash || '',
+            cccd: courseData.cccd || (profileData?.cccd || ''),
+            blockfrostData: courseData.blockfrostData || '',
+            additionalMetadata: {
+                ...courseData.additionalMetadata || {},
+                profile: profileData ? {
+                    profileId: profileData.profileId,
+                    cccd: profileData.cccd,
+                    imageUrl: profileData.imageUrl,
+                    imageHash: profileData.imageHash,
+                    walletAddress: profileData.walletAddress,
+                    txHash: profileData.txHash,
+                    assetName: profileData.assetName
+                } : null
+            }
         };
-        console.log('Course info:', courseInfo);
+        console.log('Course info with profile data:', courseInfo);
 
         // Generate certificate buffer
         console.log('Generating certificate buffer...');
@@ -111,11 +141,15 @@ export const createUnsignedMintTx = async (req, res) => {
 
         console.log('Got policy ID:', policyId);
 
+        // Add profile info to response
+        const hasProfileData = courseInfo.additionalMetadata?.profile !== null;
+        
         res.json({
             success: true,
             unsignedTx,
             ipfsHash: ipfsResult.IpfsHash,
-            policyId
+            policyId,
+            hasProfileData
         });
 
     } catch (error) {
