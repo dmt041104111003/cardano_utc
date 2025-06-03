@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import axios from "axios";
 import { useContext, useState, useEffect } from "react";
 import { AppContext } from "../../context/AppContext";
@@ -11,7 +10,6 @@ export default function PaypalPayment({ courseData }) {
   const [coursePrice, setCoursePrice] = useState("0.00");
   const [adaToUsd, setAdaToUsd] = useState(0);
 
-  // Fetch ADA/USD exchange rate
   useEffect(() => {
     const fetchExchangeRate = async () => {
       try {
@@ -24,27 +22,22 @@ export default function PaypalPayment({ courseData }) {
     };
 
     fetchExchangeRate();
-    const interval = setInterval(fetchExchangeRate, 300000); // Update every 5 minutes
+    const interval = setInterval(fetchExchangeRate, 300000); 
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate price with discount and convert to USD
   useEffect(() => {
     if (courseData && adaToUsd > 0) {
       const currentDate = new Date();
       const discountEnd = courseData.discountEndTime ? new Date(courseData.discountEndTime) : null;
       const isDiscountActive = discountEnd && !isNaN(discountEnd.getTime()) && currentDate <= discountEnd;
     
-      // Calculate ADA price with discount if applicable
       const adaPrice = isDiscountActive && courseData.discount > 0
         ? courseData.coursePrice * (1 - courseData.discount / 100)
         : courseData.coursePrice;
-
-      // Convert ADA price to USD
       const usdPrice = (adaPrice * adaToUsd).toFixed(2);
       setCoursePrice(usdPrice);
       
-      // Log for debugging
       console.log(`PayPal: ADA price: ${adaPrice}, USD price: ${usdPrice}, Exchange rate: ${adaToUsd}`);
     }
   }, [courseData, adaToUsd]);
@@ -62,7 +55,7 @@ export default function PaypalPayment({ courseData }) {
           courseId: courseData._id,
           price: coursePrice,
           userId: userData._id,
-          originalAdaPrice: courseData.coursePrice // Send original ADA price for reference
+          originalAdaPrice: courseData.coursePrice 
         },
         {
           headers: { Authorization: `Bearer ${token}` },

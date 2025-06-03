@@ -1,13 +1,9 @@
-/* eslint-disable react/prop-types */
-/* eslint-disable no-unused-vars */
 import React from 'react';
-import { assets } from '../../assets/assets';
 import LMSCardanoLogo from '../common/LMSCardanoLogo';
 
 const Footer = () => {
     return (
         <footer className='bg-gradient-to-b from-gray-900 to-indigo-950 text-left w-full mt-10 relative overflow-hidden'>
-            {/* Background Elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl animate-pulse"></div>
                 <div className="absolute top-0 right-1/4 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
@@ -146,7 +142,6 @@ const Footer = () => {
                 </div>
             </div>
 
-            {/* Animation keyframes */}
             <style jsx>{`
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(10px); }

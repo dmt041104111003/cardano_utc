@@ -1,184 +1,152 @@
-/* eslint-disable react/prop-types */
-import { useContext, useEffect, useState } from "react"; 
+import { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-
+import { useAuth } from "@clerk/clerk-react";
 export default function AdaPayment({ courseData }) {
-    const { currentWallet, userData, getToken, backendUrl, fetchUserData, fetchUserEnrolledCourses } = useContext(AppContext);
+    const { currentWallet, userData, backendUrl, fetchUserData, fetchUserEnrolledCourses } = useContext(AppContext);
     const [balance, setBalance] = useState(0);
-    const [course] = useState(courseData);
     const [isLoading, setIsLoading] = useState(false);
-
     const navigate = useNavigate();
-
+    const { getToken } = useAuth();
     useEffect(() => {
-        async function fetchBalance() {
-            if (!userData) {
+        const fetchBalance = async () => {
+            if (!userData || !currentWallet) {
                 setBalance(0);
                 return;
             }
 
-            if (currentWallet) {
-                try {
-                    const lovelace = await currentWallet.getLovelace();
-                    const ada = parseFloat(lovelace) / 1000000;
-                    setBalance(Number(ada) || 0);
-                } catch (error) {
-                    console.error("Error fetching balance:", error);
-                    setBalance(0);
-                }
+            try {
+                const lovelace = await currentWallet.getLovelace();
+                setBalance(Number((parseFloat(lovelace) / 1000000).toFixed(2)) || 0);
+            } catch (error) {
+                toast.error("Failed to fetch wallet balance. Please try again.");
+                setBalance(0);
             }
-        }
+        };
         fetchBalance();
     }, [currentWallet, userData]);
-      
-    // Calculate course price with discount if applicable
-const calculatePrice = () => {
-    if (!courseData) return "0.00";
-    
-    const currentDate = new Date();
-    const discountEnd = courseData.discountEndTime ? new Date(courseData.discountEndTime) : null;
-    const isDiscountActive = discountEnd && !isNaN(discountEnd.getTime()) && currentDate <= discountEnd;
-    
-    if (isDiscountActive && courseData.discount > 0) {
-        return (courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100).toFixed(2);
-    }
-    
-    return courseData.coursePrice.toFixed(2);
-};
 
-const coursePrice = calculatePrice();
+    const calculatePrice = () => {
+        const currentDate = new Date();
+        const discountEnd = courseData.discountEndTime ? new Date(courseData.discountEndTime) : null;
+        const isDiscountActive = discountEnd && !isNaN(discountEnd.getTime()) && currentDate <= discountEnd;
+
+        return (isDiscountActive && courseData.discount > 0
+            ? courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100
+            : courseData.coursePrice
+        ).toFixed(2);
+    };
 
     const handlePayment = async () => {
         if (!userData) {
-            toast.error("Please log in or sign up before making a payment");
-            return;
+            toast.error("Please log in or sign up to proceed with payment.");
+            return false;
         }
 
         if (!currentWallet) {
-            toast.error("Please connect your Cardano wallet");
-            return;
+            toast.error("Please connect your Cardano wallet.");
+            return false;
         }
 
         try {
             const utxos = await currentWallet.getUtxos();
             const changeAddress = await currentWallet.getChangeAddress();
-            const getAddress = courseData.creatorAddress;
+            const creatorAddress = courseData?.creatorAddress;
 
-            if (!getAddress) {
-                throw new Error('Educator wallet address not found');
+            if (!creatorAddress) {
+                throw new Error("Educator wallet address not found.");
             }
-           
+
             const response = await axios.post(`${backendUrl}/api/course/payment`, {
-                utxos: utxos,
-                changeAddress: changeAddress,
-                getAddress: getAddress,
-                courseId: course._id,
+                utxos,
+                changeAddress,
+                getAddress: creatorAddress,
+                courseId: courseData._id,
                 userId: userData._id,
-                value: coursePrice * 1000000       
+                value: calculatePrice() * 1000000
             });
 
             if (response.data.success) {
                 const unsignedTx = response.data.unsignedTx;
                 const signedTx = await currentWallet.signTx(unsignedTx);
                 const txHash = await currentWallet.submitTx(signedTx);
-
                 toast.success(`Payment successful! TX Hash: ${txHash}`);
                 return true;
             } else {
-                toast.error("Payment failed!");
-                return false;
+                throw new Error("Payment failed.");
             }
         } catch (error) {
-            console.error("Payment error:", error);
             toast.error(error.response?.data?.message || error.message || "Payment failed. Please try again.");
             return false;
         }
-    }
+    };
 
     const enrollCourse = async () => {
         try {
             if (!userData) {
-                return toast.error('Please log in to enroll');
+                toast.error("Please log in to enroll.");
+                return;
             }
 
-            // Lấy địa chỉ ví người mua
-            const userAddress = await currentWallet.getChangeAddress();
+            const userAddress = await currentWallet?.getChangeAddress();
             if (!userAddress) {
-                return toast.error('Could not get wallet address');
+                toast.error("Could not get wallet address.");
+                return;
             }
 
-            const token = await getToken();
-            const { data } = await axios.post(`${backendUrl}/api/user/enroll-course`, {
-                courseId: courseData._id,
-                paymentMethod: "ADA Payment",
-                currency: "ADA",
-                receiverAddress: courseData.creatorAddress,
-                senderAddress: userAddress // Thêm địa chỉ ví người mua
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const { data } = await axios.post(
+                `${backendUrl}/api/user/enroll-course`,
+                {
+                    courseId: courseData._id,
+                    paymentMethod: "ADA Payment",
+                    currency: "ADA",
+                    receiverAddress: courseData.creatorAddress,
+                    senderAddress: userAddress
+                },
+                { headers: { Authorization: `Bearer ${await getToken()}` } }
+            );
 
             if (data.success) {
-                toast.success("Successfully enrolled in the course");
+                toast.success("Successfully enrolled in the course!");
                 if (data.session_url) {
                     window.location.replace(data.session_url);
+                } else {
+                    navigate("/");
                 }
-                return navigate("/");
             } else {
-                toast.error(data.message);
+                toast.error(data.message || "Failed to enroll in the course.");
             }
         } catch (error) {
-            console.error('Error enrolling course:', error);
-            toast.error(error.response?.data?.message || error.message);
+            toast.error(error.response?.data?.message || error.message || "Failed to enroll in the course.");
         }
     };
-    
-    const handleEnrollCourse = async () => {  
+
+    const handleEnrollCourse = async () => {
         setIsLoading(true);
         try {
-            const token = await getToken();
-            const { data } = await axios.get(`${backendUrl}/api/course/all`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            const course = data.courses.find(c => c._id === courseData._id);
-
-            if (!course) {
-                toast.error('Course information not found');
-                setIsLoading(false);
+            if (userData?._id === courseData?.educator?._id) {
+                toast.error("You cannot enroll in this course as you are the instructor.");
                 return;
             }
 
-            if (userData._id === course.educator._id) {
-                toast.error('You cannot enroll in this course because you are the instructor');
-                setIsLoading(false);
+            const userWallet = await currentWallet?.getChangeAddress();
+            if (userWallet && courseData?.creatorAddress && userWallet.toLowerCase() === courseData.creatorAddress.toLowerCase()) {
+                toast.error("You cannot enroll using the instructor's wallet address.");
                 return;
             }
 
-            const userWallet = await currentWallet.getChangeAddress();
-            if (userWallet && course.creatorAddress && 
-                userWallet.toLowerCase() === course.creatorAddress.toLowerCase()) {
-                toast.error('You cannot enroll in this course because this is the instructor\'s wallet address');
-                setIsLoading(false);
-                return;
-            }
-            
             const paymentSuccess = await handlePayment();
             if (paymentSuccess) {
                 await enrollCourse();
-                await fetchUserData();
-                await fetchUserEnrolledCourses();
-            } else {
-                toast.error("Payment failed!");
+                await Promise.all([fetchUserData(), fetchUserEnrolledCourses()]);
             }
         } catch (error) {
-            console.error('Error:', error);
-            toast.error(error.response?.data?.message || error.message);
+            toast.error(error.response?.data?.message || error.message || "Enrollment failed. Please try again.");
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     return (
@@ -210,8 +178,8 @@ const coursePrice = calculatePrice();
             {!userData ? (
                 <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
                     <p className="text-gray-700 mb-4">Please log in or sign up to view payment information</p>
-                    <button 
-                        onClick={() => toast.error("Please log in or sign up before making a payment")}
+                    <button
+                        onClick={() => toast.error("Please log in or sign up to proceed with payment.")}
                         className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-[1.02] shadow-md"
                     >
                         Continue with Cardano Wallet
@@ -222,13 +190,13 @@ const coursePrice = calculatePrice();
                     <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
                             <span className="text-gray-700">Course price:</span>
-                            <span className="font-bold text-purple-700">{coursePrice} ADA</span>
+                            <span className="font-bold text-purple-700">{calculatePrice()} ADA</span>
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-gray-700">Wallet balance:</span>
-                            <span className={`font-bold ${balance >= coursePrice ? 'text-green-600' : 'text-red-600'}`}>
+                            <span className={`font-bold ${balance >= calculatePrice() ? 'text-green-600' : 'text-red-600'}`}>
                                 {balance} ADA
-                                {balance < coursePrice && (
+                                {balance < calculatePrice() && (
                                     <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">
                                         Insufficient
                                     </span>
@@ -240,11 +208,11 @@ const coursePrice = calculatePrice();
                     <button
                         onClick={handleEnrollCourse}
                         className={`w-full py-3 px-4 rounded-lg font-medium transition-all transform ${
-                            currentWallet && balance >= coursePrice && !isLoading
+                            currentWallet && balance >= calculatePrice() && !isLoading
                                 ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 hover:scale-[1.02] shadow-md"
                                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
                         }`}
-                        disabled={!currentWallet || balance < coursePrice || isLoading}
+                        disabled={!currentWallet || balance < calculatePrice() || isLoading}
                     >
                         {isLoading ? (
                             <span className="flex items-center justify-center">

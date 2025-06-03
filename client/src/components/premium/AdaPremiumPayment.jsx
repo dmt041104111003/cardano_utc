@@ -4,7 +4,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 export default function AdaPremiumPayment({ plan, adaAmount, receiverAddress }) {
-  const { currentWallet, userData, getToken, backendUrl, fetchUserData } = useContext(AppContext);
+  const { currentWallet, userData, backendUrl, fetchUserData } = useContext(AppContext);
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePremiumAdaPayment = async () => {

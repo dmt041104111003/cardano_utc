@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { assets } from '../../assets/assets';
-import SearchBar from './SearchBar';
-import { FaEthereum } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 const Hero = () => {
@@ -10,19 +7,16 @@ const Hero = () => {
   const [particles, setParticles] = useState([]);
   const heroRef = useRef(null);
 
-  // Simulate the minting process by advancing steps
   useEffect(() => {
     const stepInterval = setInterval(() => {
       setCurrentStep((prevStep) => (prevStep < 4 ? prevStep + 1 : 0));
-    }, 2000); // Change step every 2 seconds
+    }, 2000);
     return () => clearInterval(stepInterval);
   }, []);
   
-  // Generate blockchain particles
   useEffect(() => {
     if (!heroRef.current) return;
     
-    // Create random particles for blockchain effect
     const newParticles = [];
     for (let i = 0; i < 50; i++) {
       newParticles.push({
@@ -42,7 +36,6 @@ const Hero = () => {
     }
     setParticles(newParticles);
     
-    // Add mousemove parallax effect
     const handleMouseMove = (e) => {
       const parallaxElements = document.querySelectorAll('.parallax');
       parallaxElements.forEach(el => {
@@ -61,7 +54,6 @@ const Hero = () => {
 
   return (
     <div ref={heroRef} className="flex flex-col items-center justify-center w-full md:pt-36 pt-20 px-7 md:px-0 bg-gradient-to-b from-blue-50/70 via-indigo-50/30 to-white min-h-screen overflow-hidden relative">
-      {/* Blockchain Flowing Effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {particles.map((particle) => (
           <motion.div
@@ -90,7 +82,6 @@ const Hero = () => {
         ))}
       </div>
       
-      {/* Floating Icons */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div 
           className="absolute text-indigo-500 opacity-20 parallax"
@@ -134,7 +125,6 @@ const Hero = () => {
         </motion.div>
       </div>
       
-      {/* 3D Blockchain Cubes */}
       <div className="absolute right-10 top-40 hidden lg:block parallax" data-speed="2">
         <div className="scene">
           <div className="cube">
@@ -161,13 +151,12 @@ const Hero = () => {
         </div>
       </div>
       
-      {/* Glowing Orb */}
       <div className="absolute top-1/3 left-1/4 hidden lg:block parallax" data-speed="1">
         <div className="glowing-orb"></div>
       </div>
       
       <div className="relative max-w-6xl w-full text-center space-y-10 z-10">
-        {/* Badge */}
+        
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -180,7 +169,6 @@ const Hero = () => {
           </span>
         </motion.div>
         
-        {/* Title with 3D Effect */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -200,7 +188,6 @@ const Hero = () => {
           </h1>
         </motion.div>
 
-        {/* Description */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -213,7 +200,6 @@ const Hero = () => {
           </p>
         </motion.div>
 
-        {/* Mint Steps Section */}
         <div className="mt-12">
           <div className="inline-block px-4 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium mb-4">
             Blockchain Certification
@@ -228,7 +214,6 @@ const Hero = () => {
               'Transfer to Student'
             ].map((step, index) => (
               <div key={index} className="flex flex-col items-center mb-4">
-                {/* Step Circle */}
                 <div
                   className={`w-14 h-14 flex items-center justify-center rounded-full text-white font-semibold transition-all duration-500 shadow-md ${
                     currentStep >= index
@@ -238,12 +223,11 @@ const Hero = () => {
                 >
                   {index + 1}
                 </div>
-                {/* Step Label */}
                 <span className="mt-3 text-gray-700 text-center text-sm font-medium">{step}</span>
               </div>
             ))}
           </div>
-          {/* Progress Line */}
+          
           <div className="relative max-w-3xl mx-auto mt-4">
             <div className="h-1.5 bg-gray-200 rounded-full"></div>
             <div
@@ -251,7 +235,7 @@ const Hero = () => {
               style={{ width: `${(currentStep / 4) * 100}%` }}
             ></div>
           </div>
-          {/* Status Messages */}
+          
           <div className="mt-6 text-gray-700 bg-white/80 rounded-xl p-4 max-w-xl mx-auto shadow-sm">
             {currentStep === 0 && (
               <p className="flex items-center justify-center">
@@ -302,7 +286,7 @@ const Hero = () => {
           </div>
         </div>
 
-        {/* Call to Action Buttons */}
+        
         <motion.div 
           className="mt-10 flex flex-col md:flex-row items-center justify-center gap-4"
           initial={{ opacity: 0, y: 20 }}
@@ -338,14 +322,14 @@ const Hero = () => {
         </motion.div>
       </div>
 
-      {/* Background Effects */}
+      
       <div className="absolute inset-0 z-0 opacity-30 pointer-events-none overflow-hidden">
         <div className="absolute top-20 left-20 w-40 h-40 bg-indigo-300 rounded-full blur-3xl animate-float"></div>
         <div className="absolute bottom-20 right-20 w-40 h-40 bg-purple-300 rounded-full blur-3xl animate-float delay-1000"></div>
         <div className="absolute top-1/3 right-1/4 w-20 h-20 bg-blue-200 rounded-full opacity-70 animate-ping"></div>
         <div className="absolute bottom-1/3 left-1/4 w-16 h-16 bg-indigo-200 rounded-full opacity-60 animate-float delay-500"></div>
         
-        {/* Additional flowing elements */}
+        
         <div className="absolute top-0 left-0 w-full h-full">
           <div className="absolute w-20 h-1 bg-indigo-400/30 rounded-full top-1/4 left-1/4 animate-flow-right"></div>
           <div className="absolute w-32 h-1 bg-blue-400/30 rounded-full top-1/3 right-1/3 animate-flow-left delay-1000"></div>
@@ -353,13 +337,13 @@ const Hero = () => {
           <div className="absolute w-24 h-1 bg-indigo-400/30 rounded-full bottom-1/3 right-1/4 animate-flow-left delay-3000"></div>
         </div>
         
-        {/* Blockchain nodes */}
+        
         <div className="absolute w-4 h-4 bg-blue-500/40 rounded-full top-1/4 left-1/5 animate-pulse"></div>
         <div className="absolute w-4 h-4 bg-indigo-500/40 rounded-full top-1/3 right-1/4 animate-pulse delay-1000"></div>
         <div className="absolute w-4 h-4 bg-purple-500/40 rounded-full bottom-1/3 left-1/3 animate-pulse delay-2000"></div>
         <div className="absolute w-4 h-4 bg-blue-500/40 rounded-full bottom-1/4 right-1/5 animate-pulse delay-3000"></div>
         
-        {/* Connecting lines */}
+        
         <div className="absolute h-0.5 bg-gradient-to-r from-blue-400/0 via-blue-400/50 to-blue-400/0 top-1/4 left-0 right-0 animate-flow-right"></div>
         <div className="absolute h-0.5 bg-gradient-to-r from-indigo-400/0 via-indigo-400/50 to-indigo-400/0 top-1/3 left-0 right-0 animate-flow-left delay-1000"></div>
         <div className="absolute h-0.5 bg-gradient-to-r from-purple-400/0 via-purple-400/50 to-purple-400/0 bottom-1/3 left-0 right-0 animate-flow-right delay-2000"></div>
@@ -368,7 +352,7 @@ const Hero = () => {
   );
 };
 
-// CSS Keyframes for Animations
+
 const styles = `
   @keyframes fadeInDown {
     from {
