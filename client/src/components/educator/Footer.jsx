@@ -1,10 +1,9 @@
-/* eslint-disable react/prop-types */
-/* eslint-disable no-unused-vars */
+
 import React from 'react';
 import { assets } from '../../assets/assets';
 import LMSCardanoLogo from '../common/LMSCardanoLogo';
 
-const Footer = ({ collapsed }) => {
+const Footer = () => {
     return (
         <footer className='flex md:flex-row flex-col-reverse items-center justify-between text-left w-full px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-100 transition-all duration-300'>
             <div className='flex items-center gap-3'>

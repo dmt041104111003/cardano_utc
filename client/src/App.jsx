@@ -5,7 +5,6 @@ import Home from './pages/student/Home.jsx';
 import CoursesList from './pages/student/CoursesList';
 import CourseDetails from './pages/student/CourseDetails';
 import MyEnrollments from './pages/student/MyEnrollments';
-import CertificateDetail from './pages/student/CertificateDetail';
 import Player from './pages/student/Player';
 import Loading from './components/student/Loading';
 import Educator from './pages/educator/Educator';
@@ -15,13 +14,11 @@ import MyCourses from './pages/educator/MyCourses';
 import StudentsEnrolled from './pages/educator/StudentsEnrolled';
 import Navbar from './components/student/Navbar.jsx';
 import "quill/dist/quill.snow.css";
-// import TestPage from './pages/student/TestPage.jsx';
 import ProfileDetail from './pages/student/ProfileDetail.jsx';
 import NotificationPage from './pages/educator/NotificationPage.jsx';
 import EditCourse from './pages/educator/Editcourse.jsx';
 import PaymentPage from './pages/student/PaymentPage.jsx';
 import CertificateViewer from './pages/student/CertificateViewer';
-// EducatorDetail đã được xóa
 import Subscription from './pages/educator/Subscription';
 import TransactionChecker from './components/student/TransactionChecker';
 import Violations from './pages/educator/Violations';
@@ -41,13 +38,10 @@ const App = () => {
         <Route path='/course-list/:input' element={<CoursesList />} />
         <Route path='/course/:id' element={<CourseDetails />} />
         <Route path='/my-enrollments' element={<MyEnrollments />} />
-        <Route path='/certificate-detail' element={<CertificateDetail />} />
         <Route path='/my-profile' element={<ProfileDetail />} />
         <Route path='/player/:courseId' element={<Player />} />
         <Route path='/payment/:courseId' element={<PaymentPage />} />
         <Route path='/loading/:path' element={<Loading />} />
-        {/* Route đến trang EducatorDetail đã được xóa */}
-        {/* <Route path="/player/:courseId/test/:testId" element={<TestPage />} /> */}
         <Route path="/courses" element={<CoursesList />} />
         <Route path="/certificate/:txHash" element={<CertificateViewer />} />
         <Route path="/verify" element={<TransactionChecker />} />

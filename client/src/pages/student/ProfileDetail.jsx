@@ -46,7 +46,6 @@ const ProfilePage = () => {
   const [cccd, setCccd] = useState('');
   const [profileImage, setProfileImage] = useState(null);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [profileId, setProfileId] = useState('');
 
   const {
     enrolledCourses,

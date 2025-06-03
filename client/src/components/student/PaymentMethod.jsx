@@ -6,7 +6,6 @@ export default function PaymentMethod({ courseData }) {
     const [adaToUsd, setAdaToUsd] = useState(0);
     const [usdToAda, setUsdToAda] = useState(0);
 
-    // Fetch ADA/USD exchange rate
     useEffect(() => {
         const updateExchangeRate = async () => {
             try {
@@ -19,7 +18,7 @@ export default function PaymentMethod({ courseData }) {
         };
 
         updateExchangeRate();
-        const interval = setInterval(updateExchangeRate, 300000); // Update every 5 minutes
+        const interval = setInterval(updateExchangeRate, 300000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -27,11 +26,9 @@ export default function PaymentMethod({ courseData }) {
         const discountedPrice = courseData.coursePrice - (courseData.discount * courseData.coursePrice) / 100;
         
         if (selectedMethod === 'ada') {
-            // Convert USD to ADA for display using real-time rate
             const adaPrice = usdToAda > 0 ? discountedPrice * usdToAda : 0;
             return `${adaPrice.toFixed(2)} ADA`;
         } else {
-            // For Stripe/PayPal, show in USD directly
             return `$${discountedPrice.toFixed(2)} USD`;
         }
     };
@@ -92,14 +89,14 @@ export default function PaymentMethod({ courseData }) {
                     }} />
                 ) : selectedMethod === 'stripe' ? (
                     <div>
-                        {/* Add Stripe payment component here */}
+                        
                         <button className="w-full py-2 px-4 rounded-md bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors">
                             Thanh toán với Stripe
                         </button>
                     </div>
                 ) : (
                     <div>
-                        {/* Add PayPal payment component here */}
+                        
                         <button className="w-full py-2 px-4 rounded-md bg-blue-700 text-white font-medium hover:bg-blue-800 transition-colors">
                             Thanh toán với PayPal
                         </button>

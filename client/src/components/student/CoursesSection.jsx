@@ -1,6 +1,5 @@
-/* eslint-disable react/prop-types */
-/* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import CourseCard from './CourseCard';
@@ -16,7 +15,6 @@ const CoursesSection = () => {
             const { data } = await axios.get(`${backendUrl}/api/course/all`);
             
             if (data.success) {
-                // Sort by rating
                 const sortedCourses = [...data.courses].sort((a, b) => {
                     const ratingA = a.courseRatings.reduce((acc, curr) => acc + curr.rating, 0) / (a.courseRatings.length || 1);
                     const ratingB = b.courseRatings.reduce((acc, curr) => acc + curr.rating, 0) / (b.courseRatings.length || 1);
@@ -32,7 +30,6 @@ const CoursesSection = () => {
         }
     };
 
-    // Handle visibility change to update courses when tab becomes visible
     const handleVisibilityChange = () => {
         if (!document.hidden) {
             fetchLatestCourses();
@@ -40,16 +37,12 @@ const CoursesSection = () => {
     };
 
     useEffect(() => {
-        // Initial fetch
         fetchLatestCourses();
         
-        // Set up polling interval (every 2 seconds)
         const intervalId = setInterval(fetchLatestCourses, 2000);
         
-        // Set up visibility change listener
         document.addEventListener('visibilitychange', handleVisibilityChange);
         
-        // Cleanup
         return () => {
             clearInterval(intervalId);
             document.removeEventListener('visibilitychange', handleVisibilityChange);

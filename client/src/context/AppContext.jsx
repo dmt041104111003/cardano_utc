@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { createContext, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import humanizeDuration from 'humanize-duration';

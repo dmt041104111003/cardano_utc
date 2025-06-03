@@ -1,6 +1,4 @@
-/* eslint-disable no-unused-vars */
 import React, { useContext, useState } from 'react';
-import { assets } from "../../assets/assets.js";
 import { toast } from 'react-toastify';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from "axios";
@@ -43,7 +41,7 @@ const Navbar = () => {
                 <LMSCardanoLogo onClick={() => navigate('/')} className="hover:scale-105 transition-transform" />
             </div>
 
-            {/* Menu cho desktop */}
+            
             <div className='hidden md:flex items-center gap-6 text-gray-600'>
                 <div className='flex items-center gap-6'>
                     {user && (
@@ -104,7 +102,7 @@ const Navbar = () => {
                 )}
             </div>
 
-            {/* Menu cho mobile */}
+            
             <div className='md:hidden flex items-center gap-4 text-gray-600'>
                 {user ? (
                     <UserButton afterSignOutUrl="/" />
@@ -119,7 +117,7 @@ const Navbar = () => {
                     </button>
                 )}
                 
-                {/* Hamburger menu button */}
+                
                 <button 
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                     className="text-gray-600 focus:outline-none"
@@ -134,7 +132,6 @@ const Navbar = () => {
                 </button>
             </div>
             
-            {/* Mobile menu dropdown */}
             {mobileMenuOpen && (
                 <div className="md:hidden absolute top-16 right-0 left-0 bg-white shadow-lg z-50 border-t border-gray-100">
                     <div className="flex flex-col p-4 space-y-3">

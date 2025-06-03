@@ -1,5 +1,3 @@
-/* eslint-disable react/prop-types */
-/* eslint-disable no-unused-vars */
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../../context/AppContext';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
@@ -7,7 +5,6 @@ import { assets } from '../../assets/assets';
 import { UserButton, useUser } from '@clerk/clerk-react';
 import LMSCardanoLogo from '../common/LMSCardanoLogo';
 
-// Inline SidebarTimer since the file was deleted
 function formatTime(ms) {
   const min = Math.floor(ms / 60000);
   const sec = Math.floor((ms % 60000) / 1000);
@@ -20,7 +17,6 @@ function SidebarTimer({ isPremium, premiumExpiry, cooldownMs, fetchUserData }) {
   const [cooldownLeft, setCooldownLeft] = useState(cooldownMs);
   const [showPremium, setShowPremium] = useState(isPremium && premiumLeft > 0);
 
-  // Premium countdown
   useEffect(() => {
     if (isPremium && premiumExpiry) {
       setShowPremium(true);
@@ -30,7 +26,7 @@ function SidebarTimer({ isPremium, premiumExpiry, cooldownMs, fetchUserData }) {
         setPremiumLeft(left > 0 ? left : 0);
         if (left <= 0) {
           setShowPremium(false);
-          if (typeof fetchUserData === 'function') fetchUserData(); // Optionally sync with backend
+          if (typeof fetchUserData === 'function') fetchUserData();
         }
       }, 1000);
       return () => clearInterval(interval);
@@ -39,7 +35,6 @@ function SidebarTimer({ isPremium, premiumExpiry, cooldownMs, fetchUserData }) {
     }
   }, [isPremium, premiumExpiry, fetchUserData]);
 
-  // Cooldown countdown
   useEffect(() => {
     let interval;
     setCooldownLeft(cooldownMs);
@@ -106,7 +101,6 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
     const isPremium = userData?.isPremium;
     const premiumExpiry = userData?.premiumExpiry;
     const cooldownMs = userData?.cooldownMs || 0;
-    const canCreateCourse = userData?.canCreateCourse;
     
     const [scrollPosition, setScrollPosition] = useState(0);
     
@@ -130,6 +124,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         { name: 'Student Enrolled', path: '/educator/student-enrolled', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
         { name: 'Notification', path: '/educator/notification', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
         { name: 'Premium', path: '/educator/subscription', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
+        { name: 'Violations', path: '/educator/violations', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
     ];
     
     const handleExit = () => {
@@ -171,8 +166,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                     </div>
                 )}
             </div>
-            
-            {/* Timer */}
+
             <div className="px-3">
                 <SidebarTimer 
                     key={cooldownMs} 
@@ -183,7 +177,6 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 />
             </div>
             
-            {/* Menu Items */}
             <div className="px-3 py-2">
                 <div className="text-xs font-medium text-gray-500 px-3 mb-2">
                     {!collapsed && 'MENU'}
@@ -197,7 +190,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                         to={item.path} 
                         key={item.name} 
                         end={item.path === '/educator'}
-                        onClick={() => window.scrollTo(0, 0)} // Cuộn lên đầu trang khi chuyển tab
+                        onClick={() => window.scrollTo(0, 0)} 
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
@@ -207,31 +200,11 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 ))}
             </div>
             
-            {/* Nút Terms & Conditions */}
             <div className="px-3 mt-2">
                 <div className="text-xs font-medium text-gray-500 px-3 mb-2">
                     {!collapsed && 'HELP'}
                 </div>
-                {/* <button 
-                    onClick={() => setShowTermsModal(true)}
-                    className={`flex items-center rounded-lg px-3 py-2.5 gap-3 w-full transition-colors text-gray-700 hover:bg-blue-50 hover:text-blue-700`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {!collapsed && <span className="text-sm font-medium">Terms & Conditions</span>}
-                </button> */}
-                
-                {/* Violations button */}
-                <button 
-                    onClick={() => navigate('/educator/violations')}
-                    className={`flex items-center rounded-lg px-3 py-2.5 gap-3 w-full transition-colors text-gray-700 hover:bg-blue-50 hover:text-blue-700 ${location.pathname.includes('/educator/violations') ? 'bg-blue-50 text-blue-700' : ''}`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    {!collapsed && <span className="text-sm font-medium">Violations</span>}
-                </button>
+
                 
                 <button 
                     onClick={handleExit}

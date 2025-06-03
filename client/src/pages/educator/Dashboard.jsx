@@ -1,7 +1,5 @@
-/* eslint-disable no-unused-vars */
 import React, { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
-import { assets, dummyDashboardData } from '../../assets/assets';
 import Loading from '../../components/student/Loading'
 import axios from 'axios'
 import { toast } from 'react-toastify';
@@ -17,7 +15,6 @@ const Dashboard = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             )
             if (data.success) {
-                // Reverse array and take first 5 items
                 const modifiedData = {
                     ...data.dashboardData,
                     enrolledStudentsData: [...data.dashboardData.enrolledStudentsData]
@@ -33,7 +30,6 @@ const Dashboard = () => {
         }
     }
 
-    // Handle visibility change to update dashboard when tab becomes visible
     const handleVisibilityChange = () => {
         if (!document.hidden && isEducator) {
             fetchDashboardData();
@@ -43,16 +39,12 @@ const Dashboard = () => {
     useEffect(() => {
         if (!isEducator) return;
 
-        // Initial fetch
         fetchDashboardData();
         
-        // Set up polling interval (every 2 seconds)
         const intervalId = setInterval(fetchDashboardData, 2000);
         
-        // Set up visibility change listener
         document.addEventListener('visibilitychange', handleVisibilityChange);
         
-        // Cleanup
         return () => {
             clearInterval(intervalId);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -70,7 +62,6 @@ const Dashboard = () => {
                     <p className='text-gray-600 ml-5'>Overview of your teaching activity</p>
                 </div>
                 
-                {/* Stats Cards */}
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8'>
                     <div className='bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow'>
                         <div className='p-5 flex items-center gap-4'>
@@ -118,7 +109,6 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Latest Enrollments */}
                 <div className='mb-8'>
                     <h2 className='text-xl font-semibold text-gray-800 mb-4 flex items-center'>
                         <div className='w-1 h-5 bg-blue-600 rounded-full mr-2'></div>
