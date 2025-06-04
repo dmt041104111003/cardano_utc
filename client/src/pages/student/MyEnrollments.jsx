@@ -12,29 +12,24 @@ import Swal from 'sweetalert2';
 const MyEnrollments = () => {
     const { 
         enrolledCourses, 
-        calculateCourseDuration, 
         navigate,
         userData, 
         fetchUserEnrolledCourses, 
         backendUrl, 
         getToken, 
-        calculateNoOfLectures,
         wallet,
         connected
     } = useContext(AppContext);
-    const location = useLocation();
     const [searchParams] = useSearchParams();
 
     const [progressArray, setProgressArray] = useState([])
     const [showNFTModal, setShowNFTModal] = useState(false)
     const [selectedNFT, setSelectedNFT] = useState(null)
-    const [loading, setLoading] = useState(false)
     const [minting, setMinting] = useState({})
     const [loadingNFT, setLoadingNFT] = useState({});
     const [savingAddress, setSavingAddress] = useState({});
     const [loadingCertificate, setLoadingCertificate] = useState({});
     const [certificateStatus, setCertificateStatus] = useState({});
-    const [certificateData, setCertificateData] = useState({});
     const [loadingSimpleCert, setLoadingSimpleCert] = useState({});
     const [showCertModal, setShowCertModal] = useState(false);
     const [selectedCertData, setSelectedCertData] = useState(null);
@@ -44,14 +39,13 @@ const MyEnrollments = () => {
     const [showCompleted, setShowCompleted] = useState(false);
     const [showCertified, setShowCertified] = useState(false);
     const [updatingProgress, setUpdatingProgress] = useState({});
-    const [resetCourses, setResetCourses] = useState({}); // Thêm state mới để theo dõi các khóa học đã reset
+    const [resetCourses, setResetCourses] = useState({}); 
     const itemsPerPage = 7;
     const [purchaseHistory, setPurchaseHistory] = useState([]);
     const [loadingPurchase, setLoadingPurchase] = useState(false);
     const [showPurchaseHistory, setShowPurchaseHistory] = useState(false);
     const [sentToEducator, setSentToEducator] = useState({});
     
-    // Hàm fetchPurchaseHistory đã được định nghĩa ở dưới
 
     const getCourseProgress = async () => {
         try {
@@ -63,27 +57,22 @@ const MyEnrollments = () => {
                             { courseId: course._id }, { headers: { Authorization: `Bearer ${token}` } }
                         );
                         
-                        // Get total lectures and tests
                         let totalLectures = 0;
                         let totalTests = 0;
                         
-                        // Count lectures and tests from course content
                         course.courseContent?.forEach(chapter => {
                             if (chapter.chapterContent) {
                                 totalLectures += chapter.chapterContent.length;
                             }
                         });
-                        
-                        // Count tests
+
                         if (course.tests) {
                             totalTests = course.tests.length;
                         }
 
-                        // Get completed counts
                         const lectureCompleted = data.progressData ? data.progressData.lectureCompleted.length : 0;
                         const testsCompleted = data.progressData ? data.progressData.tests.filter(test => test.passed).length : 0;
-                        
-                        // Calculate total progress percentage
+
                         const totalItems = totalLectures + totalTests;
                         const completedItems = lectureCompleted + testsCompleted;
                         const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
@@ -160,7 +149,6 @@ const MyEnrollments = () => {
 
             const token = await getToken();
 
-            // Kiểm tra địa chỉ ví mua khóa học
             const verifyResponse = await axios.get(
                 `${backendUrl}/api/purchase/verify-purchase-address/${courseId}`,
                 { headers: { Authorization: `Bearer ${token}` } }
@@ -168,12 +156,10 @@ const MyEnrollments = () => {
 
             console.log('Debug - Verify purchase response:', verifyResponse.data);
 
-            // Kiểm tra nếu cần xác minh địa chỉ ví
             if (verifyResponse.data.success && 
                 verifyResponse.data.hasPurchaseAddress && 
                 verifyResponse.data.requireAddressCheck) {
                 
-                // Nếu địa chỉ ví hiện tại không khớp với địa chỉ ví đã mua khóa học
                 if (userAddress !== verifyResponse.data.purchaseAddress) {
                     throw new Error(
                         "The wallet address you are using is different from the one used to purchase this course. " +
@@ -186,7 +172,6 @@ const MyEnrollments = () => {
                 console.log('Debug - No wallet address verification required');
             }
 
-            // Lấy txHash từ profile API
             let txHash = '';
             try {
                 const profileResponse = await axios.get(
@@ -202,17 +187,15 @@ const MyEnrollments = () => {
                 }
             } catch (profileError) {
                 console.error('Error fetching profile:', profileError);
-                // Tiếp tục mặc dù không lấy được txHash
             }
             
-            // Gửi address và txHash đến server
             await axios.post(
                 `${backendUrl}/api/address/save`,
                 { 
                     walletAddress: userAddress,
                     userName: userData?.name,
                     courseId: courseId,
-                    txHash: txHash // Thêm txHash vào dữ liệu gửi đi
+                    txHash: txHash 
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -273,7 +256,6 @@ const MyEnrollments = () => {
         try {
             const token = await getToken();
             
-            // Check certificate statuses
             const certificatePromises = enrolledCourses.map(async (course) => {
                 try {
                     const { data } = await axios.get(
@@ -282,13 +264,10 @@ const MyEnrollments = () => {
                     );
                     
                     if (data.success) {
-                        // Nếu đã mint xong
                         if (data.notification?.status === 'completed') {
                             setCertificateStatus(prev => ({ ...prev, [course._id]: 'completed' }));
-                            // Nếu đã mint xong thì cũng đã gửi yêu cầu rồi
                             setSentToEducator(prev => ({ ...prev, [course._id]: true }));
                         }
-                        // Nếu có thông báo nhưng chưa mint xong, vẫn đánh dấu là đã gửi yêu cầu
                         else if (data.notification) {
                             setSentToEducator(prev => ({ ...prev, [course._id]: true }));
                         }
@@ -298,21 +277,16 @@ const MyEnrollments = () => {
                 }
             });
 
-            // Check sent to educator statuses thông qua bảng Address
             const addressPromises = enrolledCourses.map(async (course) => {
                 try {
-                    // Sử dụng API mới để kiểm tra xem học viên đã gửi yêu cầu chưa
                     const { data } = await axios.get(
                         `${backendUrl}/api/address/check?courseId=${course._id}&userId=${userData._id}`,
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
                     if (data.success && data.exists) {
-                        // console.log(`Address exists for course ${course._id}`);
-                        // Nếu đã lưu địa chỉ, đánh dấu là đã gửi yêu cầu
                         setSentToEducator(prev => ({ ...prev, [course._id]: true }));
                     }
                 } catch (error) {
-                    // console.error(`Error checking address status for course ${course._id}:`, error);
                 }
             });
 
@@ -328,7 +302,6 @@ const MyEnrollments = () => {
         }
     }, [enrolledCourses, userData]);
 
-    // Add event listener for tab visibility change
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!document.hidden && enrolledCourses.length > 0 && userData) {
@@ -342,74 +315,14 @@ const MyEnrollments = () => {
         };
     }, [enrolledCourses, userData]);
 
-    const handleCertificate = async (courseId) => {
-        try {
-            setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
-            const token = await getToken();
-
-            // Luôn kiểm tra trạng thái chứng chỉ mới nhất trước
-            await checkCertificateStatus(courseId);
-            
-            // First get certificate info to get policyId and transactionHash
-            const { data: certData } = await axios.get(
-                `${backendUrl}/api/certificate/${userData._id}/${courseId}?timestamp=${new Date().getTime()}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            console.log('Certificate data:', certData);
-
-            if (!certData.success || !certData.certificate) {
-                toast.error(certData.message || 'Certificate not found');
-                return;
-            }
-
-            const certificate = certData.certificate;
-            console.log('Certificate details:', certificate);
-
-            try {
-                // Get NFT info directly using policy ID and transaction hash
-                const { data: nftData } = await axios.get(
-                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}?timestamp=${new Date().getTime()}`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-
-                console.log('NFT data:', nftData);
-
-                if (nftData.success) {
-                    setSelectedNFT({
-                        policyId: nftData.policyId,
-                        hexName: nftData.assetName,
-                        assetName: nftData.readableAssetName,
-                        courseTitle: nftData.courseTitle,
-                        metadata: nftData.metadata,
-                        mintTransaction: nftData.mintTransaction
-                    });
-                    setShowNFTModal(true);
-                } else {
-                    toast.error('Could not find certificate NFT information');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                toast.error(error.response?.data?.message || 'Error fetching NFT information');
-            }
-        } catch (error) {
-            console.error('Error fetching certificate:', error);
-            toast.error(error.response?.data?.message || error.message || 'Failed to fetch certificate information');
-        } finally {
-            setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
-        }
-    }
-
     const handleViewCertificate2 = async (courseId) => {
         console.log('Starting handleViewCertificate2 with courseId:', courseId);
         try {
             setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
             const token = await getToken();
     
-            // Luôn kiểm tra trạng thái chứng chỉ mới nhất trước
             await checkCertificateStatus(courseId);
             
-            // First get certificate info to get policyId and transactionHash
             const { data: certData } = await axios.get(
                 `${backendUrl}/api/certificate/${userData._id}/${courseId}?timestamp=${new Date().getTime()}`,
                 { headers: { Authorization: `Bearer ${token}` } }
@@ -425,19 +338,7 @@ const MyEnrollments = () => {
             const certificate = certData.certificate;
             console.log('Certificate details:', certificate);
     
-            try {
-                // Thêm log chi tiết để debug
-                console.log('CERTIFICATE DETAILS:', JSON.stringify(certificate, null, 2));
-                console.log('POLICY ID:', certificate.policyId);
-                console.log('TRANSACTION HASH:', certificate.transactionHash);
-                console.log('COURSE ID:', courseId);
-                console.log('REQUEST URL:', `${backendUrl}/api/nft/info/by-policy/${encodeURIComponent(certificate.policyId)}/${encodeURIComponent(certificate.transactionHash)}`);
-                
-                // Get NFT info directly using policy ID and transaction hash
-                // Mã hóa URL các tham số giống như TransactionChecker
-                console.log('Sending request with encoded parameters:',
-                    `policyId: ${encodeURIComponent(certificate.policyId)}`,
-                    `txHash: ${encodeURIComponent(certificate.transactionHash)}`);                
+            try {                
                 const { data: nftData } = await axios.get(
                     `${backendUrl}/api/nft/info/by-policy/${encodeURIComponent(certificate.policyId)}/${encodeURIComponent(certificate.transactionHash)}?timestamp=${new Date().getTime()}`,
                     { headers: { Authorization: `Bearer ${token}` } }
@@ -485,23 +386,16 @@ const MyEnrollments = () => {
     }, [enrolledCourses]);
 
     useEffect(() => {
-        // Initial fetch with isFirstLoad = true
         fetchUserEnrolledCourses(true);
         
-        // Set up polling interval (every 2 seconds)
         const intervalId = setInterval(() => fetchUserEnrolledCourses(false), 2000);
-        
-        // Set up visibility change listener
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        
-        // Cleanup
         return () => {
             clearInterval(intervalId);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
 
-    // Handle visibility change to update courses when tab becomes visible
     const handleVisibilityChange = () => {
         if (!document.hidden) {
             fetchUserEnrolledCourses(false);
@@ -521,7 +415,6 @@ const MyEnrollments = () => {
             if (data.success) {
                 setSelectedCertData(data.progressData);
                 setShowCertModal(true);
-                // toast.success('Course progress data fetched successfully');
             } else {
                 toast.error(data.message);
             }
@@ -541,29 +434,22 @@ const MyEnrollments = () => {
         if (!progressArray[index]) return false;
         return progressArray[index].completed;
     }
-
-    // Hàm xử lý URL parameters từ Stripe được di chuyển xuống dưới sau khi fetchPurchaseHistory được định nghĩa
-
     useEffect(() => {
         if (showPurchaseHistory) {
-            // Lọc purchaseHistory khi ở tab Purchase History
             let filtered = purchaseHistory;
             if (searchQuery) {
                 filtered = filtered.filter(item => {
-                    // Nếu courseId là object, tìm theo courseTitle hoặc _id
                     if (item.courseId && typeof item.courseId === 'object') {
                         return (
                             (item.courseId.courseTitle && item.courseId.courseTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
                             (item.courseId._id && item.courseId._id.toLowerCase().includes(searchQuery.toLowerCase()))
                         );
                     }
-                    // Nếu courseId là string
                     return item.courseId && item.courseId.toLowerCase().includes(searchQuery.toLowerCase());
                 });
             }
             setFilteredCourses(filtered);
         } else if (enrolledCourses) {
-            // Lọc enrolledCourses như cũ
             let filtered = enrolledCourses;
             if (searchQuery) {
                 filtered = filtered.filter(course =>
@@ -575,80 +461,22 @@ const MyEnrollments = () => {
         }
     }, [searchQuery, enrolledCourses, showCompleted, showCertified, progressArray, certificateStatus, showPurchaseHistory, purchaseHistory]);
 
-    // Calculate pagination
     const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedFilteredCourses = filteredCourses.slice(startIndex, startIndex + itemsPerPage);
 
-    const handleViewCertificate = async (courseId) => {
-        try {
-            setLoadingCertificate(prev => ({ ...prev, [courseId]: true }));
-            const token = await getToken();
-
-            // First get certificate info to get policyId and transactionHash
-            const { data: certData } = await axios.get(
-                `${backendUrl}/api/certificate/${userData._id}/${courseId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            console.log('Certificate data:', certData);
-
-            if (!certData.success || !certData.certificate) {
-                toast.error(certData.message || 'Certificate not found');
-                return;
-            }
-
-            const certificate = certData.certificate;
-            console.log('Certificate details:', certificate);
-
-            try {
-                // Get NFT info directly using policy ID and transaction hash
-                const { data: nftData } = await axios.get(
-                    `${backendUrl}/api/nft/info/by-policy/${certificate.policyId}/${certificate.transactionHash}`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-
-                console.log('NFT data:', nftData);
-
-                if (nftData.success) {
-                    setSelectedNFT({
-                        policyId: nftData.policyId,
-                        hexName: nftData.assetName,
-                        assetName: nftData.readableAssetName,
-                        courseTitle: nftData.courseTitle,
-                        metadata: nftData.metadata,
-                        mintTransaction: nftData.mintTransaction
-                    });
-                    setShowNFTModal(true);
-                } else {
-                    toast.error('Could not find certificate NFT information');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                toast.error(error.response?.data?.message || 'Error fetching NFT information');
-            }
-        } catch (error) {
-            console.error('Error fetching certificate:', error);
-            toast.error(error.response?.data?.message || error.message || 'Failed to fetch certificate information');
-        } finally {
-            setLoadingCertificate(prev => ({ ...prev, [courseId]: false }));
-        }
-    }
 
     const handleDownloadCertPDF = (certData) => {
-        // Tạo PDF với cấu hình hỗ trợ Unicode
         const pdf = new jsPDF({
             orientation: 'landscape',
             unit: 'mm',
             format: 'a4'
         });
         
-        // Lấy kích thước trang
         const width = pdf.internal.pageSize.width;
         const height = pdf.internal.pageSize.height;
         const centerX = width / 2;
         
-        // Thêm background màu gradient
         const gradient = function(x, y, w, h, color1, color2) {
             for (let i = 0; i <= h; i += 1) {
                 const ratio = i / h;
@@ -660,89 +488,71 @@ const MyEnrollments = () => {
             }
         };
         
-        // Màu gradient nhẹ cho background
         gradient(0, 0, width, height, 
-            {r: 255, g: 255, b: 255}, // Trắng ở trên
-            {r: 240, g: 248, b: 255}  // Xanh nhạt ở dưới
+            {r: 255, g: 255, b: 255}, 
+            {r: 240, g: 248, b: 255} 
         );
         
-        // Vẽ viền trang trí
-        pdf.setDrawColor(41, 128, 185); // Màu xanh
+        pdf.setDrawColor(41, 128, 185);
         pdf.setLineWidth(2);
         pdf.roundedRect(15, 15, width - 30, height - 30, 5, 5, 'S');
         
-        // Vẽ họa tiết trang trí góc
         pdf.setDrawColor(41, 128, 185);
         pdf.setLineWidth(1.5);
-        // Góc trên bên trái
         pdf.line(15, 25, 35, 25);
         pdf.line(25, 15, 25, 35);
-        // Góc trên bên phải
         pdf.line(width - 15, 25, width - 35, 25);
         pdf.line(width - 25, 15, width - 25, 35);
-        // Góc dưới bên trái
         pdf.line(15, height - 25, 35, height - 25);
         pdf.line(25, height - 15, 25, height - 35);
-        // Góc dưới bên phải
         pdf.line(width - 15, height - 25, width - 35, height - 25);
         pdf.line(width - 25, height - 15, width - 25, height - 35);
-        
-        // Tiêu đề chính
         pdf.setFont(undefined, "bold");
         pdf.setFontSize(36);
-        pdf.setTextColor(41, 128, 185); // Màu xanh
+        pdf.setTextColor(41, 128, 185);
         pdf.text("CERTIFICATE", centerX, 50, { align: "center" });
         
         pdf.setFontSize(22);
-        pdf.setTextColor(70, 70, 70); // Màu xám đậm
+        pdf.setTextColor(70, 70, 70);
         pdf.text("OF ACHIEVEMENT", centerX, 65, { align: "center" });
         
-        // Đường kẻ ngang dưới tiêu đề
         pdf.setDrawColor(41, 128, 185);
         pdf.setLineWidth(1);
         pdf.line(centerX - 50, 70, centerX + 50, 70);
         
-        // Thông tin chứng chỉ
         pdf.setFont(undefined, "normal");
         pdf.setFontSize(14);
         pdf.setTextColor(70, 70, 70);
         
         pdf.text("This is to certify that", centerX, 90, { align: "center" });
         
-        // Tên học viên
         pdf.setFont(undefined, "bold");
         pdf.setFontSize(24);
         pdf.setTextColor(41, 128, 185);
         pdf.text(certData.studentInfo.name, centerX, 105, { align: "center" });
         
-        // Thông tin khóa học
         pdf.setFont(undefined, "normal");
         pdf.setFontSize(14);
         pdf.setTextColor(70, 70, 70);
         pdf.text("has successfully completed the course", centerX, 120, { align: "center" });
         
-        // Tên khóa học
         pdf.setFont(undefined, "bold");
         pdf.setFontSize(20);
         pdf.setTextColor(41, 128, 185);
         pdf.text(certData.courseInfo.title, centerX, 135, { align: "center" });
                 
-        // Thông tin giáo viên
         pdf.setFont(undefined, "normal");
         pdf.setFontSize(14);
         pdf.setTextColor(70, 70, 70);
         pdf.text(`Instructor: ${certData.courseInfo.educatorName}`, centerX, 150, { align: "center" });
                 
-        // Ngày hoàn thành
         pdf.text(`Completion Date: ${new Date(certData.completedAt).toLocaleDateString()}`, centerX, 165, { align: "center" });
         
-        // Thông tin blockchain
         pdf.setFontSize(10);
         pdf.setTextColor(100, 100, 100);
         pdf.text(`Course ID: ${certData.courseId}`, centerX, 180, { align: "center" });
         pdf.text("Verified on Cardano Blockchain", centerX, 185, { align: "center" });
                 
-        // Thêm chữ ký và con dấu
         pdf.setDrawColor(41, 128, 185);
         pdf.setLineWidth(0.5);
         pdf.line(centerX - 50, height - 50, centerX + 50, height - 50);
@@ -750,16 +560,13 @@ const MyEnrollments = () => {
         pdf.setFontSize(12);
         pdf.text("Authorized Signature", centerX, height - 40, { align: "center" });
         
-        // Save the PDF
         pdf.save(`${certData.courseInfo.title}-certificate.pdf`);
     };
                 
-    // Hàm fetch lịch sử mua khoá học
     const fetchPurchaseHistory = async () => {
         setLoadingPurchase(true);
         try {
             const token = await getToken();
-            // Sửa endpoint đúng với backend
             const { data } = await axios.get(`${backendUrl}/api/user/purchase/history`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -775,119 +582,84 @@ const MyEnrollments = () => {
         }
     };
 
-    // Gọi fetch khi mở tab lịch sử
     useEffect(() => {
         if (showPurchaseHistory && purchaseHistory.length === 0) {
             fetchPurchaseHistory();
         }
     }, [showPurchaseHistory]);
     
-    // Xử lý tham số URL từ Stripe khi người dùng quay lại
     useEffect(() => {
-        // Xóa các thông báo cũ trước khi xử lý URL parameters
         toast.dismiss();
         
         const status = searchParams.get('status');
         const purchase_id = searchParams.get('purchase_id');
         const message = searchParams.get('message');
         
-        // Nếu không có status hoặc purchase_id, không làm gì
         if (!status || !purchase_id) return;
         
-        // Xóa tham số URL ngay lập tức để tránh việc gọi nhiều lần
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
         
-        // Kiểm tra xem có phải redirect từ thanh toán Stripe không
         if (status === 'success') {
-            // Gọi API stripeSuccess để cập nhật trạng thái thanh toán
             const callStripeSuccess = async () => {
                 try {
-                    // Gọi API stripeSuccess để cập nhật trạng thái thanh toán
                     const response = await axios.get(`${backendUrl}/api/course/stripe-success?purchase_id=${purchase_id}`);
                     
                     if (response.data && response.data.success) {
-                        // Hiển thị thông báo thành công
                         toast.success(message || 'Payment successful! Your course enrollment has been processed.');
                         
-                        // Cập nhật danh sách khóa học đã đăng ký
                         fetchUserEnrolledCourses();
                         
-                        // Cập nhật lịch sử mua hàng
                         fetchPurchaseHistory();
                     } else {
-                        // Bỏ thông báo lỗi theo yêu cầu
                         console.log('Payment was processed but enrollment failed, not showing error message as requested');
                     }
                 } catch (error) {
                     console.error('Error processing Stripe payment:', error);
-                    // Bỏ thông báo lỗi theo yêu cầu
                 }
             };
             
             callStripeSuccess();
         } else if (status === 'error') {
-            // Bỏ thông báo lỗi theo yêu cầu
             console.log('Payment error, but not showing error message as requested');
         }
     }, [searchParams, fetchUserEnrolledCourses, fetchPurchaseHistory, backendUrl, getToken]);
-
-    // useEffect xử lý URL parameters đã được thay thế bằng useEffect mới ở trên
-
     useEffect(() => {
-        // Kiểm tra và cập nhật trạng thái chứng chỉ cho tất cả các khóa học đã hoàn thành
         const checkAllCertificateStatus = async () => {
             if (!enrolledCourses || !progressArray) return;
-            
-            // Tạo một đối tượng mới để lưu trạng thái chứng chỉ
             const newCertificateStatus = {};
             
             try {
                 const token = await getToken();
-                
-                // Lấy danh sách tất cả thông báo chứng chỉ của người dùng
                 const { data } = await axios.get(
                     `${backendUrl}/api/notification/student-notifications`,
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
                 
                 if (data.success && data.notifications) {
-                    // Lọc các thông báo đã hoàn thành
                     const completedNotifications = data.notifications.filter(
                         notification => notification.status === 'completed'
                     );
                     
-                    // Cập nhật trạng thái chứng chỉ cho từng khóa học
                     completedNotifications.forEach(notification => {
                         newCertificateStatus[notification.courseId] = 'completed';
                     });
-                    
-                    // Cập nhật state với dữ liệu mới
                     setCertificateStatus(newCertificateStatus);
                 }
             } catch (error) {
-                // console.error("Error checking all certificate statuses:", error);
             }
         };
-        
-        // Gọi hàm kiểm tra khi enrolledCourses hoặc progressArray thay đổi
         checkAllCertificateStatus();
     }, [enrolledCourses, progressArray, userData]);
-
-    // Hàm reset tiến trình khóa học
     const handleResetProgress = async (courseId) => {
         try {
-            // Kiểm tra trạng thái blocked trước khi cho phép reset progress
             const checkToken = await getToken();
             const { data: progressCheckData } = await axios.post(
                 `${backendUrl}/api/user/get-course-progress`,
                 { courseId },
                 { headers: { Authorization: `Bearer ${checkToken}` } }
             );
-            
-            // Kiểm tra nếu khóa học bị blocked
             if (progressCheckData.progressData?.blocked === true || progressCheckData.progressData?.violations?.isBlocked === true) {
-                // Hiển thị thông báo lỗi sử dụng Swal thay vì toast
                 await Swal.fire({
                     title: 'Reset Progress Blocked',
                     text: 'You cannot reset progress because you are blocked due to violations',
@@ -897,8 +669,6 @@ const MyEnrollments = () => {
                 });
                 return;
             }
-            
-            // Hiển thị thông báo xác nhận
             const result = await Swal.fire({
                 title: 'Reset Course Progress',
                 html: `
@@ -919,8 +689,6 @@ const MyEnrollments = () => {
             if (!result.isConfirmed) {
                 return;
             }
-            
-            // Đánh dấu đang cập nhật
             setUpdatingProgress(prev => ({ ...prev, [courseId]: true }));
             
             const token = await getToken();
@@ -932,30 +700,21 @@ const MyEnrollments = () => {
             
             if (data.success) {
                 toast.success("Course progress has been reset successfully");
-                
-                // Reset trạng thái sentToEducator và certificateStatus
                 setSentToEducator(prev => ({
                     ...prev,
                     [courseId]: false
                 }));
-                
-                // Cập nhật trạng thái chứng chỉ
                 setCertificateStatus(prev => {
                     const newStatus = { ...prev };
-                    delete newStatus[courseId]; // Xóa hoàn toàn trạng thái chứng chỉ
+                    delete newStatus[courseId]; 
                     return newStatus;
                 });
-                
-                // Đánh dấu khóa học đã được reset
                 setResetCourses(prev => ({
                     ...prev,
                     [courseId]: true
                 }));
-                
-                // Cập nhật lại tiến trình khóa học
                 getCourseProgress();
                 
-                // Tải lại trang để đảm bảo tất cả trạng thái được cập nhật
                 setTimeout(() => {
                     window.location.reload(true);
                 }, 1500);
@@ -966,14 +725,12 @@ const MyEnrollments = () => {
             console.error("Error resetting course progress:", error);
             toast.error("An error occurred while resetting course progress");
         } finally {
-            // Đánh dấu đã hoàn thành cập nhật
             setUpdatingProgress(prev => ({ ...prev, [courseId]: false }));
         }
     };
 
     return enrolledCourses ? (
         <div className='min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0 relative'>
-            {/* Background Elements */}
             <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-50 via-indigo-50/30 to-white"></div>
                 <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -1034,8 +791,6 @@ const MyEnrollments = () => {
                         </span>
                     </button>
                 </div>
-
-                {/* Nếu là purchase history thì chỉ hiển thị bảng giao dịch, ẩn phần enrollments */}
                 {showPurchaseHistory ? (
                     <div className="mt-8">
                         <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent inline-block">Purchase History</h2>
@@ -1220,9 +975,6 @@ const MyEnrollments = () => {
                                     <th className='px-6 py-4 font-semibold truncate w-16'>STT</th>
                                     <th className='px-6 py-4 font-semibold truncate'>Course ID</th>
                                     <th className='px-6 py-4 font-semibold truncate'>Course</th>
-                                   
-                                    {/* <th className='px-6 py-4 font-semibold truncate'>Duration</th>
-                                    <th className='px-6 py-4 font-semibold truncate'>Completed</th> */}
                                     <th className='px-6 py-4 font-semibold truncate'>Status</th>
                                     <th className='px-6 py-4 font-semibold truncate'>Actions</th>
                                 </tr>
@@ -1262,13 +1014,6 @@ const MyEnrollments = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        
-                                        {/* <td className='px-4 py-3 max-sm:hidden'>
-                                            {calculateCourseDuration(course)}
-                                        </td>
-                                        <td className='px-4 py-3 max-sm:hidden'>
-                                            {course.progress && `${course.progress.lectureCompleted} / ${course.progress.totalLectures}`}  <span>Lectures</span>
-                                        </td> */}
                                         <td className='px-6 py-4 max-sm:text-right'>
                                             <button 
                                                 className={`btn ${isCompleted(index) ? 'btn-success' : 'btn-primary'} px-4 sm:px-5 py-2 ${isCompleted(index) ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'} max-sm:text-xs text-white rounded-lg shadow-sm hover:shadow transition-all duration-200 font-medium flex items-center gap-1.5 border-0`} 
@@ -1292,7 +1037,6 @@ const MyEnrollments = () => {
                                             </button>
                                         </td>
                                         <td className='px-6 py-4'>
-                                            {/* NFT chỉ hiển thị nếu là khóa onchain (course.txHash tồn tại) và đã kết nối ví. Các nút khác giữ nguyên. */}
                                             <div className="flex flex-wrap gap-2">
                                                 {connected && course.txHash && (
                                                     <button
@@ -1308,7 +1052,6 @@ const MyEnrollments = () => {
                                                         {loadingNFT[course._id] ? 'Loading...' : 'NFT'}
                                                     </button>
                                                 )}
-                                                {/* Send Educator chỉ hiển thị khi onchain, completed, chưa mint */}
                                                 {course.txHash && isCompleted(index) && certificateStatus[course._id] !== 'completed' && (
                                                     <button
                                                         onClick={() => handleSaveAddress(course._id)}
@@ -1325,7 +1068,6 @@ const MyEnrollments = () => {
                                                                 : 'Send Educator'}
                                                     </button>
                                                 )}
-                                                {/* Khi đã mint thì hiển thị Minted (disabled) */}
                                                 {course.txHash && isCompleted(index) && certificateStatus[course._id] === 'completed' && (
                                                     <button
                                                         disabled
@@ -1337,19 +1079,8 @@ const MyEnrollments = () => {
                                                         Minted
                                                     </button>
                                                 )}
-                                                {/* View Certificate và Info Download Certificate NFT chỉ hiển thị khi đã mint */}
                                                 {certificateStatus[course._id] === 'completed' && (
                                                     <>
-                                                        {/* <button
-                                                            onClick={() => handleCertificate(course._id)}
-                                                            className="btn btn-warning px-3 py-1.5 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded shadow-sm hover:from-amber-600 hover:to-amber-700 hover:shadow transition-all duration-200 font-medium border-0 flex items-center gap-1.5"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                                                            </svg>
-                                                            {loadingCertificate[course._id] ? 'Loading...' : 'View Certificate'}
-                                                        </button> */}
                                                         <button
                                                             onClick={() => handleViewCertificate2(course._id)}
                                                             disabled={loadingCertificate[course._id]}
@@ -1362,7 +1093,6 @@ const MyEnrollments = () => {
                                                         </button>
                                                     </>
                                                 )}
-                                                {/* Onchain completed: luôn hiển thị View Course Progress */}
                                                 {course.txHash && isCompleted(index) && (
                                                     <button
                                                         onClick={() => handleGetSimpleCertificate(course._id)}
@@ -1375,7 +1105,6 @@ const MyEnrollments = () => {
                                                         {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
                                                     </button>
                                                 )}
-                                                {/* Offchain đã hoàn thành: chỉ hiển thị View Course Progress */}
                                                 {!course.txHash && isCompleted(index) && (
                                                     <button
                                                         onClick={() => handleGetSimpleCertificate(course._id)}
@@ -1388,7 +1117,6 @@ const MyEnrollments = () => {
                                                         {loadingSimpleCert[course._id] ? 'Loading...' : 'View Course Progress'}
                                                     </button>
                                                 )}
-                                                {/* Reset Progress */}
                                                     <button
                                                         onClick={() => handleResetProgress(course._id)}
                                                         disabled={updatingProgress[course._id]}
@@ -1406,10 +1134,8 @@ const MyEnrollments = () => {
                             </tbody>
                         </table>
 
-                        {/* Pagination */}
                         {totalPages > 1 && (
                             <div className="flex justify-center gap-2 my-4 w-full border-t border-gray-500/20 pt-4">
-                                {/* Previous button */}
                                 <button
                                     onClick={() => handlePageChange(currentPage - 1)}
                                     disabled={currentPage === 1}
@@ -1421,17 +1147,12 @@ const MyEnrollments = () => {
                                 >
                                     Previous
                                 </button>
-
-                                {/* Page numbers */}
                                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                                     .filter(page => {
-                                        // Always show first and last page
                                         if (page === 1 || page === totalPages) return true;
-                                        // Show pages around current page
                                         return Math.abs(page - currentPage) <= 2;
                                     })
                                     .map((page, index, array) => {
-                                        // Add ellipsis if there's a gap
                                         if (index > 0 && page - array[index - 1] > 1) {
                                             return (
                                                 <React.Fragment key={`ellipsis-${page}`}>
@@ -1463,8 +1184,6 @@ const MyEnrollments = () => {
                                             </button>
                                         );
                                     })}
-
-                                {/* Next button */}
                                 <button
                                     onClick={() => handlePageChange(currentPage + 1)}
                                     disabled={currentPage === totalPages}
@@ -1481,8 +1200,6 @@ const MyEnrollments = () => {
                     </>
                 )}
             </div>
-
-            {/* NFT Information Modal */}
             {showNFTModal && selectedNFT && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
@@ -1500,19 +1217,6 @@ const MyEnrollments = () => {
                                 <label className="text-sm text-gray-600">Policy ID</label>
                                 <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.policyId}</p>
                             </div>
-                            {/* <div>
-                                <label className="text-sm text-gray-600">Hex Name</label>
-                                <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.hexName}</p>
-                            </div>
-                            <div>
-                                <label className="text-sm text-gray-600">Asset Name (Readable)</label>
-                                <p className="font-mono text-sm break-all bg-gray-50 p-2 rounded">{selectedNFT.assetName || 'Loading...'}</p>
-                            </div> */}
-                            {/* <div>
-                                <label className="text-sm text-gray-600">Course Title</label>
-                                <p className="text-sm bg-gray-50 p-2 rounded">{selectedNFT.courseTitle}</p>
-                            </div> */}
-                            
                             {selectedNFT.metadata && selectedNFT.metadata['721'] && (
                                 <div className="mt-4">
                                     <label className="text-sm text-gray-600 font-medium">Metadata Fields</label>
@@ -1525,7 +1229,6 @@ const MyEnrollments = () => {
                                                 const assetInfo = assetData[assetKey];
                                                 
                                                 return Object.entries(assetInfo).map(([key, value]) => {
-                                                    // Bỏ qua các trường là object phức tạp hoặc các trường cần ẩn
                                                     if (typeof value === 'object' && value !== null || 
                                                         key === 'image' || 
                                                         key === 'student_id' || 
@@ -1599,8 +1302,6 @@ const MyEnrollments = () => {
                     </div>
                 </div>
             )}
-
-            {/* QR Code Modal */}
             {showQRModal && selectedNFTForQR && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
@@ -1623,21 +1324,6 @@ const MyEnrollments = () => {
                                     {selectedNFTForQR.policyId}
                                 </div>
                             </div>
-
-                            {/* <div>
-                                <h3 className="text-gray-600 mb-2">Hex Name</h3>
-                                <div className="bg-gray-50 p-4 rounded">
-                                    {selectedNFTForQR.hexName}
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-gray-600 mb-2">Asset Name (Readable)</h3>
-                                <div className="bg-gray-50 p-4 rounded">
-                                    {selectedNFTForQR.assetName}
-                                </div>
-                            </div> */}
-
                             {selectedNFTForQR.metadata && selectedNFTForQR.metadata['721'] && (
                                 <div className="mt-4">
                                     <h3 className="text-gray-600 mb-2">Metadata Fields</h3>
@@ -1650,7 +1336,6 @@ const MyEnrollments = () => {
                                                 const assetInfo = assetData[assetKey];
                                                 
                                                 return Object.entries(assetInfo).map(([key, value]) => {
-                                                    // Bỏ qua các trường là object phức tạp hoặc các trường cần ẩn
                                                     if (typeof value === 'object' && value !== null || 
                                                         key === 'image' || 
                                                         key === 'student_id' || 
@@ -1709,19 +1394,7 @@ const MyEnrollments = () => {
                             </div>
 
                             <div>
-                                {/* <h3 className="text-gray-600 mb-2">Direct Info QR Code</h3> */}
                                 <div className="bg-gray-50 p-4 rounded flex flex-col items-center">
-                                    {/* <div className="border border-gray-200 p-2">
-                                        <QRCodeSVG
-                                            value={JSON.stringify({
-                                                policyId: selectedNFTForQR.policyId,
-                                                txHash: selectedNFTForQR.mintTransaction.txHash
-                                            })}
-                                            size={200}
-                                            level="H"
-                                            includeMargin={true}
-                                        />
-                                    </div> */}
                                     <p className="mt-4 text-sm text-gray-600">Scan for blockchain info</p>
                                     <button
                                         onClick={() => {
@@ -1735,20 +1408,14 @@ const MyEnrollments = () => {
                                                 block: selectedNFTForQR.mintTransaction.block,
                                                 metadata: selectedNFTForQR.metadata
                                             };
-
-                                            // Tạo PDF với cấu hình hỗ trợ Unicode
                                             const pdf = new jsPDF({
                                                 orientation: 'p',
                                                 unit: 'mm',
                                                 format: 'a4'
                                             });
-                                            
-                                            // Lấy kích thước trang
                                             const width = pdf.internal.pageSize.width;
                                             const height = pdf.internal.pageSize.height;
                                             const centerX = width / 2;
-                                            
-                                            // Thêm background màu gradient
                                             const gradient = function(x, y, w, h, color1, color2) {
                                                 for (let i = 0; i <= h; i += 1) {
                                                     const ratio = i / h;
@@ -1759,70 +1426,47 @@ const MyEnrollments = () => {
                                                     pdf.rect(x, y + i, w, 1, 'F');
                                                 }
                                             };
-                                            
-                                            // Màu gradient nhẹ cho background
                                             gradient(0, 0, width, height, 
-                                                {r: 255, g: 255, b: 255}, // Trắng ở trên
-                                                {r: 240, g: 248, b: 255}  // Xanh nhạt ở dưới
+                                                {r: 255, g: 255, b: 255}, 
+                                                {r: 240, g: 248, b: 255} 
                                             );
-                                            
-                                            // Vẽ viền trang trí
-                                            pdf.setDrawColor(41, 128, 185); // Màu xanh
+
+                                            pdf.setDrawColor(41, 128, 185); 
                                             pdf.setLineWidth(1.5);
                                             pdf.roundedRect(15, 15, width - 30, height - 30, 5, 5, 'S');
-                                            
-                                            // Vẽ họa tiết trang trí góc
                                             pdf.setDrawColor(41, 128, 185);
                                             pdf.setLineWidth(1);
-                                            // Góc trên bên trái
                                             pdf.line(15, 25, 35, 25);
                                             pdf.line(25, 15, 25, 35);
-                                            // Góc trên bên phải
                                             pdf.line(width - 15, 25, width - 35, 25);
                                             pdf.line(width - 25, 15, width - 25, 35);
-                                            // Góc dưới bên trái
                                             pdf.line(15, height - 25, 35, height - 25);
                                             pdf.line(25, height - 15, 25, height - 35);
-                                            // Góc dưới bên phải
                                             pdf.line(width - 15, height - 25, width - 35, height - 25);
                                             pdf.line(width - 25, height - 15, width - 25, height - 35);
-                                            
-                                            // Tiêu đề chính
                                             pdf.setFont(undefined, "bold");
                                             pdf.setFontSize(24);
-                                            pdf.setTextColor(41, 128, 185); // Màu xanh
+                                            pdf.setTextColor(41, 128, 185);
                                             pdf.text("BLOCKCHAIN CERTIFICATE", centerX, 35, { align: "center" });
-                                            
-                                            // Đường kẻ ngang dưới tiêu đề
                                             pdf.setDrawColor(41, 128, 185);
                                             pdf.setLineWidth(0.5);
                                             pdf.line(centerX - 60, 40, centerX + 60, 40);
-                                            
-                                            // Tên khóa học
                                             pdf.setFont(undefined, "bold");
                                             pdf.setFontSize(18);
                                             pdf.setTextColor(70, 70, 70);
                                             pdf.text(certificateData.courseTitle, centerX, 50, { align: "center" });
-                                            
-                                            // Thông tin chính
                                             pdf.setFont(undefined, "bold");
                                             pdf.setFontSize(12);
                                             pdf.setTextColor(41, 128, 185);
                                             pdf.text('Policy ID:', 25, 65);
                                             pdf.text('Transaction Hash:', 25, 75);
-                                            
-                                            // Giá trị
                                             pdf.setFont(undefined, "normal");
                                             pdf.setFontSize(10);
                                             pdf.setTextColor(70, 70, 70);
-                                            
-                                            // Split long text into multiple lines
                                             const policyIdValue = pdf.splitTextToSize(certificateData.policyId, 140);
                                             const txHashValue = pdf.splitTextToSize(certificateData.txHash, 140);
                                             pdf.text(policyIdValue, 65, 65);
                                             pdf.text(txHashValue, 65, 75);
-                                            
-                                            // Tiêu đề phần metadata
                                             let yPos = 90;
                                             pdf.setDrawColor(41, 128, 185);
                                             pdf.setLineWidth(0.5);
@@ -1833,8 +1477,6 @@ const MyEnrollments = () => {
                                             pdf.setTextColor(41, 128, 185);
                                             pdf.text('CERTIFICATE METADATA', centerX, yPos + 7, { align: 'center' });
                                             yPos += 15;
-                                            
-                                            // Extract and display metadata fields
                                             if (certificateData.metadata && certificateData.metadata['721']) {
                                                 const metadataFields = [];
                                                 
@@ -1844,7 +1486,6 @@ const MyEnrollments = () => {
                                                         const assetInfo = assetData[assetKey];
                                                         
                                                         Object.entries(assetInfo).forEach(([key, value]) => {
-                                                            // Skip complex objects and hidden fields
                                                             if (typeof value === 'object' && value !== null || 
                                                                 key === 'image' || 
                                                                 key === 'student_id' || 
@@ -1856,22 +1497,16 @@ const MyEnrollments = () => {
                                                         });
                                                     });
                                                 });
-                                                
-                                                // Vẽ background cho metadata
-                                                pdf.setFillColor(248, 250, 252); // Màu xám nhạt
+
+                                                pdf.setFillColor(248, 250, 252);
                                                 pdf.roundedRect(25, yPos, width - 50, Math.min(metadataFields.length * 12 + 10, 100), 3, 3, 'F');
-                                                
-                                                // Hiển thị các trường metadata
+
                                                 yPos += 8;
                                                 pdf.setFontSize(11);
-                                                
-                                                // Tạo bảng 2 cột nếu có nhiều trường
                                                 const useColumns = metadataFields.length > 4;
                                                 const colWidth = useColumns ? (width - 60) / 2 : width - 60;
-                                                let col2YPos = yPos;
-                                                
+                                                let col2YPos = yPos;    
                                                 metadataFields.forEach((field, index) => {
-                                                    // Xác định vị trí hiển thị (cột 1 hoặc cột 2)
                                                     let currentX = 30;
                                                     let currentYPos = yPos;
                                                     
@@ -1882,30 +1517,20 @@ const MyEnrollments = () => {
                                                     } else {
                                                         yPos += 12;
                                                     }
-                                                    
-                                                    // Tên trường
                                                     pdf.setFont(undefined, "bold");
                                                     pdf.setTextColor(70, 70, 70);
                                                     pdf.text(`${field.key}:`, currentX, currentYPos);
-                                                    
-                                                    // Giá trị
                                                     pdf.setFont(undefined, "normal");
                                                     pdf.setTextColor(100, 100, 100);
                                                     
                                                     const valueLines = pdf.splitTextToSize(field.value, colWidth - 40);
                                                     pdf.text(valueLines, currentX + 35, currentYPos);
-                                                    
-                                                    // Tăng vị trí y nếu có nhiều dòng
                                                     if (valueLines.length > 1 && !useColumns) {
                                                         yPos += (valueLines.length - 1) * 5;
                                                     }
                                                 });
-                                                
-                                                // Cập nhật vị trí y cho phần tiếp theo
                                                 yPos = Math.max(yPos, col2YPos) + 10;
                                             }
-                                            
-                                            // Tiêu đề phần QR code
                                             pdf.setDrawColor(41, 128, 185);
                                             pdf.setLineWidth(0.5);
                                             pdf.line(25, yPos, width - 25, yPos);
@@ -1914,19 +1539,13 @@ const MyEnrollments = () => {
                                             pdf.setFontSize(16);
                                             pdf.setTextColor(41, 128, 185);
                                             pdf.text('BLOCKCHAIN VERIFICATION', centerX, yPos + 7, { align: 'center' });
-                                            
-                                            // Thêm hướng dẫn quét QR
                                             pdf.setFont(undefined, "normal");
                                             pdf.setFontSize(10);
                                             pdf.setTextColor(70, 70, 70);
                                             pdf.text('Scan these QR codes to verify the authenticity of this certificate on the Cardano blockchain', 
                                                    centerX, yPos + 15, { align: 'center' });
-                                            
-                                            // Kích thước và vị trí QR code
-                                            const qrCodeSize = 40; // Kích thước QR code
-                                            const qrStartY = yPos + 25; // Vị trí bắt đầu sau metadata
-                                            
-                                            // Thêm cả hai QR Code cạnh nhau
+                                            const qrCodeSize = 40; 
+                                            const qrStartY = yPos + 25; 
                                             Promise.all([
                                                 html2canvas(document.querySelector('.border.border-gray-200.p-2')),
                                                 html2canvas(document.querySelectorAll('.border.border-gray-200.p-2')[1])
@@ -1934,41 +1553,32 @@ const MyEnrollments = () => {
                                                 const imgData1 = canvas1.toDataURL('image/png');
                                                 const imgData2 = canvas2.toDataURL('image/png');
                                                 
-                                                // Thêm trang mới nếu cần
                                                 if (qrStartY + qrCodeSize + 20 > pdf.internal.pageSize.height) {
                                                     pdf.addPage();
-                                                    // Thêm background gradient cho trang mới
                                                     gradient(0, 0, width, height, 
-                                                        {r: 255, g: 255, b: 255}, // Trắng ở trên
-                                                        {r: 240, g: 248, b: 255}  // Xanh nhạt ở dưới
+                                                        {r: 255, g: 255, b: 255}, 
+                                                        {r: 240, g: 248, b: 255}  
                                                     );
-                                                    // Thêm viền trang trí
                                                     pdf.setDrawColor(41, 128, 185);
                                                     pdf.setLineWidth(1.5);
                                                     pdf.roundedRect(15, 15, width - 30, height - 30, 5, 5, 'S');
                                                 }
                                                 
-                                                // Tạo background cho QR code
                                                 const leftQRX = width / 2 - qrCodeSize - 20;
                                                 const rightQRX = width / 2 + 20;
                                                 
-                                                // Background cho QR code bên trái
                                                 pdf.setFillColor(248, 250, 252);
                                                 pdf.roundedRect(leftQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'F');
                                                 
-                                                // Background cho QR code bên phải
                                                 pdf.setFillColor(248, 250, 252);
                                                 pdf.roundedRect(rightQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'F');
                                                 
-                                                // Viền cho QR code bên trái
                                                 pdf.setDrawColor(41, 128, 185);
                                                 pdf.setLineWidth(0.5);
                                                 pdf.roundedRect(leftQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'S');
                                                 
-                                                // Viền cho QR code bên phải
                                                 pdf.roundedRect(rightQRX - 5, qrStartY - 5, qrCodeSize + 10, qrCodeSize + 30, 3, 3, 'S');
                                                 
-                                                // QR code bên trái
                                                 pdf.addImage(imgData1, 'PNG', leftQRX, qrStartY, qrCodeSize, qrCodeSize);
                                                 pdf.setFont(undefined, "bold");
                                                 pdf.setFontSize(10);
@@ -1979,7 +1589,6 @@ const MyEnrollments = () => {
                                                 pdf.setTextColor(100, 100, 100);
                                                 pdf.text('Scan to verify certificate', leftQRX + qrCodeSize/2, qrStartY + qrCodeSize + 15, { align: 'center' });
                                                 
-                                                // QR code bên phải
                                                 pdf.addImage(imgData2, 'PNG', rightQRX, qrStartY, qrCodeSize, qrCodeSize);
                                                 pdf.setFont(undefined, "bold");
                                                 pdf.setFontSize(10);
@@ -1990,9 +1599,8 @@ const MyEnrollments = () => {
                                                 pdf.setTextColor(100, 100, 100);
                                                 pdf.text('Scan for transaction details', rightQRX + qrCodeSize/2, qrStartY + qrCodeSize + 15, { align: 'center' });
                                                 
-                                                // Thêm chữ ký và ngày cấp
                                                 const signatureY = qrStartY + qrCodeSize + 35;
-                                                if (signatureY + 30 < height - 20) { // Kiểm tra còn đủ chỗ
+                                                if (signatureY + 30 < height - 20) { 
                                                     pdf.setDrawColor(41, 128, 185);
                                                     pdf.setLineWidth(0.5);
                                                     pdf.line(centerX - 40, signatureY, centerX + 40, signatureY);
@@ -2001,19 +1609,16 @@ const MyEnrollments = () => {
                                                     pdf.setTextColor(70, 70, 70);
                                                     pdf.text('Authorized Signature', centerX, signatureY + 5, { align: 'center' });
                                                     
-                                                    // Ngày cấp chứng chỉ
                                                     const issueDate = new Date(certificateData.timestamp).toLocaleDateString();
                                                     pdf.text(`Issue Date: ${issueDate}`, centerX, signatureY + 15, { align: 'center' });
                                                 }
                                                 
-                                                // Thêm footer
                                                 pdf.setFont(undefined, "italic");
                                                 pdf.setFontSize(8);
                                                 pdf.setTextColor(150, 150, 150);
                                                 pdf.text('This certificate is stored on the Cardano blockchain and cannot be altered or falsified.', 
                                                        centerX, height - 20, { align: 'center' });
                                                 
-                                                // Lưu PDF
                                                 pdf.save(`${certificateData.courseTitle}-certificate.pdf`);
                                             });
                                         }}
@@ -2069,7 +1674,6 @@ const MyEnrollments = () => {
                         </div>
                         
                         <div className="space-y-6">
-                            {/* Download Button */}
                             <div className="flex justify-end">
                                 <button
                                     onClick={() => handleDownloadCertPDF(selectedCertData)}
@@ -2082,7 +1686,6 @@ const MyEnrollments = () => {
                                 </button>
                             </div>
 
-                            {/* Course Info */}
                             <div className="bg-gray-50 p-4 rounded-lg">
                                 <h3 className="text-lg font-semibold mb-2">Course Information</h3>
                                 <div className="grid grid-cols-2 gap-4">
@@ -2092,7 +1695,6 @@ const MyEnrollments = () => {
                                 </div>
                             </div>
 
-                            {/* Student Info */}
                             <div className="bg-gray-50 p-4 rounded-lg">
                                 <h3 className="text-lg font-semibold mb-2">Student Information</h3>
                                 <div className="grid grid-cols-2 gap-4">
@@ -2101,7 +1703,6 @@ const MyEnrollments = () => {
                                 </div>
                             </div>
 
-                            {/* Progress Info */}
                             <div className="bg-gray-50 p-4 rounded-lg">
                                 <h3 className="text-lg font-semibold mb-2">Progress Information</h3>
                                 <div className="space-y-2">
@@ -2119,7 +1720,6 @@ const MyEnrollments = () => {
                                 </div>
                             </div>
 
-                            {/* Test Results */}
                             {selectedCertData.tests && selectedCertData.tests.length > 0 && (
                                 <div className="bg-gray-50 p-4 rounded-lg">
                                     <h3 className="text-lg font-semibold mb-2">Test Results</h3>
