@@ -1,19 +1,16 @@
-/* eslint-disable no-unused-vars */
+
 import React, { useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { AppContext } from '../../context/AppContext';
-import { assets } from '../../assets/assets';
 import humanizeDuration from 'humanize-duration';
 import YouTube from 'react-youtube';
-import Footer from '../../components/student/Footer';
 import Rating from '../../components/student/Rating';
 import Loading from '../../components/student/Loading';
 import Certificate from '../../components/student/Certificate';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Biến global để lưu trữ trạng thái bị chặn
 let globalIsBlocked = false;
 
 const Player = () => {
@@ -23,12 +20,10 @@ const Player = () => {
     backendUrl,
     getToken,
     userData,
-    fetchUserEnrolledCourses,
     currentWallet,
     wallet,
   } = useContext(AppContext);
   const { courseId } = useParams();
-  const navigate = useNavigate();
 
   const [courseData, setCourseData] = useState(null);
   const [openSections, setOpenSections] = useState({});
@@ -129,31 +124,17 @@ const Player = () => {
     
     if (elem.requestFullscreen) {
       elem.requestFullscreen();
-    } else if (elem.webkitRequestFullscreen) { // Safari
+    } else if (elem.webkitRequestFullscreen) {
       elem.webkitRequestFullscreen();
-    } else if (elem.msRequestFullscreen) { // IE11
+    } else if (elem.msRequestFullscreen) {
       elem.msRequestFullscreen();
     }
   };
 
-  const handleFullscreenChange = () => {
-    const isCurrentlyFullscreen = document.fullscreenElement || 
-                                document.webkitFullscreenElement || 
-                                document.msFullscreenElement;
-    
-    setIsFullscreen(!!isCurrentlyFullscreen);
-    
-    if (!isCurrentlyFullscreen && showTest && !exitAttempted) {
-      setExitAttempted(true);
-      handleTestFailure("FAILED: You exited full screen so the test was canceled.");
-    }
-  };
+
 
   const handleTest = async (test) => {
     try {
-      // Lưu ý: Kiểm tra trạng thái vi phạm đã được thực hiện trong onClick của nút
-      // Nên không cần kiểm tra lại ở đây
-      console.log(`Starting test. Current isBlocked state: ${isBlocked}`);
       
       const token = await getToken();
       const course = courseDataCache.current || (await axios.get(
@@ -218,7 +199,6 @@ const Player = () => {
   };
 
   const startTest = (currentTest) => {
-    // Reset violation tracking for new test
     violationReportedForTestRef.current = false;
     
     const savedProgress = progressData?.tests?.find(t => t.testId === currentTest.testId);
@@ -285,45 +265,27 @@ const Player = () => {
     }
   };
 
-  // Track the last violation time for each type to prevent duplicates
   const lastViolationTimeRef = useRef({});
-  
-  // Track all violations that have been reported to prevent duplicates
   const reportedViolationsRef = useRef(new Set());
-  
-  // Track all active violation types
   const activeViolationsRef = useRef(new Set());
-  
-  // Track if we've already reported a violation for this test session
   const violationReportedForTestRef = useRef(false);
-  
-  // Increase cooldown to prevent duplicate reports
-  const VIOLATION_COOLDOWN = 30000; // 30 seconds
-  
-  // Violation type priority (higher number = higher priority)
+  const VIOLATION_COOLDOWN = 30000;
   const VIOLATION_PRIORITY = {
-    "phone_detected": 5,      // Highest priority - using phone
-    "fullscreen_exit": 4,    // High priority - exited fullscreen
-    "tab_switch": 3,         // Medium priority - switched tabs
-    "face_not_detected": 2,  // Lower priority - face not detected
-    "looking_away": 1,       // Lowest priority - looking away
-    "other": 0               // Default priority
+    "phone_detected": 5, 
+    "fullscreen_exit": 4,  
+    "tab_switch": 3,      
+    "face_not_detected": 2, 
+    "looking_away": 1,    
+    "other": 0     
   };
-  
-  // Function to clear a specific violation type from active violations
   const clearViolation = (violationType) => {
     if (activeViolationsRef.current.has(violationType)) {
-      console.log(`Clearing violation: ${violationType}`);
       activeViolationsRef.current.delete(violationType);
-      console.log(`Active violations after clearing: ${Array.from(activeViolationsRef.current).join(', ')}`);
     }
   };
   
   const captureViolationImage = async (reason, violationType) => {
     if (!videoRef.current) return;
-    
-    // Ensure we use the provided violationType directly if available, otherwise map from reason
-    // This prevents incorrect violation type identification
     let actualViolationType = violationType;
     
     if (!actualViolationType) {
@@ -342,56 +304,27 @@ const Player = () => {
       actualViolationType = violationTypeMap[reason] || "other";
     }
     
-    // Add this violation type to active violations
     activeViolationsRef.current.add(actualViolationType);
-    
-    // Log the violation type determination for debugging
-    console.log(`Violation detection - Reason: ${reason}, Type: ${actualViolationType}`);
-    console.log(`Active violations: ${Array.from(activeViolationsRef.current).join(', ')}`);
-    
+
     const now = Date.now();
     const lastTime = lastViolationTimeRef.current[actualViolationType] || 0;
-    
-    // Create a unique violation key based on type and timestamp (rounded to nearest minute)
-    // This prevents duplicate reports for the same violation type in a short time period
     const minuteTimestamp = Math.floor(now / 60000) * 60000;
     const violationKey = `${actualViolationType}_${minuteTimestamp}`;
-    
-    // Check if this violation has already been reported recently
     if (reportedViolationsRef.current.has(violationKey)) {
-      console.log(`Skipping already reported violation: ${actualViolationType} at ${new Date(minuteTimestamp).toLocaleTimeString()}`);
       return;
     }
-    
-    // Check cooldown period
     if (now - lastTime < VIOLATION_COOLDOWN) {
-      console.log(`Skipping duplicate ${actualViolationType} violation (cooldown: ${Math.round((now - lastTime) / 1000)}s < ${VIOLATION_COOLDOWN / 1000}s)`);
       return;
     }
-    
-    // Update tracking
     lastViolationTimeRef.current[actualViolationType] = now;
     reportedViolationsRef.current.add(violationKey);
-    
-    // Log for debugging
-    console.log(`Recording new violation: ${violationKey}`);
-    console.log(`Current reported violations: ${Array.from(reportedViolationsRef.current).join(', ')}`);
-    
-    // Limit the size of the reported violations set to prevent memory growth
     if (reportedViolationsRef.current.size > 50) {
-      // Remove oldest entries (this is a simple approach - in a real app you might want more sophisticated cleanup)
       const entries = Array.from(reportedViolationsRef.current);
       entries.slice(0, 10).forEach(entry => reportedViolationsRef.current.delete(entry));
     }
-    
-    // Get all active violations and sort them by priority
     const activeViolations = Array.from(activeViolationsRef.current);
     activeViolations.sort((a, b) => (VIOLATION_PRIORITY[b] || 0) - (VIOLATION_PRIORITY[a] || 0));
-    
-    // Create a combined display reason that includes all active violations
     let displayReasons = [];
-    
-    // Add human-readable descriptions for each violation type
     for (const vType of activeViolations) {
       if (vType === "phone_detected") {
         displayReasons.push("Phone usage detected");
@@ -405,13 +338,9 @@ const Player = () => {
         displayReasons.push("Switched tab or minimized window");
       }
     }
-    
-    // If no violations are active (shouldn't happen), use the original reason
     if (displayReasons.length === 0) {
       displayReasons.push(reason);
     }
-    
-    // Join all reasons with commas
     const displayReason = displayReasons.join(", ");
     
     try {
@@ -467,43 +396,27 @@ const Player = () => {
           } catch (error) {
             console.error('Error getting wallet address:', error);
           }
-          
-          // Get highest priority violation type for the main violation type
           const highestPriorityType = activeViolations.length > 0 ? activeViolations[0] : actualViolationType;
-          
-          // Create a combined message with all violation types
           const combinedMessage = `Test violations: ${displayReason}`;
-          
-          // Chỉ lấy một educatorId duy nhất từ khóa học
-          // Không lưu cả courseId và educatorId cùng lúc
           let educatorId = "";
           if (courseData && courseData.educator) {
             educatorId = courseData.educator;
-            console.log(`Using educator ID from course: ${educatorId}`);
           }
           
           const violationData = {
             studentId,
             courseId,
             testId,
-            violationType: highestPriorityType,  // Use highest priority violation as the main type
-            message: combinedMessage,  // Include all violations in the message
-            allViolations: Array.from(activeViolationsRef.current),  // Include all violation types
+            violationType: highestPriorityType, 
+            message: combinedMessage, 
+            allViolations: Array.from(activeViolationsRef.current), 
             imageData: imgData,
             walletAddress,
-            educatorId  // Thêm educatorId vào dữ liệu vi phạm
+            educatorId
           };
-          
-          console.log(`Including wallet address: ${walletAddress || 'not available'}`);
-          
-          // Kiểm tra xem đã gửi vi phạm cho bài kiểm tra này chưa
           if (violationReportedForTestRef.current) {
-            console.log(`A violation has already been reported for this test session. Skipping report.`);
             return;
-          }
-          
-          console.log(`Sending violation to database: ${actualViolationType}`);
-          
+          }          
           try {
             const response = await axios.post(
               `${backendUrl}/api/violation/report`,
@@ -516,19 +429,13 @@ const Player = () => {
             );
             
             if (response.data.success) {
-              console.log(`${actualViolationType} violation saved to database`);
-              // Đánh dấu đã gửi vi phạm cho bài kiểm tra này
               violationReportedForTestRef.current = true;
-              
-              // Tạo tiến trình khóa học khi có vi phạm
               try {
-                console.log('Creating course progress for violation');
                 const progressToken = await getToken();
                 const progressResponse = await axios.post(
                   `${backendUrl}/api/user/update-course-progress`,
                   {
                     courseId,
-                    // Sử dụng testId hoặc một ID duy nhất cho vi phạm
                     lectureId: testId || `violation_${new Date().getTime()}`,
                     violation: {
                       type: actualViolationType,
@@ -820,19 +727,13 @@ const Player = () => {
       return newAnswers;
     });
   };
-
-  // Hàm lấy userId từ context
   const getUserId = () => {
     try {
-      // Sử dụng userData từ context thay vì gọi API
       if (userData && userData._id) {
-        console.log('Got user ID from context:', userData._id);
         return userData._id;
       }
-      console.error('User data not found in context');
       return null;
     } catch (error) {
-      console.error('Error getting user ID from context:', error);
       return null;
     }
   };
@@ -840,31 +741,16 @@ const Player = () => {
   const checkViolationStatus = async () => {
     try {
       if (!courseId) return;
-      
-      // Lấy userId từ context
       const userId = getUserId();
       
       if (!userId) {
-        console.log('No user ID available, cannot check violation status');
         return;
       }
-      
-      // Cập nhật studentId
       setStudentId(userId);
-      console.log('Updated studentId:', userId);
-      
-      // Lấy token để gọi API
       const token = await getToken();
-      
-      // Kiểm tra nếu không có token
       if (!token) {
-        console.error('No token available, cannot check violation status');
         return;
       }
-      
-      console.log('Checking violation status with token:', token.substring(0, 10) + '...');
-      
-      // Gọi API với token
       const response = await axios.get(
         `${backendUrl}/api/violation/count?studentId=${userId}&courseId=${courseId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -872,37 +758,24 @@ const Player = () => {
       
       if (response.data.success) {
         const { count, isBlocked: blocked } = response.data;
-        console.log(`Violation status: count=${count}, isBlocked=${blocked}`);
-        
-        // Đảm bảo blocked luôn là boolean
         const isBlockedBoolean = blocked === true || blocked === "true";
-        
-        // Cập nhật biến global
         globalIsBlocked = isBlockedBoolean;
-        
-        console.log(`Setting isBlocked to: ${isBlockedBoolean} (global: ${globalIsBlocked})`);
         setViolationCount(count);
         setIsBlocked(isBlockedBoolean);
-        
-        // Log ra state sau khi cập nhật
         setTimeout(() => {
           console.log(`Current isBlocked state after update: ${isBlocked} (global: ${globalIsBlocked})`);
         }, 100);
       }
     } catch (error) {
       console.error('Error checking violation status:', error);
-      
-      // Nếu lỗi 401, kiểm tra trạng thái vi phạm từ CourseProgress
       if (error.response && error.response.status === 401) {
         console.log('Unauthorized error, checking CourseProgress for violation data');
         
         try {
-          // Kiểm tra nếu progressData có thông tin vi phạm
           if (progressData && progressData.violations) {
             const { count, isBlocked: blocked } = progressData.violations;
             console.log(`Found violations in CourseProgress: count=${count}, isBlocked=${blocked}`);
             
-            // Cập nhật state và biến global
             const isBlockedBoolean = blocked === true || blocked === "true";
             globalIsBlocked = isBlockedBoolean;
             setViolationCount(count || 0);
@@ -919,11 +792,8 @@ const Player = () => {
 
   useEffect(() => {
     if (courseId && studentId) {
-      // Kiểm tra ngay khi component mount
       checkViolationStatus();
-      
-      // Thiết lập interval để kiểm tra định kỳ
-      const intervalId = setInterval(checkViolationStatus, 10000); // 10 giây
+      const intervalId = setInterval(checkViolationStatus, 10000); 
       
       return () => clearInterval(intervalId);
     }
@@ -1045,7 +915,6 @@ const Player = () => {
                   ctx.fillText("PHONE DETECTED!", pred.bbox[0], pred.bbox[1] - 8);
                 });
                 
-                console.log(`Phone detected with score: ${phoneDetections[0].score}`);
                 setIsPhoneDetected(true);
                 
                 captureViolationImage("Detect phone usage", "phone_detected");
@@ -1069,7 +938,6 @@ const Player = () => {
         cameraRef.current.start();
       }
     } catch (error) {
-      console.error("Error initializing AI monitoring:", error);
       toast.error("Failed to initialize camera monitoring. Please ensure camera access is allowed.");
     }
   }, [showTest, exitAttempted]);
@@ -1412,10 +1280,7 @@ const Player = () => {
                                       className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded transition-colors"
                                       onClick={async () => {
                                         try {
-                                          // Hiển thị thông báo đang kiểm tra
                                           toast.info('Checking violation status...');
-                                          
-                                          // Kiểm tra trạng thái vi phạm trước khi bắt đầu bài kiểm tra
                                           const token = await getToken();
                                           const userId = getUserId();
                                           
@@ -1424,7 +1289,6 @@ const Player = () => {
                                             return;
                                           }
                                           
-                                          // Gọi trực tiếp API để kiểm tra trạng thái vi phạm
                                           try {
                                             const response = await axios.get(
                                               `${backendUrl}/api/violation/count?studentId=${userId}&courseId=${courseId}`,
@@ -1433,28 +1297,22 @@ const Player = () => {
                                             
                                             if (response.data.success) {
                                               const { count, isBlocked: blocked } = response.data;
-                                              console.log(`Direct API check - Violation status: count=${count}, isBlocked=${blocked}`);
                                               
-                                              // Nếu bị chặn, hiển thị thông báo và không cho phép bắt đầu bài kiểm tra
                                               if (blocked === true || blocked === "true") {
                                                 toast.error(`You are blocked from taking tests due to ${count} violation(s)`);
                                                 return;
                                               }
                                             }
                                           } catch (apiError) {
-                                            console.error('Error checking violation status from API:', apiError);
                                             
-                                            // Nếu API lỗi, kiểm tra trong CourseProgress
                                             if (progressData && progressData.violations && progressData.violations.isBlocked) {
                                               toast.error(`You are blocked from taking tests due to ${progressData.violations.count || 'multiple'} violation(s)`);
                                               return;
                                             }
                                           }
                                           
-                                          // Nếu không bị chặn, bắt đầu bài kiểm tra
                                           handleTest(test);
                                         } catch (error) {
-                                          console.error('Error in Start Test button click handler:', error);
                                           toast.error('An error occurred while checking violation status');
                                         }
                                       }}
@@ -1525,7 +1383,6 @@ const Player = () => {
         </div>
       </div>
 
-      {/* Violation Image Display */}
       {showViolationImage && violationImage && (
         <div className="fixed bottom-4 right-4 z-50 bg-white rounded-lg shadow-lg border-2 border-red-500 overflow-hidden w-64">
           <div className="bg-red-500 text-white p-2 flex justify-between items-center">
@@ -1550,14 +1407,12 @@ const Player = () => {
         </div>
       )}
       
-      {/* Test Modal */}
       {showTest && testData && (
         <div 
           className="fixed inset-0 bg-gradient-to-br from-white to-blue-50 z-50 overflow-y-auto"
           ref={testContainerRef}
         >
           <div className="max-w-4xl mx-auto p-4 md:p-6 h-full">
-            {/* Camera monitoring box */}
             <div className="fixed bottom-4 left-4 w-48 h-36 border-2 border-gray-700 rounded-lg overflow-hidden z-50 bg-black">
               <video ref={videoRef} className="w-full h-full object-cover absolute top-0 left-0" autoPlay muted playsInline></video>
               <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full"></canvas>
@@ -1568,7 +1423,6 @@ const Player = () => {
                 }
               </div>
             </div>
-            {/* Test Header */}
             <div className="bg-white rounded-t-xl p-5 border-b border-blue-200 sticky top-0 z-10 shadow-sm">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
                 <div>
@@ -1611,7 +1465,6 @@ const Player = () => {
                 </div>
               </div>
               
-              {/* Security Notice */}
               <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-sm text-yellow-800 flex items-center">
                 <svg className="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -1620,7 +1473,6 @@ const Player = () => {
               </div>
             </div>
 
-            {/* Test Content */}
             <div className="py-6 px-4 md:px-6 bg-white rounded-b-xl shadow-md">
               {testResult ? (
                 <div className="bg-white rounded-xl p-8 text-center border border-blue-200 shadow-lg transition-all duration-300 transform hover:scale-[1.01]">
@@ -1673,7 +1525,6 @@ const Player = () => {
                 </div>
               ) : (
                 <div className="bg-white rounded-xl p-6 border border-blue-200 shadow-lg">
-                  {/* Question number indicator */}
                   <div className="flex justify-center mb-6">
                     <div className="bg-blue-50 rounded-full px-4 py-2 inline-flex items-center border border-blue-200">
                       <span className="text-blue-800 font-medium">Question</span>
