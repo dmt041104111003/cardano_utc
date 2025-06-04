@@ -14,19 +14,17 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Sử dụng memory storage để xử lý stream
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    limits: { fileSize: 10 * 1024 * 1024 }, 
     fileFilter: fileFilter
 });
 
 export default upload;
 
-// Hàm helper để tạo stream từ buffer
 export const bufferToStream = (buffer) => {
     const readable = new Readable();
-    readable._read = () => {}; // _read is required but you can noop it
+    readable._read = () => {}; 
     readable.push(buffer);
     readable.push(null);
     return readable;

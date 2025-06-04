@@ -6,21 +6,14 @@ import { Readable } from 'stream';
 
 dotenv.config();
 
-// Initialize Pinata with JWT
 const pinata = new pinataSDK({ pinataJWTKey: process.env.PINATA_JWT });
 
-/**
- * Upload content to IPFS via Pinata
- * @param {string|Buffer} content - File path or buffer to upload
- * @param {string} [filename] - Optional filename for buffer uploads
- */
 async function uploadToPinata(content, filename) {
     try {
         let readableStream;
         let options = { pinataMetadata: {} };
 
         if (Buffer.isBuffer(content)) {
-            // Handle buffer input
             readableStream = Readable.from(content);
             options.pinataMetadata.name = filename || `certificate_${Date.now()}.png`;
             console.log('Uploading buffer to Pinata...');
