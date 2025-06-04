@@ -1,9 +1,8 @@
-/**
- * Custom initiator class for MeshSDK transactions
- */
+
 class CustomInitiator {
-    constructor(address, collateral, utxos) {
+    constructor(address, collateral = [], utxos = []) {
         this.address = address;
+        this.changeAddress = address; 
         this.collateral = collateral;
         this.utxos = utxos;
     }
@@ -13,10 +12,18 @@ class CustomInitiator {
     }
 
     getChangeAddress() {
-        return this.address; // Use same address for change
+        return this.address; 
+    }
+
+    async getChangeAddressAsync() {
+        return this.changeAddress;
     }
 
     getUtxos() {
+        return this.utxos;
+    }
+
+    async getUtxosAsync() {
         return this.utxos;
     }
 
@@ -24,15 +31,17 @@ class CustomInitiator {
         return this.collateral;
     }
 
-    // Required by MeshSDK
+    async getCollateralAsync() {
+        return this.collateral;
+    }
+
     getBalance() {
         if (!this.utxos || this.utxos.length === 0) return '0';
         return this.utxos.reduce((sum, utxo) => sum + (utxo.output.amount.lovelace || 0), 0).toString();
     }
 
-    // Required by MeshSDK
     getNetwork() {
-        return 0; // 0 for testnet, 1 for mainnet
+        return 0; 
     }
 }
 
