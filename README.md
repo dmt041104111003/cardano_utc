@@ -5,6 +5,10 @@
 
 Cardano UTC is an online learning platform integrated with Cardano blockchain technology, enabling certificate verification through NFTs and payments using ADA cryptocurrency. This project combines modern technologies to create a reliable and transparent Learning Management System (LMS).
 
+## Video demo
+
+[Video demo LMS - CaUTC](https://drive.google.com/file/d/14bGi-i1KBB9iM2uBzyCPdhBuDpD5ld5j/preview)
+
 ## Key Features
 
 ### For Students
