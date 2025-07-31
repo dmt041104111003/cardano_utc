@@ -7,7 +7,7 @@ Cardano UTC is an online learning platform integrated with Cardano blockchain te
 
 ## Video demo
 
-[Video demo LMS - CaUTC](https://drive.google.com/file/d/14bGi-i1KBB9iM2uBzyCPdhBuDpD5ld5j/preview)
+[![Video demo LMS - CaUTC](https://res.cloudinary.com/ddncuxapm/image/upload/v1753961383/lms-cautc_q5zmat.png)](https://drive.google.com/file/d/14bGi-i1KBB9iM2uBzyCPdhBuDpD5ld5j/preview)
 
 ## Key Features
 
